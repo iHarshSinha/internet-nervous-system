@@ -82,7 +82,10 @@ describe('RoomSync', () => {
     sync.receive(f(1));
     sync.receive(f(3)); // gap: waiting for frame 2
     let sawStale = false;
-    for (let s = 4; s <= 210; s++) sawStale ||= sync.receive(f(s)).stale === true;
+    for (let s = 4; s <= 210; s++) {
+      const result = sync.receive(f(s)); // always call it; `||=` would skip it once true
+      if (result.stale) sawStale = true;
+    }
     expect(sawStale).toBe(true); // the caller is told to reload history
     expect(sync.stats.tooOld).toBe(1);
     expect(sync.lastApplied).toBe(210); // and the stream carries on
