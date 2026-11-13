@@ -58,6 +58,7 @@ beforeAll(async () => {
     API_RATE_PER_MIN: '100000',
     SOCKET_CONNECTIONS_PER_MIN: '100000',
     SOCKET_MESSAGES_PER_SEC: '100000',
+    REPLAY_FACEBOOK_FILE: '/nonexistent/replay.ndjson.gz',
   });
   server = buildServer({
     config,

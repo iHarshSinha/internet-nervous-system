@@ -1,4 +1,4 @@
-import { rooms } from '@ins/shared';
+import { rooms, type DeltaValue } from '@ins/shared';
 import type { Ingest } from '../ingest/index.ts';
 import type { Broadcaster } from './broadcaster.ts';
 import type { LiveNamespace } from './live.ts';
@@ -20,7 +20,7 @@ export function startHeartbeat(
 ): () => void {
   let tick = 0;
   const lastTotals = new Map<string, { events: number; lagSumMs: number; lagCount: number }>();
-  const put = (key: string, field: string, value: number | null) =>
+  const put = (key: string, field: string, value: DeltaValue) =>
     broadcaster.set(rooms.world, key, field, value);
 
   const timer = setInterval(() => {
@@ -63,6 +63,13 @@ export function startHeartbeat(
       put('world', 'wd', second.world.wd);
       put('world', 'countries', second.countries);
     }
+
+    // Everyone sees when a replay is running, so recorded data is never mistaken for live.
+    const r = ingest.replay.snapshot();
+    put('replay', 'state', r.state);
+    put('replay', 'scenario', r.scenario);
+    put('replay', 'speed', r.speed);
+    put('replay', 'clock', r.clock);
 
     const counters = ingest.pipeline.counters;
     put('pipe', 'dup', counters.duplicates);

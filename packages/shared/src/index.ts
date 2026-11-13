@@ -9,3 +9,4 @@ export * from './upstream.ts';
 export * from './health.ts';
 export * from './live.ts';
 export * from './auth.ts';
+export * from './replay.ts';

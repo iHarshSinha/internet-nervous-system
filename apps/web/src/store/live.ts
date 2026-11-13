@@ -1,4 +1,4 @@
-import { rooms } from '@ins/shared';
+import { rooms, type ReplayStatus } from '@ins/shared';
 import { create } from 'zustand';
 import { applyWorldFrame } from './globe.ts';
 import { onRoomFrame } from './series.ts';
@@ -30,6 +30,8 @@ interface LiveState {
   /** Latest closed windows for the whole world, and pipeline counters. */
   world: Record<string, number>;
   pipe: Record<string, number>;
+  /** What the replay is doing (everyone sees it, so recorded data is never taken for live). */
+  replay: Pick<ReplayStatus, 'state' | 'scenario' | 'speed' | 'clock'>;
   /** Sequence number and server time of the latest `world` frame. */
   seq: number;
   serverTime: number | null;
@@ -55,6 +57,7 @@ export const useLive = create<LiveState>((set) => ({
   sources: {},
   world: {},
   pipe: {},
+  replay: { state: 'idle', scenario: null, speed: 1, clock: null },
   seq: 0,
   serverTime: null,
   delayMs: null,
@@ -81,6 +84,10 @@ export const useLive = create<LiveState>((set) => ({
         next.delayMs = Date.now() - frame.t;
         // Deltas: only fields that changed are present, so merge, never replace.
         for (const [key, field, value] of frame.d) {
+          if (key === 'replay') {
+            next.replay = { ...(next.replay ?? state.replay), [field]: value };
+            continue;
+          }
           if (typeof value !== 'number') continue;
           if (key === 'sys') {
             if (field === 'tick') next.tick = value;

@@ -218,4 +218,17 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
 - Logged-in users get: watchlist (countries, networks, minimum severity, Discord webhook) and a
   personal alert channel; alerts themselves come with Phase 2 incidents. Admins later get replay
   controls and the ops page.
-- Deploy is postponed (user's decision); next is Phase 2, detection and alerts.
+- Deploy is postponed (user's decision).
+
+**Phase 2 progress** (user wants steps 1-4 one at a time; Discord dropped; Cloudflare after step 4):
+- [x] Step 1, replay: `ingest/sources/replay.ts` streams `deploy/seed/replay/facebook-20211004.ndjson.gz`
+  through the LIVE pipeline, retimed to now (original time in `data.origTs`, eid `replay:r<run>:...`).
+  Admin API `POST /api/admin/replay` (`api/admin.ts`), status in the world room under key `replay`,
+  badge for everyone and controls for admins (`apps/web/src/components/Replay.tsx`). Measured: 20x
+  keeps pace at about 36,000 events/s; AS32934 showed 1,086 withdrawals in one wall minute. Replay
+  events do land in the live minute history (documented trade-off; it is what makes detection real).
+- [ ] Step 2: detectors D1, D1b (network vanished), D2, D3, D4, fusion, incident lifecycle, MongoDB.
+  Note: at 20x one wall minute holds 20 original minutes, so detectors must not assume real time.
+- [ ] Then: attack simulator for admins (user asked: inject labelled simulated withdrawal storm,
+  hijack, latency surge, probe dropout on a chosen country or network, for the video).
+- [ ] Step 3 incidents in the UI; step 4 incident page; then Cloudflare (user creates the token).

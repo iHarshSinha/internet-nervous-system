@@ -2,6 +2,7 @@ import { createServer, type Server as HttpServer } from 'node:http';
 import { rooms } from '@ins/shared';
 import { Server } from 'socket.io';
 import { createApp } from './api/app.ts';
+import { adminRouter } from './api/admin.ts';
 import { authRouter } from './api/auth.ts';
 import { globeRouter } from './api/globe.ts';
 import { historyRouter } from './api/history.ts';
@@ -100,6 +101,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
     routes: [
       authRouter({ config, log, store: deps.authStore, verifyGoogle: deps.verifyGoogle }),
       meRouter({ secret: config.JWT_SECRET, store: deps.authStore, adminStats: opsStats }),
+      adminRouter({ secret: config.JWT_SECRET, replay: ingest.replay, log }),
       historyRouter({ store, recent, seq }),
       globeRouter({
         probes: () => deps.lookup?.allProbes?.() ?? [],

@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
 /**
@@ -51,6 +52,15 @@ const envSchema = z.object({
     .default('1001,1008,1006')
     .transform((v) => v.split(',').map((n) => Number(n.trim())))
     .pipe(z.array(z.number().int().positive()).min(1).max(20)),
+
+  /** The Facebook outage recording made by `pnpm replay-prep`. */
+  REPLAY_FACEBOOK_FILE: z
+    .string()
+    .default(
+      fileURLToPath(
+        new URL('../../../deploy/seed/replay/facebook-20211004.ndjson.gz', import.meta.url),
+      ),
+    ),
 
   // ---- sign-in and access control
   /** Google OAuth client ID. Without it, sign-in is hidden and the app stays visitor-only. */

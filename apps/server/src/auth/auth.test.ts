@@ -120,6 +120,7 @@ async function start(env: Record<string, string>) {
     MODE: 'replay',
     GOOGLE_CLIENT_ID: CLIENT_ID,
     ADMIN_EMAILS: 'Boss@Example.com',
+    REPLAY_FACEBOOK_FILE: '/nonexistent/replay.ndjson.gz',
     ...env,
   });
   const server = buildServer({
@@ -272,6 +273,32 @@ describe('sign-in, sessions and roles', () => {
     const ok = await get(admin.body.accessToken);
     expect(ok.status).toBe(200);
     expect(await ok.json()).toHaveProperty('pipeline');
+  });
+
+  it('lets only admins control the replay, and validates commands', async () => {
+    const user = await signIn('google-token-user-xxxxxxxxxxxxxxxx');
+    const admin = await signIn('google-token-admin-xxxxxxxxxxxxxxx');
+    const send = (token: string, body: unknown) =>
+      fetch(`${url}/api/admin/replay`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    const start = { action: 'start', scenario: 'facebook-2021', speed: 10 };
+
+    expect((await send(user.body.accessToken, start)).status).toBe(403);
+    expect(
+      (await send(admin.body.accessToken, { action: 'start', scenario: 'nope', speed: 10 })).status,
+    ).toBe(400);
+    expect((await send(admin.body.accessToken, { ...start, speed: 7 })).status).toBe(400);
+
+    // The file is missing in tests: the player reports it instead of crashing.
+    const res = await send(admin.body.accessToken, start);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      state: 'error',
+      error: expect.stringMatching(/not found/),
+    });
   });
 
   it('guards the /user and /admin namespaces with the access token', async () => {

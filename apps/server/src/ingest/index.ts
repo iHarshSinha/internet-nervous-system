@@ -3,6 +3,7 @@ import type { Logger } from '../logger.ts';
 import type { Totals } from './pipeline/aggregate.ts';
 import { Pipeline, type Lookup, type WindowResult } from './pipeline/pipeline.ts';
 import { createAtlasSource } from './sources/atlas.ts';
+import { ReplayPlayer } from './sources/replay.ts';
 import { createRisSource } from './sources/ris.ts';
 import type { UpstreamSocket } from './sources/upstream-socket.ts';
 import { IngestStats } from './stats.ts';
@@ -19,6 +20,8 @@ export interface Latest {
 export interface Ingest {
   stats: IngestStats;
   pipeline: Pipeline;
+  /** Plays recorded incidents through the pipeline (admin-controlled). */
+  replay: ReplayPlayer;
   latest: Latest;
   /** One entry per upstream connection, for the status endpoint. */
   connections(): { name: string; connected: boolean; reconnects: number; messages: number }[];
@@ -73,6 +76,16 @@ export function startIngest(config: Config, log: Logger, lookup?: Lookup): Inges
     },
   });
 
+  // Recorded incidents, retimed to now and fed through the same pipeline.
+  const replay = new ReplayPlayer({
+    files: { 'facebook-2021': config.REPLAY_FACEBOOK_FILE },
+    log,
+    sink: (batch, now) => {
+      stats.accepted('replay', batch.length, batch[0]!.ts, now);
+      pipeline.ingest(batch, now);
+    },
+  });
+
   // Windows close when the watermark passes them; check four times a second.
   const ticker = setInterval(() => pipeline.tick(Date.now()), 250);
 
@@ -98,6 +111,7 @@ export function startIngest(config: Config, log: Logger, lookup?: Lookup): Inges
   return {
     stats,
     pipeline,
+    replay,
     latest,
     connections: () =>
       sockets.map((s) => ({
@@ -110,6 +124,7 @@ export function startIngest(config: Config, log: Logger, lookup?: Lookup): Inges
     onMinute: (listener) => minuteListeners.push(listener),
     stop: () => {
       clearInterval(ticker);
+      replay.stop();
       for (const socket of sockets) socket.stop();
     },
   };
