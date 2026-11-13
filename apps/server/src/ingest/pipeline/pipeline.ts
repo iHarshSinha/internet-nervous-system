@@ -82,6 +82,10 @@ export class Pipeline {
     counted: 0,
   };
   readonly origins = new OriginTable();
+  /** Latest ping result per probe (by the probe's own timestamp). */
+  readonly probeLatest = new Map<number, { ts: number; rtt: number | null }>();
+  /** Probes whose latest result changed since the consumer last looked. */
+  readonly probesChanged = new Set<number>();
 
   private readonly dedupe = new Deduper();
   private readonly opts: PipelineOptions;
@@ -173,6 +177,7 @@ export class Pipeline {
     }
     applyEvent(minute, event);
     this.counters.counted += 1;
+    this.trackProbe(event);
 
     // A probe's own country and network: where it physically is, which is
     // more meaningful for latency than where a network is registered.
@@ -181,6 +186,17 @@ export class Pipeline {
     const asn = probe?.asn ?? event.entity.asn;
     if (probe?.cc) applyEvent(this.atlasMinutes.slot(`country:${probe.cc}`, event.ts)!, event);
     if (asn !== undefined) applyEvent(this.atlasMinutes.slot(`asn:${asn}`, event.ts)!, event);
+  }
+
+  /** Remember each probe's most recent ping result (older results do not overwrite newer). */
+  private trackProbe(event: EventEnvelope): void {
+    const id = event.entity.probeId;
+    if (event.kind !== 'atlas.ping' || id === undefined) return;
+    const rtt = typeof event.data.rtt === 'number' ? event.data.rtt : null;
+    const prev = this.probeLatest.get(id);
+    if (prev && prev.ts >= event.ts) return;
+    this.probeLatest.set(id, { ts: event.ts, rtt });
+    this.probesChanged.add(id);
   }
 
   /** Close every window the watermarks allow. Call a few times per second. */

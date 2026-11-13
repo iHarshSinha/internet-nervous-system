@@ -37,6 +37,58 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Frosted panels floating over the globe. */
+@utility glass {
+  background: linear-gradient(180deg, rgba(14, 22, 34, 0.72), rgba(8, 13, 22, 0.62));
+  border: 1px solid rgba(94, 230, 255, 0.09);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 18px 50px -18px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+}
+
+/* Panels rise into place on load. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The live dot breathes; the logo ring sends out a slow ripple. */
+@keyframes breathe {
+  50% {
+    box-shadow: 0 0 4px var(--color-signal);
+    opacity: 0.7;
+  }
+}
+@keyframes ring {
+  from {
+    transform: scale(0.7);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* uPlot tooltips and cursor in our colours. */
+.uplot .u-cursor-x {
+  border-right: 1px dashed rgba(142, 163, 181, 0.4) !important;
+}
+
+/* The globe's hover label sits above everything. */
+.scene-tooltip {
+  z-index: 40;
+}
+
 /* Soft blink for the status dot while the link is being (re)established. */
 @keyframes blink {
   50% {

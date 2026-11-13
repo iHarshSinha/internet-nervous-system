@@ -53,3 +53,39 @@ export interface LatencyPoint {
   up: number;
   down: number;
 }
+
+/**
+ * Latency colour buckets for probe dots on the globe. Only the bucket travels
+ * over the socket, so a probe whose latency wobbles inside a bucket costs no
+ * bandwidth. Upper bounds in ms; 5 means the last ping got no reply at all.
+ */
+export const LATENCY_BUCKETS_MS = [20, 50, 100, 200] as const;
+export const LOST_BUCKET = 5;
+
+export function latencyBucket(rttMs: number | null): number {
+  if (rttMs === null) return LOST_BUCKET;
+  const i = LATENCY_BUCKETS_MS.findIndex((limit) => rttMs < limit);
+  return i === -1 ? LATENCY_BUCKETS_MS.length : i;
+}
+
+export const probeKey = (id: number) => `p:${id}`;
+
+/**
+ * GET /api/probes. One row per located probe: [id, lat, lng, cc, bucket],
+ * bucket -1 while no result has been seen yet. `snapshotSeq` is the `world`
+ * room's sequence number when the rows were read: a `p:<id>` delta in a
+ * later frame is newer than the row.
+ */
+export interface ProbesResponse {
+  snapshotSeq: number;
+  probes: [id: number, lat: number, lng: number, cc: string, bucket: number][];
+}
+
+/**
+ * GET /api/countries. Current health per country, from the latest closed
+ * minute of routing and latency. Same `snapshotSeq` rule as probes.
+ */
+export interface CountriesResponse {
+  snapshotSeq: number;
+  countries: Record<string, { h: number; p50: number | null; probes: number }>;
+}

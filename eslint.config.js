@@ -25,7 +25,7 @@ export default defineConfig(
 
   // Server and tools run on Node. All logging goes through pino, never console.
   {
-    files: ['apps/server/**', 'tools/**', '*.config.js'],
+    files: ['apps/server/**', 'tools/**', '*.config.js', 'apps/web/scripts/**'],
     languageOptions: { globals: globals.node },
     rules: { 'no-console': 'error' },
   },

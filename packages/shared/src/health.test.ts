@@ -26,3 +26,11 @@ describe('healthScore', () => {
     expect(healthScore({ ann: 95, wd: 5, pings: 100, lost: 50 })).toBe(0);
   });
 });
+
+describe('latencyBucket', async () => {
+  const { latencyBucket, LOST_BUCKET } = await import('./index.ts');
+  it('maps round-trip times to colour buckets', () => {
+    expect([5, 20, 49.9, 99, 150, 900].map(latencyBucket)).toEqual([0, 1, 1, 2, 3, 4]);
+    expect(latencyBucket(null)).toBe(LOST_BUCKET);
+  });
+});

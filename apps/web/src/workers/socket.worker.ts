@@ -100,20 +100,24 @@ function onFrame(frame: Frame): void {
   if (sync) handle(frame.r, sync.receive(frame));
 }
 
-function join(roomNames: string[]): void {
-  if (!socket?.connected || roomNames.length === 0) return;
+function join(roomNames: string[]): Promise<Record<string, number>> {
+  if (!socket?.connected || roomNames.length === 0) return Promise.resolve({});
   // A fresh start for each room: frames are held until the server says
   // where the stream begins.
   for (const room of roomNames) syncs.set(room, new RoomSync());
-  socket.emit(EV.sub, { rooms: roomNames }, (ack) => {
-    if (!ack.ok) return;
-    // The server's current sequence number is our starting point: the next
-    // frame for each room must be exactly one more.
-    for (const [room, seq] of Object.entries(ack.seqs)) {
-      const sync = syncs.get(room);
-      if (sync) handle(room, sync.start(seq));
-    }
-  });
+  const s = socket;
+  return new Promise((resolve) =>
+    s.emit(EV.sub, { rooms: roomNames }, (ack) => {
+      if (!ack.ok) return resolve({});
+      // The server's current sequence number is our starting point: the next
+      // frame for each room must be exactly one more.
+      for (const [room, seq] of Object.entries(ack.seqs)) {
+        const sync = syncs.get(room);
+        if (sync) handle(room, sync.start(seq));
+      }
+      resolve(ack.seqs);
+    }),
+  );
 }
 
 const api = {
@@ -129,16 +133,17 @@ const api = {
       setStatus('live');
       // After a short drop Socket.IO restores our rooms and replays what we
       // missed. Otherwise (first connect, long drop, server restart) rejoin.
-      if (!socket?.recovered) join([...wanted]);
+      if (!socket?.recovered) void join([...wanted]);
     });
     socket.on('disconnect', () => setStatus('reconnecting'));
     socket.on(EV.frame, onFrame);
   },
 
-  subscribe(roomNames: string[]): void {
+  /** Join rooms. Resolves with each room's current sequence number (the merge starting point). */
+  subscribe(roomNames: string[]): Promise<Record<string, number>> {
     const fresh = roomNames.filter((room) => !wanted.has(room));
     for (const room of fresh) wanted.add(room);
-    join(fresh);
+    return join(fresh);
   },
 
   unsubscribe(roomNames: string[]): void {

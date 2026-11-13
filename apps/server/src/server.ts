@@ -12,7 +12,8 @@ import type { Logger } from './logger.ts';
 import { startHeartbeat } from './realtime/heartbeat.ts';
 import { Broadcaster } from './realtime/broadcaster.ts';
 import { attachLive, handleLive, type IoServer } from './realtime/live.ts';
-import { publishWindows } from './realtime/publish.ts';
+import { startPublishing } from './realtime/publish.ts';
+import { globeRouter } from './api/globe.ts';
 import { RoomSequencer } from './realtime/sequencer.ts';
 
 export interface ServerDeps {
@@ -22,7 +23,9 @@ export interface ServerDeps {
   /** Where closed 1-minute windows are stored and history is read from. */
   store: MetricsStore;
   /** Network and probe locations (filled in by the reference data loader). */
-  lookup?: Lookup;
+  lookup?: Lookup & {
+    allProbes?(): Iterable<{ id: number; lat?: number; lon?: number; cc?: string; status: string }>;
+  };
   /** Extra numbers for /api/status, such as reference data counts. */
   extraStatus?: () => Record<string, unknown>;
   /** Tests shorten these so they do not wait whole seconds. */
@@ -60,13 +63,23 @@ export function buildServer(deps: ServerDeps): RunningServer {
       .catch((err: unknown) => log.error({ err, family: window.family }, 'metrics write failed'));
   });
 
+  const globe: { publisher?: ReturnType<typeof startPublishing> } = {};
   const app = createApp({
     config,
     log,
     mongo,
     ingest,
     liveSockets: () => liveSockets(),
-    routes: [historyRouter({ store, recent, seq })],
+    routes: [
+      historyRouter({ store, recent, seq }),
+      globeRouter({
+        probes: () => deps.lookup?.allProbes?.() ?? [],
+        pipeline: ingest.pipeline,
+        // Filled in below, once the broadcaster exists; requests only arrive after listen().
+        publisher: { countries: () => globe.publisher?.countries() ?? {}, stop: () => {} },
+        seq,
+      }),
+    ],
     extraStatus: () => ({
       ...deps.extraStatus?.(),
       metrics: store.stats,
@@ -94,7 +107,8 @@ export function buildServer(deps: ServerDeps): RunningServer {
     ...(deps.ringSize !== undefined && { ringSize: deps.ringSize }),
   });
   handleLive(live, seq, broadcaster, log);
-  publishWindows(ingest, broadcaster);
+  const publisher = startPublishing(ingest, broadcaster);
+  globe.publisher = publisher;
   broadcaster.start();
   const stopHeartbeat = startHeartbeat(live, broadcaster, ingest, heartbeatMs);
 
@@ -104,6 +118,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
     broadcaster,
     async close() {
       stopHeartbeat();
+      publisher.stop();
       broadcaster.stop();
       ingest.stop();
       await io.close(); // also closes the HTTP server

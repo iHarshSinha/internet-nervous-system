@@ -1,5 +1,7 @@
 import { rooms } from '@ins/shared';
 import { create } from 'zustand';
+import { applyWorldFrame } from './globe.ts';
+import { onRoomFrame } from './series.ts';
 import type { LinkStats, LinkStatus, WorkerUpdate } from '../workers/socket.worker.ts';
 
 /** Live numbers for one upstream source (ris, atlas, ...). */
@@ -59,7 +61,12 @@ export const useLive = create<LiveState>((set) => ({
       const next: Partial<LiveState> = { status: update.status, stats: update.stats };
 
       for (const frame of update.frames) {
-        if (frame.r !== rooms.world) continue;
+        // Other rooms feed the charts; the world room feeds the globe and the readouts.
+        if (frame.r !== rooms.world) {
+          onRoomFrame(frame);
+          continue;
+        }
+        applyWorldFrame(frame);
         next.seq = frame.s;
         next.serverTime = frame.t;
         next.delayMs = Date.now() - frame.t;
