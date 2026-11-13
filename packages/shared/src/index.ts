@@ -10,3 +10,4 @@ export * from './health.ts';
 export * from './live.ts';
 export * from './auth.ts';
 export * from './replay.ts';
+export * from './scenarios.ts';

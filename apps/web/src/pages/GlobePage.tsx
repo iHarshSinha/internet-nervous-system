@@ -3,7 +3,8 @@ import { AnimatedNumber } from '../components/AnimatedNumber.tsx';
 import { Sparkline } from '../components/Sparkline.tsx';
 import { Starfield } from '../components/Starfield.tsx';
 import { Welcome } from '../components/Welcome.tsx';
-import { ReplayBadge, ReplayControls } from '../components/Replay.tsx';
+import { ReplayBadge } from '../components/Replay.tsx';
+import { ScenarioBadge, ScenarioControls } from '../components/Scenario.tsx';
 import { Panel, Stat } from '../components/ui.tsx';
 import { countryName } from '../geo.ts';
 import { GLOBE_HOME, GlobeView } from '../globe/GlobeView.tsx';
@@ -435,6 +436,7 @@ export function GlobePage() {
       {/* Greeting (signed in) or an invitation to sign in, top centre. */}
       <div className="pointer-events-none relative z-20 flex justify-center px-4 pt-3 lg:fixed lg:inset-x-0 lg:top-20 lg:pt-0">
         <div className="flex flex-col items-center gap-2">
+          <ScenarioBadge />
           <ReplayBadge />
           <Welcome />
         </div>
@@ -449,7 +451,7 @@ export function GlobePage() {
             <div className="animate-[rise_.9s_.3s_both]">
               <Sources />
             </div>
-            <ReplayControls />
+            <ScenarioControls />
           </div>
 
           <div className="lg:hidden">

@@ -17,6 +17,7 @@ import { loadConfig } from './config.ts';
 import type { Mongo } from './db/client.ts';
 import type { MetricsStore, MinuteRow } from './db/metrics.ts';
 import { createMemoryAuthStore } from './auth/store.ts';
+import { createMemoryRunsStore } from './scenarios/runs.ts';
 import { createLogger } from './logger.ts';
 import { buildServer, type RunningServer } from './server.ts';
 
@@ -66,6 +67,7 @@ beforeAll(async () => {
     mongo,
     store,
     authStore: createMemoryAuthStore(),
+    runsStore: createMemoryRunsStore(),
     verifyGoogle: null,
     heartbeatMs: 20,
     conflateMs: 20,

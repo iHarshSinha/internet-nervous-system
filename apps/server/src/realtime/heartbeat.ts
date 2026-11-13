@@ -1,4 +1,4 @@
-import { rooms, type DeltaValue } from '@ins/shared';
+import { rooms, type DeltaValue, type ScenarioStatus } from '@ins/shared';
 import type { Ingest } from '../ingest/index.ts';
 import type { Broadcaster } from './broadcaster.ts';
 import type { LiveNamespace } from './live.ts';
@@ -17,6 +17,7 @@ export function startHeartbeat(
   broadcaster: Broadcaster,
   ingest: Ingest | null,
   intervalMs = 1000,
+  scenario?: () => ScenarioStatus,
 ): () => void {
   let tick = 0;
   const lastTotals = new Map<string, { events: number; lagSumMs: number; lagCount: number }>();
@@ -26,6 +27,15 @@ export function startHeartbeat(
   const timer = setInterval(() => {
     tick += 1;
     put('sys', 'tick', tick);
+    // Everyone sees when a scenario is being injected.
+    const s = scenario?.();
+    if (s) {
+      put('scenario', 'state', s.state);
+      put('scenario', 'id', s.id);
+      put('scenario', 'startedAt', s.startedAt);
+      put('scenario', 'durationMs', s.durationMs);
+      put('scenario', 'phase', s.phase);
+    }
     put('sys', 'sockets', live.sockets.size);
     if (!ingest) return;
 

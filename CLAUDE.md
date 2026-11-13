@@ -221,14 +221,20 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
 - Deploy is postponed (user's decision).
 
 **Phase 2 progress** (user wants steps 1-4 one at a time; Discord dropped; Cloudflare after step 4):
-- [x] Step 1, replay: `ingest/sources/replay.ts` streams `deploy/seed/replay/facebook-20211004.ndjson.gz`
-  through the LIVE pipeline, retimed to now (original time in `data.origTs`, eid `replay:r<run>:...`).
-  Admin API `POST /api/admin/replay` (`api/admin.ts`), status in the world room under key `replay`,
-  badge for everyone and controls for admins (`apps/web/src/components/Replay.tsx`). Measured: 20x
-  keeps pace at about 36,000 events/s; AS32934 showed 1,086 withdrawals in one wall minute. Replay
-  events do land in the live minute history (documented trade-off; it is what makes detection real).
+- [x] Step 1, replay and scenarios. User's design (13 Nov 2026): live data flows normally; when an
+  admin triggers an outage it happens NOW for about 2 minutes, then everything returns to normal.
+  `tools/replay-prep/src/scenario.ts` cuts Facebook's own events (AS32934, 15:39-15:54 UTC) out of the
+  full recording into `deploy/seed/scenarios/facebook-2021.ndjson.gz` (132 KB, committed, copied into
+  the server Docker image). `apps/server/src/scenarios/` plays it: prime (real announcements), outage
+  (real events, 10x), gone, recovery (SIMULATED re-announcements). Events are `src: replay`,
+  `eid: replay:s<run>:...`, `data.simulated: true`. Runs are recorded in `scenario_runs`
+  (`GET /api/scenarios/runs`) so charts can mark simulated stretches. Admin API
+  `POST /api/admin/scenario`; status in the world room under key `scenario`; everyone sees a
+  SIMULATION badge. The full-file `ReplayPlayer` (`/api/admin/replay`) stays for Phase 3 load tests.
+  Measured: 14,163 events in 118 s; AS32934 showed 1,683 withdrawals over 27 prefixes in a minute.
 - [ ] Step 2: detectors D1, D1b (network vanished), D2, D3, D4, fusion, incident lifecycle, MongoDB.
   Note: at 20x one wall minute holds 20 original minutes, so detectors must not assume real time.
 - [ ] Then: attack simulator for admins (user asked: inject labelled simulated withdrawal storm,
-  hijack, latency surge, probe dropout on a chosen country or network, for the video).
+  hijack, latency surge, probe dropout on a chosen country or network, for the video). Build it as
+  more ScenarioPlans (synthetic steps) on the same runner.
 - [ ] Step 3 incidents in the UI; step 4 incident page; then Cloudflare (user creates the token).

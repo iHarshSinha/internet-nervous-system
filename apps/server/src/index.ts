@@ -3,6 +3,7 @@ import { createMongo } from './db/client.ts';
 import { createMetricsStore } from './db/metrics.ts';
 import { createGoogleVerifier } from './auth/google.ts';
 import { createMongoAuthStore } from './auth/store.ts';
+import { createMongoRunsStore } from './scenarios/runs.ts';
 import { createLogger } from './logger.ts';
 import { RefData, startRefdata } from './refdata/index.ts';
 import { buildServer } from './server.ts';
@@ -19,6 +20,7 @@ const server = buildServer({
   mongo,
   store,
   authStore,
+  runsStore: createMongoRunsStore(mongo.db),
   // Sign-in is switched on only when a Google client ID is configured.
   verifyGoogle: config.GOOGLE_CLIENT_ID ? createGoogleVerifier(config.GOOGLE_CLIENT_ID) : null,
   lookup: refdata,

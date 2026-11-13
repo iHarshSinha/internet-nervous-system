@@ -62,6 +62,11 @@ const envSchema = z.object({
       ),
     ),
 
+  /** Small scenario files (committed) that admins can inject on demand. */
+  SCENARIO_DIR: z
+    .string()
+    .default(fileURLToPath(new URL('../../../deploy/seed/scenarios/', import.meta.url))),
+
   // ---- sign-in and access control
   /** Google OAuth client ID. Without it, sign-in is hidden and the app stays visitor-only. */
   GOOGLE_CLIENT_ID: z.preprocess(

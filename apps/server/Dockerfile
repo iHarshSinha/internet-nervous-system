@@ -26,6 +26,9 @@ FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production PORT=3000
 WORKDIR /app
 COPY --from=build --chown=node:node /out ./
+# Small, committed scenario files the admin can trigger (for example the Facebook outage).
+COPY --chown=node:node deploy/seed/scenarios ./scenarios
+ENV SCENARIO_DIR=/app/scenarios
 
 # Never run as root inside the container.
 USER node

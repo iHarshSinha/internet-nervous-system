@@ -19,6 +19,7 @@ import { createLogger } from '../logger.ts';
 import { buildServer, type RunningServer } from '../server.ts';
 import { createGoogleVerifier, GoogleTokenError, type GoogleVerifier } from './google.ts';
 import { createMemoryAuthStore } from './store.ts';
+import { createMemoryRunsStore } from '../scenarios/runs.ts';
 
 // ---- the Google verifier, against a locally generated key standing in for Google's
 
@@ -129,6 +130,7 @@ async function start(env: Record<string, string>) {
     mongo,
     store,
     authStore: createMemoryAuthStore(),
+    runsStore: createMemoryRunsStore(),
     verifyGoogle: fakeGoogle,
     heartbeatMs: 20,
     conflateMs: 20,
@@ -299,6 +301,37 @@ describe('sign-in, sessions and roles', () => {
       state: 'error',
       error: expect.stringMatching(/not found/),
     });
+  });
+
+  it('lets admins trigger a scenario, and lists the simulated stretch publicly', async () => {
+    const user = await signIn('google-token-user-xxxxxxxxxxxxxxxx');
+    const admin = await signIn('google-token-admin-xxxxxxxxxxxxxxx');
+    const send = (token: string, body: unknown) =>
+      fetch(`${url}/api/admin/scenario`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    const start = { action: 'start', scenario: 'facebook-2021' };
+    expect((await send(user.body.accessToken, start)).status).toBe(403);
+    expect((await send(admin.body.accessToken, { action: 'start', scenario: 'nope' })).status).toBe(
+      400,
+    );
+
+    const res = await send(admin.body.accessToken, start);
+    expect(await res.json()).toMatchObject({
+      state: 'running',
+      id: 'facebook-2021',
+      phase: 'priming',
+    });
+    await new Promise((r) => setTimeout(r, 50));
+    const runs = (await (await fetch(`${url}/api/scenarios/runs`)).json()) as {
+      scenario: string;
+    }[];
+    expect(runs.map((r) => r.scenario)).toContain('facebook-2021');
+
+    const stopped = await send(admin.body.accessToken, { action: 'stop' });
+    expect(await stopped.json()).toMatchObject({ state: 'idle' });
   });
 
   it('guards the /user and /admin namespaces with the access token', async () => {

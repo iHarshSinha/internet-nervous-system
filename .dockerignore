@@ -17,4 +17,5 @@
 docs
 *.md
 tools
-deploy/seed
+deploy/seed/replay
+deploy/seed/capture

@@ -7,7 +7,8 @@
   "scripts": {
     "replay-prep": "node --disable-warning=ExperimentalWarning src/cli.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "scenario": "node --disable-warning=ExperimentalWarning src/scenario.ts"
   },
   "dependencies": {
     "@ins/shared": "workspace:*"

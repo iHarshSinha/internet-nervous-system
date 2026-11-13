@@ -23,6 +23,9 @@ import { attachLive, handleLive, type IoServer, type LiveNamespace } from './rea
 import { attachPrivate } from './realtime/private.ts';
 import { startPublishing } from './realtime/publish.ts';
 import { RoomSequencer } from './realtime/sequencer.ts';
+import { ScenarioRunner } from './scenarios/runner.ts';
+import type { RunsStore } from './scenarios/runs.ts';
+import { SCENARIOS } from '@ins/shared';
 
 export interface ServerDeps {
   config: Config;
@@ -32,6 +35,8 @@ export interface ServerDeps {
   store: MetricsStore;
   /** Users, sessions and watchlists. */
   authStore: AuthStore;
+  /** Records of scenario runs (simulated stretches of time). */
+  runsStore: RunsStore;
   /** Checks Google ID tokens; null when sign-in is not configured. */
   verifyGoogle: GoogleVerifier | null;
   /** Network and probe locations (filled in by the reference data loader). */
@@ -80,6 +85,29 @@ export function buildServer(deps: ServerDeps): RunningServer {
       .catch((err: unknown) => log.error({ err, family: window.family }, 'metrics write failed'));
   });
 
+  // Admin-triggered scenarios: short, labelled bursts injected into the live stream.
+  const runIds = new Map<number, Promise<string>>();
+  const scenarios = new ScenarioRunner({
+    log,
+    sink: (batch, now) => {
+      ingest.stats.accepted('replay', batch.length, now, now);
+      ingest.pipeline.ingest(batch, now);
+    },
+    onStart: (run, plan, startedAt) => {
+      const info = SCENARIOS[plan.id];
+      const id = deps.runsStore.started(plan.id, startedAt, info.asn, info.cc);
+      id.catch((err: unknown) => log.warn({ err }, 'could not record scenario run'));
+      runIds.set(run, id);
+    },
+    onEnd: (run, endedAt) => {
+      void runIds
+        .get(run)
+        ?.then((id) => deps.runsStore.ended(id, endedAt))
+        .catch((err: unknown) => log.warn({ err }, 'could not close scenario run'));
+      runIds.delete(run);
+    },
+  });
+
   const opsStats = () => ({
     pipeline: ingest.pipeline.snapshot(),
     sources: Object.fromEntries(ingest.stats.sources().map((s) => [s, ingest.stats.of(s)])),
@@ -101,7 +129,14 @@ export function buildServer(deps: ServerDeps): RunningServer {
     routes: [
       authRouter({ config, log, store: deps.authStore, verifyGoogle: deps.verifyGoogle }),
       meRouter({ secret: config.JWT_SECRET, store: deps.authStore, adminStats: opsStats }),
-      adminRouter({ secret: config.JWT_SECRET, replay: ingest.replay, log }),
+      adminRouter({
+        secret: config.JWT_SECRET,
+        replay: ingest.replay,
+        scenarios,
+        runs: deps.runsStore,
+        scenarioDir: config.SCENARIO_DIR,
+        log,
+      }),
       historyRouter({ store, recent, seq }),
       globeRouter({
         probes: () => deps.lookup?.allProbes?.() ?? [],
@@ -155,7 +190,9 @@ export function buildServer(deps: ServerDeps): RunningServer {
   const publisher = startPublishing(ingest, broadcaster);
   late.publisher = publisher;
   broadcaster.start();
-  const stopHeartbeat = startHeartbeat(live, broadcaster, ingest, heartbeatMs);
+  const stopHeartbeat = startHeartbeat(live, broadcaster, ingest, heartbeatMs, () =>
+    scenarios.snapshot(),
+  );
 
   // The admin-only `ops` room: pipeline and delivery numbers, once a second.
   const opsBroadcaster = new Broadcaster(admin, new RoomSequencer(), opts);
@@ -179,6 +216,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
       clearInterval(opsTimer);
       opsBroadcaster.stop();
       stopHeartbeat();
+      scenarios.stop();
       publisher.stop();
       broadcaster.stop();
       ingest.stop();

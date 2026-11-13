@@ -1,4 +1,4 @@
-import { rooms, type ReplayStatus } from '@ins/shared';
+import { rooms, type ReplayStatus, type ScenarioStatus } from '@ins/shared';
 import { create } from 'zustand';
 import { applyWorldFrame } from './globe.ts';
 import { onRoomFrame } from './series.ts';
@@ -32,6 +32,8 @@ interface LiveState {
   pipe: Record<string, number>;
   /** What the replay is doing (everyone sees it, so recorded data is never taken for live). */
   replay: Pick<ReplayStatus, 'state' | 'scenario' | 'speed' | 'clock'>;
+  /** An admin-triggered scenario, if one is running (everyone sees it). */
+  scenario: Pick<ScenarioStatus, 'state' | 'id' | 'startedAt' | 'durationMs' | 'phase'>;
   /** Sequence number and server time of the latest `world` frame. */
   seq: number;
   serverTime: number | null;
@@ -58,6 +60,7 @@ export const useLive = create<LiveState>((set) => ({
   world: {},
   pipe: {},
   replay: { state: 'idle', scenario: null, speed: 1, clock: null },
+  scenario: { state: 'idle', id: null, startedAt: null, durationMs: 0, phase: null },
   seq: 0,
   serverTime: null,
   delayMs: null,
@@ -84,6 +87,10 @@ export const useLive = create<LiveState>((set) => ({
         next.delayMs = Date.now() - frame.t;
         // Deltas: only fields that changed are present, so merge, never replace.
         for (const [key, field, value] of frame.d) {
+          if (key === 'scenario') {
+            next.scenario = { ...(next.scenario ?? state.scenario), [field]: value };
+            continue;
+          }
           if (key === 'replay') {
             next.replay = { ...(next.replay ?? state.replay), [field]: value };
             continue;
