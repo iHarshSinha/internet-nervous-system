@@ -1,0 +1,597 @@
+{
+  "name": "facebook-20211004",
+  "source": "RIPE NCC RIS raw data (https://data.ris.ripe.net/), MRT update files",
+  "collectors": [
+    "rrc05",
+    "rrc10",
+    "rrc11",
+    "rrc14"
+  ],
+  "window": "20211004 1520-1630 UTC",
+  "firstEvent": "15:20:00",
+  "lastEvent": "16:29:59",
+  "events": 8569494,
+  "announce": 7536132,
+  "withdraw": 1028937,
+  "peerState": 4425,
+  "mrt": {
+    "records": 3196459,
+    "updates": 3172685,
+    "states": 4425,
+    "skipped": 19349,
+    "malformed": 0
+  },
+  "mrtRecordsPerCollector": {
+    "rrc05": 722787,
+    "rrc10": 832072,
+    "rrc11": 1051589,
+    "rrc14": 570662
+  },
+  "watch": {
+    "asn": 32934,
+    "prefixesSeenAnnounced": 175,
+    "firstMinuteWith20PrefixesWithdrawn": "15:42"
+  },
+  "perMinute": [
+    {
+      "minute": "15:20",
+      "announce": 93623,
+      "withdraw": 12357,
+      "watchAnnounce": 70,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:21",
+      "announce": 71511,
+      "withdraw": 11071,
+      "watchAnnounce": 8,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:22",
+      "announce": 117051,
+      "withdraw": 12405,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:23",
+      "announce": 127288,
+      "withdraw": 15463,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:24",
+      "announce": 121139,
+      "withdraw": 13931,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:25",
+      "announce": 120970,
+      "withdraw": 15259,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:26",
+      "announce": 93983,
+      "withdraw": 12673,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:27",
+      "announce": 83581,
+      "withdraw": 13740,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:28",
+      "announce": 86562,
+      "withdraw": 11903,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:29",
+      "announce": 107211,
+      "withdraw": 15233,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:30",
+      "announce": 104850,
+      "withdraw": 13679,
+      "watchAnnounce": 34,
+      "watchWithdraw": 2,
+      "watchPrefixesWithdrawn": 2
+    },
+    {
+      "minute": "15:31",
+      "announce": 99974,
+      "withdraw": 12177,
+      "watchAnnounce": 6,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:32",
+      "announce": 97314,
+      "withdraw": 11821,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:33",
+      "announce": 85802,
+      "withdraw": 18629,
+      "watchAnnounce": 8,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:34",
+      "announce": 98441,
+      "withdraw": 12457,
+      "watchAnnounce": 5,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:35",
+      "announce": 82593,
+      "withdraw": 12754,
+      "watchAnnounce": 2,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:36",
+      "announce": 92674,
+      "withdraw": 13224,
+      "watchAnnounce": 5,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:37",
+      "announce": 69110,
+      "withdraw": 10252,
+      "watchAnnounce": 1,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:38",
+      "announce": 67435,
+      "withdraw": 8693,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:39",
+      "announce": 110870,
+      "withdraw": 10998,
+      "watchAnnounce": 77,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:40",
+      "announce": 117389,
+      "withdraw": 18994,
+      "watchAnnounce": 198,
+      "watchWithdraw": 12,
+      "watchPrefixesWithdrawn": 3
+    },
+    {
+      "minute": "15:41",
+      "announce": 85622,
+      "withdraw": 19982,
+      "watchAnnounce": 715,
+      "watchWithdraw": 51,
+      "watchPrefixesWithdrawn": 10
+    },
+    {
+      "minute": "15:42",
+      "announce": 102637,
+      "withdraw": 13219,
+      "watchAnnounce": 3446,
+      "watchWithdraw": 378,
+      "watchPrefixesWithdrawn": 25
+    },
+    {
+      "minute": "15:43",
+      "announce": 159261,
+      "withdraw": 12229,
+      "watchAnnounce": 2745,
+      "watchWithdraw": 769,
+      "watchPrefixesWithdrawn": 27
+    },
+    {
+      "minute": "15:44",
+      "announce": 105452,
+      "withdraw": 13092,
+      "watchAnnounce": 612,
+      "watchWithdraw": 369,
+      "watchPrefixesWithdrawn": 27
+    },
+    {
+      "minute": "15:45",
+      "announce": 88309,
+      "withdraw": 10548,
+      "watchAnnounce": 45,
+      "watchWithdraw": 115,
+      "watchPrefixesWithdrawn": 24
+    },
+    {
+      "minute": "15:46",
+      "announce": 102933,
+      "withdraw": 14482,
+      "watchAnnounce": 22,
+      "watchWithdraw": 4,
+      "watchPrefixesWithdrawn": 3
+    },
+    {
+      "minute": "15:47",
+      "announce": 85103,
+      "withdraw": 12274,
+      "watchAnnounce": 1,
+      "watchWithdraw": 6,
+      "watchPrefixesWithdrawn": 1
+    },
+    {
+      "minute": "15:48",
+      "announce": 128947,
+      "withdraw": 12686,
+      "watchAnnounce": 10,
+      "watchWithdraw": 31,
+      "watchPrefixesWithdrawn": 13
+    },
+    {
+      "minute": "15:49",
+      "announce": 81931,
+      "withdraw": 11421,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:50",
+      "announce": 83824,
+      "withdraw": 13411,
+      "watchAnnounce": 913,
+      "watchWithdraw": 58,
+      "watchPrefixesWithdrawn": 11
+    },
+    {
+      "minute": "15:51",
+      "announce": 85956,
+      "withdraw": 15686,
+      "watchAnnounce": 2181,
+      "watchWithdraw": 592,
+      "watchPrefixesWithdrawn": 20
+    },
+    {
+      "minute": "15:52",
+      "announce": 94029,
+      "withdraw": 14440,
+      "watchAnnounce": 196,
+      "watchWithdraw": 359,
+      "watchPrefixesWithdrawn": 20
+    },
+    {
+      "minute": "15:53",
+      "announce": 93652,
+      "withdraw": 13026,
+      "watchAnnounce": 6,
+      "watchWithdraw": 31,
+      "watchPrefixesWithdrawn": 15
+    },
+    {
+      "minute": "15:54",
+      "announce": 103913,
+      "withdraw": 13323,
+      "watchAnnounce": 0,
+      "watchWithdraw": 15,
+      "watchPrefixesWithdrawn": 8
+    },
+    {
+      "minute": "15:55",
+      "announce": 86826,
+      "withdraw": 18538,
+      "watchAnnounce": 1,
+      "watchWithdraw": 3,
+      "watchPrefixesWithdrawn": 1
+    },
+    {
+      "minute": "15:56",
+      "announce": 75445,
+      "withdraw": 14048,
+      "watchAnnounce": 0,
+      "watchWithdraw": 2,
+      "watchPrefixesWithdrawn": 1
+    },
+    {
+      "minute": "15:57",
+      "announce": 87784,
+      "withdraw": 13661,
+      "watchAnnounce": 3,
+      "watchWithdraw": 22,
+      "watchPrefixesWithdrawn": 22
+    },
+    {
+      "minute": "15:58",
+      "announce": 90643,
+      "withdraw": 12057,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "15:59",
+      "announce": 125210,
+      "withdraw": 13751,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:00",
+      "announce": 104939,
+      "withdraw": 12222,
+      "watchAnnounce": 10,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:01",
+      "announce": 125908,
+      "withdraw": 13900,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:02",
+      "announce": 253043,
+      "withdraw": 17931,
+      "watchAnnounce": 56,
+      "watchWithdraw": 7,
+      "watchPrefixesWithdrawn": 5
+    },
+    {
+      "minute": "16:03",
+      "announce": 133697,
+      "withdraw": 14948,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:04",
+      "announce": 178880,
+      "withdraw": 36058,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:05",
+      "announce": 343831,
+      "withdraw": 36771,
+      "watchAnnounce": 0,
+      "watchWithdraw": 2,
+      "watchPrefixesWithdrawn": 1
+    },
+    {
+      "minute": "16:06",
+      "announce": 319602,
+      "withdraw": 31535,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:07",
+      "announce": 200131,
+      "withdraw": 20231,
+      "watchAnnounce": 0,
+      "watchWithdraw": 40,
+      "watchPrefixesWithdrawn": 20
+    },
+    {
+      "minute": "16:08",
+      "announce": 90675,
+      "withdraw": 12607,
+      "watchAnnounce": 0,
+      "watchWithdraw": 3,
+      "watchPrefixesWithdrawn": 3
+    },
+    {
+      "minute": "16:09",
+      "announce": 101893,
+      "withdraw": 16073,
+      "watchAnnounce": 0,
+      "watchWithdraw": 17,
+      "watchPrefixesWithdrawn": 17
+    },
+    {
+      "minute": "16:10",
+      "announce": 100049,
+      "withdraw": 20828,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:11",
+      "announce": 88390,
+      "withdraw": 13555,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:12",
+      "announce": 89498,
+      "withdraw": 13111,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:13",
+      "announce": 106277,
+      "withdraw": 11954,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:14",
+      "announce": 79211,
+      "withdraw": 12952,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:15",
+      "announce": 76178,
+      "withdraw": 12714,
+      "watchAnnounce": 26,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:16",
+      "announce": 101077,
+      "withdraw": 18557,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:17",
+      "announce": 122938,
+      "withdraw": 12899,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:18",
+      "announce": 85217,
+      "withdraw": 12708,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:19",
+      "announce": 77747,
+      "withdraw": 13148,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:20",
+      "announce": 68263,
+      "withdraw": 16124,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:21",
+      "announce": 77434,
+      "withdraw": 10543,
+      "watchAnnounce": 18,
+      "watchWithdraw": 2,
+      "watchPrefixesWithdrawn": 2
+    },
+    {
+      "minute": "16:22",
+      "announce": 100786,
+      "withdraw": 11876,
+      "watchAnnounce": 10,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:23",
+      "announce": 84981,
+      "withdraw": 11565,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:24",
+      "announce": 91514,
+      "withdraw": 21379,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:25",
+      "announce": 82508,
+      "withdraw": 13003,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:26",
+      "announce": 75319,
+      "withdraw": 11947,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:27",
+      "announce": 76671,
+      "withdraw": 12877,
+      "watchAnnounce": 18,
+      "watchWithdraw": 6,
+      "watchPrefixesWithdrawn": 6
+    },
+    {
+      "minute": "16:28",
+      "announce": 89037,
+      "withdraw": 13622,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    },
+    {
+      "minute": "16:29",
+      "announce": 93590,
+      "withdraw": 11712,
+      "watchAnnounce": 0,
+      "watchWithdraw": 0,
+      "watchPrefixesWithdrawn": 0
+    }
+  ]
+}

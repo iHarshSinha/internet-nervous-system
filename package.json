@@ -15,7 +15,8 @@
     "format": "prettier --write .",
     "typecheck": "pnpm build:shared && pnpm -r typecheck",
     "test": "pnpm build:shared && pnpm -r test",
-    "capture": "pnpm build:shared && pnpm --filter @ins/capture capture"
+    "capture": "pnpm build:shared && pnpm --filter @ins/capture capture",
+    "replay-prep": "pnpm build:shared && pnpm --filter @ins/replay-prep replay-prep"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

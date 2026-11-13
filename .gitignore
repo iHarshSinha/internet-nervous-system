@@ -11,6 +11,7 @@ CLAUDE.local.md
 # large recorded data (regenerate with the scripts in tools/)
 deploy/seed/replay/*.ndjson*
 deploy/seed/capture/
+deploy/seed/replay/mrt/
 *.tsbuildinfo
 .vite/
 # local Claude Code preview config (machine-specific paths)
