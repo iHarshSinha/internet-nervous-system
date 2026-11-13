@@ -1,0 +1,23 @@
+{
+  "name": "@ins/capture",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Record the live RIS and Atlas streams to NDJSON and measure their real event rates.",
+  "type": "module",
+  "scripts": {
+    "capture": "node --disable-warning=ExperimentalWarning src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@ins/shared": "workspace:*",
+    "ws": "^8.22.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/ws": "^8.18.2",
+    "typescript": "~6.0.3",
+    "vitest": "^5.1.0"
+  }
+}

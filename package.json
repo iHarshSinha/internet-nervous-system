@@ -14,7 +14,8 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "pnpm build:shared && pnpm -r typecheck",
-    "test": "pnpm build:shared && pnpm -r test"
+    "test": "pnpm build:shared && pnpm -r test",
+    "capture": "pnpm build:shared && pnpm --filter @ins/capture capture"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
