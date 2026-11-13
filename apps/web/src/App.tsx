@@ -24,7 +24,7 @@ const STATUS: Record<LinkStatus, { label: string; dot: string; text: string }> =
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-function utcClock(ms: number | null): string {
+export function utcClock(ms: number | null): string {
   if (ms === null) return '--:--:--';
   const d = new Date(ms);
   return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
@@ -56,23 +56,38 @@ function Readout({ label, value, unit }: { label: string; value: string; unit?: 
   );
 }
 
+const count = new Intl.NumberFormat('en-US');
+
 // Each readout selects only the value it shows, so it re-renders only when that value changes.
 const Readouts = memo(function Readouts() {
   const seq = useLive((s) => s.seq);
-  const serverTime = useLive((s) => s.serverTime);
   const delayMs = useLive((s) => s.delayMs);
-  const sockets = useLive((s) => s.sockets);
+  const risEps = useLive((s) => s.sources.ris?.eps);
+  const risLag = useLive((s) => s.sources.ris?.lag);
+  const atlasEps = useLive((s) => s.sources.atlas?.eps);
+  const upstreams = useLive((s) => s.upstreams);
+  const upstreamsUp = useLive((s) => s.upstreamsUp);
   const gaps = useLive((s) => s.stats.gaps);
+
+  const rate = (n: number | undefined) => (n === undefined ? '—' : count.format(n));
 
   return (
     <dl className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-5">
-      <Readout label="Room" value="world" />
-      <Readout label="Frame" value={seq === 0 ? '—' : `#${seq}`} />
-      <Readout label="Server clock" value={utcClock(serverTime)} unit="UTC" />
-      <Readout label="Delay" value={delayMs === null ? '—' : String(delayMs)} unit="ms" />
+      <Readout label="Routing changes" value={rate(risEps)} unit="/ s" />
+      <Readout label="Latency results" value={rate(atlasEps)} unit="/ s" />
       <Readout
-        label={gaps === 0 ? 'Viewers' : 'Frames missed'}
-        value={gaps === 0 ? (sockets === null ? '—' : String(sockets)) : String(gaps)}
+        label="Routing feed delay"
+        value={risLag === undefined || risLag === null ? '—' : risLag.toFixed(1)}
+        unit="s"
+      />
+      <Readout
+        label="Feeds connected"
+        value={upstreams === null ? '—' : `${upstreamsUp ?? 0} / ${upstreams}`}
+      />
+      <Readout
+        label={gaps === 0 ? 'Frame' : 'Frames missed'}
+        value={gaps === 0 ? (seq === 0 ? '—' : `#${seq}`) : String(gaps)}
+        unit={gaps === 0 && delayMs !== null ? `${delayMs} ms` : undefined}
       />
     </dl>
   );
@@ -109,11 +124,10 @@ export function App() {
         <h1 className="max-w-[18ch] text-4xl font-semibold tracking-tight text-balance text-hi sm:text-6xl">
           The internet has a pulse.
         </h1>
-        <p className="mt-4 max-w-[52ch] text-base text-pretty text-mid sm:text-lg">
-          Each wave on the sphere is one delta frame, pushed from the server through Socket.IO to
-          the
-          <span className="font-mono text-hi"> world </span>
-          room and numbered so that nothing is lost or counted twice.
+        <p className="mt-4 max-w-[56ch] text-base text-pretty text-mid sm:text-lg">
+          Live now: every routing change and latency measurement below is real, read from RIPE RIS
+          and RIPE Atlas, counted on our server and pushed to this page through Socket.IO once a
+          second.
         </p>
       </section>
 

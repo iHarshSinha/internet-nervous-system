@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import { createApp } from './api/app.ts';
 import type { Config } from './config.ts';
 import type { Mongo } from './db/client.ts';
+import { startIngest } from './ingest/index.ts';
 import type { Logger } from './logger.ts';
 import { startHeartbeat } from './realtime/heartbeat.ts';
 import { attachLive, type IoServer } from './realtime/live.ts';
@@ -30,7 +31,12 @@ export function buildServer({ config, log, mongo, heartbeatMs }: ServerDeps): Ru
   // The app needs the socket count and Socket.IO needs the HTTP server, so the
   // count is read through a function that is filled in once both exist.
   let liveSockets = () => 0;
-  const app = createApp({ config, log, mongo, liveSockets: () => liveSockets() });
+
+  // The live sources. Their events go nowhere yet: the pipeline (dedupe,
+  // windows, storage) attaches to this sink in the next step.
+  const ingest = startIngest(config, log, () => {});
+
+  const app = createApp({ config, log, mongo, ingest, liveSockets: () => liveSockets() });
   const http = createServer(app);
 
   const io: IoServer = new Server(http, {
@@ -44,13 +50,14 @@ export function buildServer({ config, log, mongo, heartbeatMs }: ServerDeps): Ru
 
   const live = attachLive(io, seq, log);
   liveSockets = () => live.sockets.size;
-  const stopHeartbeat = startHeartbeat(live, seq, heartbeatMs);
+  const stopHeartbeat = startHeartbeat(live, seq, ingest, heartbeatMs);
 
   return {
     http,
     io,
     async close() {
       stopHeartbeat();
+      ingest.stop();
       await io.close(); // also closes the HTTP server
       await mongo.close();
     },

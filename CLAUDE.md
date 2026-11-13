@@ -167,4 +167,9 @@ socket rate limiting, no auth, no helmet. `MODE=replay` only changes a label unt
 - Atlas needs about 4 minutes of allowed lateness, not 2. Ignore timestamps ahead of the clock.
 - The Facebook replay is 8.57M events (about 2,040/s at 1x); the burst starts 15:40 UTC.
 
-Next task: Phase 1, one step at a time, starting with the RIS and Atlas connectors.
+**Phase 1 progress** (the user wants it one step at a time, with a report after each):
+- [x] Connectors: `apps/server/src/ingest/` has a reconnecting `UpstreamSocket`, one RIS connection
+  per collector (`RIS_COLLECTORS`) and one Atlas connection, normalisers to the envelope, and
+  `IngestStats`. Events currently go to a no-op sink in `server.ts`; the pipeline attaches there.
+  The `world` heartbeat frame carries per-source events/s, lag and upstream counts.
+- [ ] Next: pipeline (dedupe, 1 s and 1 min windows with watermarks, future-timestamp guard).

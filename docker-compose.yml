@@ -24,6 +24,9 @@ x-server-env: &server-env
   LOG_LEVEL: ${LOG_LEVEL:-info}
   # Defaults to the mongo container below. Set MONGODB_URI to use MongoDB Atlas instead.
   MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017/ins}
+  RIS_CLIENT_NAME: ${RIS_CLIENT_NAME:-internet-nervous-system}
+  RIS_COLLECTORS: ${RIS_COLLECTORS:-rrc00,rrc10,rrc11,rrc14}
+  ATLAS_MEASUREMENTS: ${ATLAS_MEASUREMENTS:-1001,1008,1006}
 
 services:
   mongo:

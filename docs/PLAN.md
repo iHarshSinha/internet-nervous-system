@@ -534,7 +534,7 @@ Build in this order and cut from the bottom if time runs short. After Phase 1, t
 
 **Phase 1 · Core loop**
 
-- [ ] RIS Live and Atlas connectors with reconnect and resubscribe
+- [x] RIS Live and Atlas connectors with reconnect and resubscribe
 - [ ] Validate, normalise, dedupe, 1-second and 1-minute windows with watermarks
 - [ ] `metrics_hourly` upserts and the history endpoint
 - [ ] `/live` namespace with `world` and `country:<CC>` rooms, sequence numbers and ring buffers

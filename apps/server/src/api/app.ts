@@ -1,18 +1,20 @@
 import express, { type ErrorRequestHandler, type Express } from 'express';
 import type { Config } from '../config.ts';
 import type { Mongo } from '../db/client.ts';
+import type { Ingest } from '../ingest/index.ts';
 import type { Logger } from '../logger.ts';
 
 export interface AppDeps {
   config: Config;
   log: Logger;
   mongo: Pick<Mongo, 'ping'>;
+  ingest: Ingest;
   /** Number of browsers connected to the public namespace right now. */
   liveSockets: () => number;
 }
 
 /** Build the Express app: health checks now, the REST API as later phases add it. */
-export function createApp({ config, log, mongo, liveSockets }: AppDeps): Express {
+export function createApp({ config, log, mongo, ingest, liveSockets }: AppDeps): Express {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '256kb' }));
@@ -35,6 +37,9 @@ export function createApp({ config, log, mongo, liveSockets }: AppDeps): Express
       serverTime: Date.now(),
       uptimeSeconds: Math.round(process.uptime()),
       liveSockets: liveSockets(),
+      // One entry per upstream connection, and running totals per source.
+      upstreams: ingest.connections(),
+      sources: Object.fromEntries(ingest.stats.sources().map((s) => [s, ingest.stats.of(s)])),
     });
   });
 

@@ -1,28 +1,32 @@
-import { EV, rooms, type Delta, type Frame } from '@ins/shared';
+import { EV, rooms, type Delta, type DeltaValue, type Frame } from '@ins/shared';
+import type { Ingest } from '../ingest/index.ts';
 import type { LiveNamespace } from './live.ts';
 import type { RoomSequencer } from './sequencer.ts';
 
 /**
- * Phase 0 stand-in for real telemetry: one small frame to the `world` room
- * every second. It proves the whole delivery path (rooms, sequence numbers,
- * the proxy, the browser worker) before any real data flows through it.
+ * Once a second, send the `world` room a small frame: a tick, how many
+ * browsers are connected and, per live source, events per second, mean lag
+ * and how many upstream connections are up.
  *
- * It already follows the delta rule: the tick changes every time and is always
- * sent; the number of connected clients is sent only when it has changed.
+ * It follows the delta rule: a value is sent only when it differs from the
+ * value sent last time. The tick changes every second, so there is always a
+ * frame, which also lets clients see that the link is alive.
  */
 export function startHeartbeat(
   live: LiveNamespace,
   seq: RoomSequencer,
+  ingest: Ingest | null,
   intervalMs = 1000,
 ): () => void {
   let tick = 0;
-  let lastSockets = -1;
+  const lastSent = new Map<string, DeltaValue>();
+  const lastTotals = new Map<string, { events: number; lagSumMs: number; lagCount: number }>();
 
   // A client that has just joined has no state yet, so "unchanged" values
-  // would never reach it. Until Phase 1 adds a proper snapshot, forget what
-  // we last sent whenever someone joins, so the next frame carries it again.
+  // would never reach it. Until the snapshot protocol lands, forget what we
+  // last sent whenever someone joins, so the next frame carries everything.
   const onJoin = (room: string) => {
-    if (room === rooms.world) lastSockets = -1;
+    if (room === rooms.world) lastSent.clear();
   };
   live.adapter.on('join-room', onJoin);
 
@@ -30,10 +34,43 @@ export function startHeartbeat(
     tick += 1;
     const changes: Delta[] = [['sys', 'tick', tick]];
 
-    const sockets = live.sockets.size;
-    if (sockets !== lastSockets) {
-      changes.push(['sys', 'sockets', sockets]);
-      lastSockets = sockets;
+    const put = (key: string, field: string, value: DeltaValue) => {
+      const id = `${key}/${field}`;
+      if (lastSent.get(id) === value) return;
+      lastSent.set(id, value);
+      changes.push([key, field, value]);
+    };
+
+    put('sys', 'sockets', live.sockets.size);
+
+    if (ingest) {
+      const perSecond = 1000 / intervalMs;
+      for (const source of ingest.stats.sources()) {
+        const now = ingest.stats.of(source);
+        const before = lastTotals.get(source) ?? { events: 0, lagSumMs: 0, lagCount: 0 };
+        lastTotals.set(source, {
+          events: now.events,
+          lagSumMs: now.lagSumMs,
+          lagCount: now.lagCount,
+        });
+
+        const key = `src:${source}`;
+        put(key, 'eps', Math.round((now.events - before.events) * perSecond));
+        const lagCount = now.lagCount - before.lagCount;
+        if (lagCount > 0) {
+          // Mean age of this second's events on arrival, rounded to 0.1 s so
+          // tiny wobbles do not count as a change.
+          const meanMs = (now.lagSumMs - before.lagSumMs) / lagCount;
+          put(key, 'lag', Math.round(meanMs / 100) / 10);
+        }
+        put(key, 'rejected', now.rejected);
+      }
+
+      const connections = ingest.connections();
+      if (connections.length > 0) {
+        put('sys', 'upstreams', connections.length);
+        put('sys', 'upstreamsUp', connections.filter((c) => c.connected).length);
+      }
     }
 
     const frame: Frame = { r: rooms.world, s: seq.next(rooms.world), t: Date.now(), d: changes };
