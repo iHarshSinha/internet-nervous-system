@@ -119,6 +119,18 @@ describe('/live namespace', () => {
     expect(frames[0]!.d[0]![1]).toBe('tick');
   });
 
+  it('tells a client that joins later the current viewer count', async () => {
+    const first = await openClient();
+    await sub(first, { rooms: ['world'] });
+    await collectFrames(first, 3); // the count has been sent and has not changed since
+
+    const late = await openClient();
+    const framesPromise = collectFrames(late, 3);
+    await sub(late, { rooms: ['world'] });
+    const deltas = (await framesPromise).flatMap((frame) => frame.d);
+    expect(deltas).toContainEqual(['sys', 'sockets', 2]);
+  });
+
   it('stops delivering after unsub', async () => {
     const client = await openClient();
     await sub(client, { rooms: ['world'] });

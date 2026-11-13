@@ -18,6 +18,14 @@ export function startHeartbeat(
   let tick = 0;
   let lastSockets = -1;
 
+  // A client that has just joined has no state yet, so "unchanged" values
+  // would never reach it. Until Phase 1 adds a proper snapshot, forget what
+  // we last sent whenever someone joins, so the next frame carries it again.
+  const onJoin = (room: string) => {
+    if (room === rooms.world) lastSockets = -1;
+  };
+  live.adapter.on('join-room', onJoin);
+
   const timer = setInterval(() => {
     tick += 1;
     const changes: Delta[] = [['sys', 'tick', tick]];
@@ -32,5 +40,8 @@ export function startHeartbeat(
     live.to(rooms.world).emit(EV.frame, frame);
   }, intervalMs);
 
-  return () => clearInterval(timer);
+  return () => {
+    clearInterval(timer);
+    live.adapter.off('join-room', onJoin);
+  };
 }

@@ -1,0 +1,54 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens. Tailwind turns each one into utilities (bg-void, text-signal, ...).
+ * Red is deliberately absent from everyday UI: it is reserved for critical incidents.
+ */
+@theme {
+  --color-void: #04060b;
+  --color-deep: #0a0f18;
+  --color-line: #1a2432;
+  --color-hi: #e8f1f8;
+  --color-mid: #8ea3b5;
+  --color-low: #55677a;
+  --color-signal: #5ee6ff;
+  --color-signal-dim: #1f6a80;
+  --color-caution: #ffb454;
+  --color-critical: #ff4d5e;
+
+  --font-sans:
+    'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono:
+    'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+html {
+  color-scheme: dark;
+  background: var(--color-void);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--color-void);
+  color: var(--color-hi);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Soft blink for the status dot while the link is being (re)established. */
+@keyframes blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
