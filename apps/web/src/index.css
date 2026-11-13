@@ -61,6 +61,66 @@ body {
   }
 }
 
+/* A word rising out of a clipped line (login headline). */
+@keyframes word {
+  from {
+    transform: translateY(105%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Country map: the outline draws itself, probes pop in, a radar sweep passes. */
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes sweep {
+  from {
+    transform: translateX(-10%);
+  }
+  to {
+    transform: translateX(110%);
+  }
+}
+@keyframes ping {
+  from {
+    opacity: 0.9;
+    r: 2;
+  }
+  to {
+    opacity: 0;
+    r: 22;
+  }
+}
+
 /* The live dot breathes; the logo ring sends out a slow ripple. */
 @keyframes breathe {
   50% {

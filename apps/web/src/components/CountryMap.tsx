@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadCountries, type CountryFeature } from '../geo.ts';
 import { useTick } from '../hooks/tick.ts';
 import { useGlobe } from '../store/globe.ts';
@@ -90,6 +90,22 @@ export function CountryMap({ cc, health }: { cc: string; health: number | undefi
 
   const stroke = healthColor(health, 0.75);
 
+  // Every 1.2 s a random probe "pings": a ring expands from it.
+  const probeXY = useRef<[number, number][]>([]);
+  probeXY.current = shape ? probes.map(([lng, lat]) => [shape.proj.x(lng), shape.proj.y(lat)]) : [];
+  const [pings, setPings] = useState<{ id: number; x: number; y: number }[]>([]);
+  useEffect(() => {
+    let id = 0;
+    const timer = setInterval(() => {
+      const list = probeXY.current;
+      if (list.length === 0) return;
+      const [x, y] = list[Math.floor(Math.random() * list.length)]!;
+      const ping = { id: ++id, x, y };
+      setPings((p) => [...p.slice(-4), ping]);
+    }, 1200);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
@@ -116,14 +132,23 @@ export function CountryMap({ cc, health }: { cc: string; health: number | undefi
       <rect width={W} height={H} fill="url(#grid)" />
       {shape && (
         <>
+          {/* The land fades in while its outline draws itself around it. */}
+          <path d={shape.path} fill="url(#land)" style={{ animation: 'fade 1.2s .9s both' }} />
           <path
             d={shape.path}
-            fill="url(#land)"
+            fill="none"
             stroke={stroke}
             strokeWidth="1.2"
             strokeLinejoin="round"
             filter="url(#glow)"
+            pathLength={1}
+            strokeDasharray={1}
+            style={{ animation: 'draw 2s cubic-bezier(.4,0,.2,1) .15s both' }}
           />
+          {/* A radar line sweeping across, over and over. */}
+          <rect y="0" width="1.5" height={H} fill="#5ee6ff" opacity="0.22">
+            <animate attributeName="x" from="-20" to={W + 20} dur="7s" repeatCount="indefinite" />
+          </rect>
           <g filter="url(#glow)">
             {probes.map(([lng, lat, b], i) => (
               <circle
@@ -132,9 +157,20 @@ export function CountryMap({ cc, health }: { cc: string; health: number | undefi
                 cy={shape.proj.y(lat)}
                 r={b === undefined ? 1.6 : 2.4}
                 fill={b === undefined ? 'rgba(140,165,190,0.45)' : BUCKET_COLORS[b]}
+                style={{
+                  transformBox: 'fill-box',
+                  transformOrigin: 'center',
+                  animation: `pop .55s cubic-bezier(.2,.8,.2,1) ${1.1 + (i % 80) * 0.018}s both`,
+                }}
               />
             ))}
           </g>
+          {pings.map((p) => (
+            <circle key={p.id} cx={p.x} cy={p.y} r="2" fill="none" stroke="#e6fbff" strokeWidth="1">
+              <animate attributeName="r" from="2" to="24" dur="1.6s" fill="freeze" />
+              <animate attributeName="opacity" from="0.9" to="0" dur="1.6s" fill="freeze" />
+            </circle>
+          ))}
         </>
       )}
       {feature === null && probes.length === 0 && (

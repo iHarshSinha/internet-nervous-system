@@ -280,7 +280,7 @@ export function MePage() {
   return (
     <main className="relative min-h-dvh">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(90%_60%_at_80%_0%,#0c1d2f_0%,#04060b_55%)]" />
-      <div className="mx-auto max-w-5xl px-4 pt-24 pb-12 sm:px-7">
+      <div className="mx-auto w-full max-w-[1400px] px-4 pt-24 pb-12 sm:px-8 xl:px-12">
         <button
           type="button"
           onClick={() => navigate('/')}

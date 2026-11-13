@@ -6,6 +6,7 @@ import { columns, TimeChart } from '../charts/TimeChart.tsx';
 import { CountryMap } from '../components/CountryMap.tsx';
 import { HealthGauge } from '../components/HealthGauge.tsx';
 import { MiniSpark } from '../components/MiniSpark.tsx';
+import { WatchButton } from '../components/WatchButton.tsx';
 import { Panel } from '../components/ui.tsx';
 import { countryName, loadCountries } from '../geo.ts';
 import { useGlobeSnapshots } from '../hooks/snapshots.ts';
@@ -97,6 +98,19 @@ function summarise(room: string) {
   };
 }
 
+/** True on wide screens, where charts get taller. */
+function useWide(): boolean {
+  const query = '(min-width: 1536px)';
+  const [wide, setWide] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setWide(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return wide;
+}
+
 function Kpi({
   label,
   value,
@@ -104,7 +118,11 @@ function Kpi({
   spark,
   color,
   hint,
+  delay = 0,
+  tall = false,
 }: {
+  delay?: number;
+  tall?: boolean;
   label: string;
   value: string;
   unit?: string;
@@ -113,14 +131,19 @@ function Kpi({
   hint: string;
 }) {
   return (
-    <div className="rounded-xl bg-white/[0.025] p-3 ring-1 ring-white/[0.04]" title={hint}>
+    <div
+      className="flex flex-col rounded-xl bg-white/[0.025] p-3 ring-1 ring-white/[0.04] transition hover:ring-white/[0.1] 2xl:p-4"
+      title={hint}
+      style={{ animation: `rise .7s cubic-bezier(.2,.8,.2,1) ${delay}s both` }}
+    >
       <div className="text-[0.62rem] tracking-[0.16em] text-low uppercase">{label}</div>
       <div className="mt-1 font-mono text-xl text-hi tabular-nums">
         {value}
         {unit && <span className="ml-1 text-xs text-mid">{unit}</span>}
       </div>
-      <div className="mt-2 opacity-90">
-        <MiniSpark values={spark} color={color} />
+      {/* The trend line takes whatever height the tile has, so tall layouts fill up. */}
+      <div className="mt-auto pt-2 opacity-90">
+        <MiniSpark values={spark} color={color} height={tall ? 56 : 28} />
       </div>
     </div>
   );
@@ -140,6 +163,7 @@ function SeriesKey({ items }: { items: [string, string][] }) {
 }
 
 export function CountryPage({ cc }: { cc: string }) {
+  const wide = useWide();
   const [, setNamesReady] = useState(0);
   useEffect(() => void loadCountries().then(() => setNamesReady(1)), []);
   useGlobeSnapshots();
@@ -160,7 +184,7 @@ export function CountryPage({ cc }: { cc: string }) {
   return (
     <main className="relative min-h-dvh">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(90%_60%_at_20%_0%,#0c1d2f_0%,#04060b_55%)]" />
-      <div className="mx-auto max-w-6xl px-4 pt-24 pb-12 sm:px-7">
+      <div className="mx-auto w-full max-w-[1760px] px-4 pt-24 pb-12 sm:px-8 xl:px-12">
         <button
           type="button"
           onClick={() => navigate('/')}
@@ -175,12 +199,15 @@ export function CountryPage({ cc }: { cc: string }) {
               <div className="text-[0.68rem] tracking-[0.22em] text-low uppercase">
                 Country · {cc}
               </div>
-              <h1 className="mt-1 flex items-center gap-3 text-3xl font-semibold tracking-tight text-hi sm:text-4xl">
+              <h1 className="mt-1 flex items-center gap-3 text-3xl font-semibold tracking-tight text-hi sm:text-4xl 2xl:text-5xl">
                 <span>{flag(cc)}</span>
                 {countryName(cc)}
               </h1>
+              <div className="mt-3">
+                <WatchButton cc={cc} />
+              </div>
             </div>
-            <div className="aspect-[640/380] w-full pt-10">
+            <div className="aspect-[640/380] w-full pt-16">
               <CountryMap cc={cc} health={health} />
             </div>
             <div className="absolute right-5 bottom-4 left-5 flex flex-wrap items-center justify-between gap-2 text-[0.66rem] text-mid">
@@ -213,8 +240,10 @@ export function CountryPage({ cc }: { cc: string }) {
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid flex-1 auto-rows-fr grid-cols-2 gap-3">
               <Kpi
+                tall={wide}
+                delay={0.33}
                 label="Route changes"
                 value={n(snap?.perSecond)}
                 unit="/ s"
@@ -223,6 +252,8 @@ export function CountryPage({ cc }: { cc: string }) {
                 hint="Announcements plus withdrawals, last 2 minutes"
               />
               <Kpi
+                tall={wide}
+                delay={0.41}
                 label="Withdrawn"
                 value={n(snap?.withdrawnLastMinute)}
                 unit="last min"
@@ -231,6 +262,8 @@ export function CountryPage({ cc }: { cc: string }) {
                 hint="Routes withdrawn per minute, last hour"
               />
               <Kpi
+                tall={wide}
+                delay={0.49}
                 label="Median latency"
                 value={n(snap?.p50, 1)}
                 unit="ms"
@@ -239,6 +272,8 @@ export function CountryPage({ cc }: { cc: string }) {
                 hint="To the root DNS servers, per minute, last hour"
               />
               <Kpi
+                tall={wide}
+                delay={0.57}
                 label="Probes reporting"
                 value={n(snap?.probes)}
                 spark={snap?.spark.probes ?? []}
@@ -291,7 +326,7 @@ export function CountryPage({ cc }: { cc: string }) {
             {loading && <div className="py-2 text-xs text-low">Loading history from MongoDB…</div>}
             <TimeChart
               room={room}
-              height={220}
+              height={wide ? 300 : 220}
               series={[
                 { label: 'announced', stroke: colors.announce, fill: 'rgba(94,230,255,0.10)' },
                 { label: 'withdrawn', stroke: colors.withdraw, fill: 'rgba(255,180,84,0.12)' },
@@ -314,6 +349,7 @@ export function CountryPage({ cc }: { cc: string }) {
             >
               <TimeChart
                 room={room}
+                height={wide ? 260 : 200}
                 series={[
                   { label: 'announced', stroke: colors.announce, fill: 'rgba(94,230,255,0.08)' },
                   { label: 'withdrawn', stroke: colors.withdraw, fill: 'rgba(255,180,84,0.10)' },
@@ -334,6 +370,7 @@ export function CountryPage({ cc }: { cc: string }) {
             >
               <TimeChart
                 room={room}
+                height={wide ? 260 : 200}
                 unit=" ms"
                 series={[
                   { label: 'median', stroke: colors.signal, width: 1.8 },
