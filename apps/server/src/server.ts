@@ -32,9 +32,8 @@ export function buildServer({ config, log, mongo, heartbeatMs }: ServerDeps): Ru
   // count is read through a function that is filled in once both exist.
   let liveSockets = () => 0;
 
-  // The live sources. Their events go nowhere yet: the pipeline (dedupe,
-  // windows, storage) attaches to this sink in the next step.
-  const ingest = startIngest(config, log, () => {});
+  // The live sources and the pipeline that turns their events into windows.
+  const ingest = startIngest(config, log);
 
   const app = createApp({ config, log, mongo, ingest, liveSockets: () => liveSockets() });
   const http = createServer(app);

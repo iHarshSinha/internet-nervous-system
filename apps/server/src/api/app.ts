@@ -40,6 +40,9 @@ export function createApp({ config, log, mongo, ingest, liveSockets }: AppDeps):
       // One entry per upstream connection, and running totals per source.
       upstreams: ingest.connections(),
       sources: Object.fromEntries(ingest.stats.sources().map((s) => [s, ingest.stats.of(s)])),
+      // Dedupe, lateness and window counters, and the latest closed windows.
+      pipeline: ingest.pipeline.snapshot(),
+      latest: ingest.latest,
     });
   });
 

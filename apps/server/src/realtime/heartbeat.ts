@@ -66,6 +66,24 @@ export function startHeartbeat(
         put(key, 'rejected', now.rejected);
       }
 
+      // The latest closed windows, by EVENT time: routing per second, and
+      // latency per minute (Atlas results arrive minutes late, see benchmarks).
+      const second = ingest.latest.second?.world;
+      if (second) {
+        put('world', 'ann', second.ann);
+        put('world', 'wd', second.wd);
+      }
+      const latency = ingest.latest.atlasMinute?.world;
+      if (latency) {
+        put('world', 'p50', latency.p50);
+        put('world', 'p95', latency.p95);
+      }
+      const counters = ingest.pipeline.counters;
+      put('pipe', 'dup', counters.duplicates);
+      put('pipe', 'late', counters.lateMinute);
+      put('pipe', 'future', counters.future);
+      put('pipe', 'prefixes', ingest.pipeline.origins.size);
+
       const connections = ingest.connections();
       if (connections.length > 0) {
         put('sys', 'upstreams', connections.length);

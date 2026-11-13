@@ -62,19 +62,25 @@ const count = new Intl.NumberFormat('en-US');
 const Readouts = memo(function Readouts() {
   const seq = useLive((s) => s.seq);
   const delayMs = useLive((s) => s.delayMs);
-  const risEps = useLive((s) => s.sources.ris?.eps);
+  const announced = useLive((s) => s.world.ann);
+  const withdrawn = useLive((s) => s.world.wd);
+  const p50 = useLive((s) => s.world.p50);
   const risLag = useLive((s) => s.sources.ris?.lag);
-  const atlasEps = useLive((s) => s.sources.atlas?.eps);
   const upstreams = useLive((s) => s.upstreams);
   const upstreamsUp = useLive((s) => s.upstreamsUp);
+  const prefixes = useLive((s) => s.pipe.prefixes);
+  const duplicates = useLive((s) => s.pipe.dup);
   const gaps = useLive((s) => s.stats.gaps);
 
-  const rate = (n: number | undefined) => (n === undefined ? '—' : count.format(n));
+  const num = (n: number | undefined) => (n === undefined ? '—' : count.format(n));
 
   return (
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-5">
-      <Readout label="Routing changes" value={rate(risEps)} unit="/ s" />
-      <Readout label="Latency results" value={rate(atlasEps)} unit="/ s" />
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4 lg:grid-cols-8">
+      <Readout label="Routes announced" value={num(announced)} unit="/ s" />
+      <Readout label="Routes withdrawn" value={num(withdrawn)} unit="/ s" />
+      <Readout label="Median latency" value={p50 === undefined ? '—' : p50.toFixed(1)} unit="ms" />
+      <Readout label="Prefixes known" value={num(prefixes)} />
+      <Readout label="Duplicates dropped" value={num(duplicates)} />
       <Readout
         label="Routing feed delay"
         value={risLag === undefined || risLag === null ? '—' : risLag.toFixed(1)}

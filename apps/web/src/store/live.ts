@@ -23,6 +23,9 @@ interface LiveState {
   upstreams: number | null;
   upstreamsUp: number | null;
   sources: Record<string, SourceLive>;
+  /** Latest closed windows for the whole world, and pipeline counters. */
+  world: Record<string, number>;
+  pipe: Record<string, number>;
   /** Sequence number and server time of the latest `world` frame. */
   seq: number;
   serverTime: number | null;
@@ -45,6 +48,8 @@ export const useLive = create<LiveState>((set) => ({
   upstreams: null,
   upstreamsUp: null,
   sources: {},
+  world: {},
+  pipe: {},
   seq: 0,
   serverTime: null,
   delayMs: null,
@@ -66,6 +71,9 @@ export const useLive = create<LiveState>((set) => ({
             else if (field === 'sockets') next.sockets = value;
             else if (field === 'upstreams') next.upstreams = value;
             else if (field === 'upstreamsUp') next.upstreamsUp = value;
+          } else if (key === 'world' || key === 'pipe') {
+            const group = (next[key] ??= { ...state[key] });
+            group[field] = value;
           } else if (key.startsWith('src:')) {
             // Copy before changing, so components comparing by reference notice.
             const name = key.slice(4);

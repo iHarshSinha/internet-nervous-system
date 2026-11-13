@@ -172,4 +172,11 @@ socket rate limiting, no auth, no helmet. `MODE=replay` only changes a label unt
   per collector (`RIS_COLLECTORS`) and one Atlas connection, normalisers to the envelope, and
   `IngestStats`. Events currently go to a no-op sink in `server.ts`; the pipeline attaches there.
   The `world` heartbeat frame carries per-source events/s, lag and upstream counts.
-- [ ] Next: pipeline (dedupe, 1 s and 1 min windows with watermarks, future-timestamp guard).
+- [x] Pipeline: `apps/server/src/ingest/pipeline/` (`Deduper`, `Watermark`, `TumblingWindows`,
+  `OriginTable`, aggregates, `Pipeline`). Pure, clock passed in, tested on recorded fixtures in
+  `pipeline/fixtures/`. A batch passed to `Pipeline.ingest` must be the events of ONE upstream
+  message (dedupe checks the first event's ID). Routing gets 1 s windows (world) and 1 min windows
+  (world + `asn:<n>`), one watermark partition per collector; Atlas gets 1 min windows only
+  (lateness 240 s). `ingest.onMinute(listener)` is where storage and detection attach.
+- [ ] Next: reference data (probe and ASN to country), per-country scopes, `metrics_hourly`
+  upserts and `GET /api/history`.
