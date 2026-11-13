@@ -4,17 +4,20 @@ import {
   NAMESPACES,
   namespaceOf,
   parseRoom,
+  resyncPayloadSchema,
   subPayloadSchema,
   unsubPayloadSchema,
   type AckError,
   type ClientToServerEvents,
   type ErrorCode,
+  type ResyncAck,
   type ServerToClientEvents,
   type SubAck,
   type UnsubAck,
 } from '@ins/shared';
 import type { Namespace, Server } from 'socket.io';
 import type { Logger } from '../logger.ts';
+import type { Broadcaster } from './broadcaster.ts';
 import type { RoomSequencer } from './sequencer.ts';
 
 export type IoServer = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -29,9 +32,17 @@ const fail = (code: ErrorCode, message: string): AckError => ({
  * The public `/live` namespace. Anyone may connect; a client receives nothing
  * until it subscribes to rooms, and then only what those rooms carry.
  */
-export function attachLive(io: IoServer, seq: RoomSequencer, log: Logger): LiveNamespace {
-  const live: LiveNamespace = io.of(NAMESPACES.live);
+export function attachLive(io: IoServer): LiveNamespace {
+  return io.of(NAMESPACES.live);
+}
 
+/** Handle what clients send on `/live`: sub, unsub and resync. */
+export function handleLive(
+  live: LiveNamespace,
+  seq: RoomSequencer,
+  broadcaster: Broadcaster,
+  log: Logger,
+): void {
   live.on('connection', (socket) => {
     log.debug({ id: socket.id, recovered: socket.recovered }, 'live socket connected');
 
@@ -76,7 +87,20 @@ export function attachLive(io: IoServer, seq: RoomSequencer, log: Logger): LiveN
       for (const name of parsed.data.rooms) void socket.leave(name);
       reply({ ok: true });
     });
-  });
 
-  return live;
+    // "I missed frames in room r after sequence number `after`": send them
+    // again from the ring buffer, or say they are gone (the client then
+    // fetches a fresh snapshot from the history API).
+    socket.on(EV.resync, (raw: unknown, ack: unknown) => {
+      if (typeof ack !== 'function') return;
+      const reply = ack as (r: ResyncAck) => void;
+      const parsed = resyncPayloadSchema.safeParse(raw);
+      if (!parsed.success) return reply(fail('bad_request', 'Invalid resync request'));
+      const { r, after } = parsed.data;
+      if (!socket.rooms.has(r)) return reply(fail('forbidden', `Not subscribed to ${r}`));
+      const frames = broadcaster.since(r, after);
+      if (frames === null) return reply(fail('gap_too_old', 'Fetch a fresh snapshot'));
+      reply({ ok: true, frames });
+    });
+  });
 }

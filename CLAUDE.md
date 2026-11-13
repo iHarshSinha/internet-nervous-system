@@ -157,8 +157,7 @@ Facebook replay file, CI workflows (not yet confirmed green on GitHub).
 
 Not done yet in Phase 0: accounts (Atlas, Cloudflare, Railway) and a first deploy.
 
-Known gaps to close in Phase 1: no `resync` handler or ring buffer yet (gaps are only counted), no
-socket rate limiting, no auth, no helmet. `MODE=replay` only changes a label until Phase 2.
+Known gaps to close in Phase 1: no socket rate limiting (token bucket), no auth, no helmet. `MODE=replay` only changes a label until Phase 2.
 
 **Measured facts that change the plan** (details in `docs/benchmarks.md`):
 - Never subscribe to the unfiltered RIS firehose: it lags 40+ s, reconnects constantly and carries
@@ -188,5 +187,13 @@ socket rate limiting, no auth, no helmet. `MODE=replay` only changes a label unt
   15 min of in-memory seconds (`ingest/recent.ts`) and `snapshotSeq`. Health score v1 lives in
   `packages/shared/src/health.ts`. Local MongoDB is the Docker `mongo` container; `mongosh` is only a
   client for inspecting it.
-- [ ] Next: live rooms (`country:<CC>` frames from the 1 s windows, ring buffer of 120 frames,
-  `resync`), so `snapshotSeq` becomes meaningful for country rooms.
+- [x] Live rooms: `realtime/broadcaster.ts` stages changes (`set` = current value, sent only when
+  changed beyond epsilon; `append` = unique record such as a closed window) and flushes one numbered
+  frame per room every 500 ms, only to rooms with members, keeping 120 frames per room for `resync`
+  (handler in `realtime/live.ts`). `realtime/publish.ts` maps closed windows to deltas; their meaning
+  is documented in `packages/shared/src/live.ts`. The heartbeat now stages through the broadcaster.
+  Client: `apps/web/src/realtime/roomSync.ts` (hold until ack, drop duplicates, resync on gap,
+  `snapshot(seq)` for the history merge) used by the socket worker.
+- [ ] Next: the globe (react-globe.gl) with country health and probe dots, and the country page
+  with history merged into live (calls `RoomSync.snapshot`). Needs Natural Earth country shapes
+  (user approved, public domain).

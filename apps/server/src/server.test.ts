@@ -7,6 +7,7 @@ import {
   NAMESPACES,
   type ClientToServerEvents,
   type Frame,
+  type ResyncAck,
   type ServerToClientEvents,
   type SubAck,
 } from '@ins/shared';
@@ -50,7 +51,15 @@ const clients: Client[] = [];
 
 beforeAll(async () => {
   const config = loadConfig({ NODE_ENV: 'test', MODE: 'replay' });
-  server = buildServer({ config, log: createLogger(config), mongo, store, heartbeatMs: 20 });
+  server = buildServer({
+    config,
+    log: createLogger(config),
+    mongo,
+    store,
+    heartbeatMs: 20,
+    conflateMs: 20,
+    ringSize: 5,
+  });
   await new Promise<void>((resolve) => server.http.listen(0, resolve));
   baseUrl = `http://127.0.0.1:${(server.http.address() as AddressInfo).port}`;
 });
@@ -220,6 +229,9 @@ describe('GET /api/history', () => {
   });
 
   it('reports the world room sequence, which advances with every live frame', async () => {
+    // Frames (and sequence numbers) are only spent on rooms someone is in.
+    const watcher = await openClient();
+    await sub(watcher, { rooms: ['world'] });
     const first = historyResponseSchema.parse(
       await (await get(`scope=world&from=${Date.now() - 60_000}`)).json(),
     );
@@ -249,6 +261,123 @@ describe('GET /api/history', () => {
     ]) {
       const res = await get(query);
       expect(res.status, query).toBe(400);
+    }
+  });
+});
+
+describe('rooms, conflation and resync', () => {
+  const resync = (client: Client, payload: unknown) =>
+    new Promise<ResyncAck>((resolve) => client.emit(EV.resync, payload as never, resolve));
+  const nextFrame = (client: Client, room: string) =>
+    new Promise<Frame>((resolve) => {
+      const onFrame = (frame: Frame) => {
+        if (frame.r !== room) return;
+        client.off(EV.frame, onFrame);
+        resolve(frame);
+      };
+      client.on(EV.frame, onFrame);
+    });
+
+  it('sends a country room only its own data, with sequence numbers from 1', async () => {
+    const india = await openClient();
+    const germany = await openClient();
+    await sub(india, { rooms: ['country:IN'] });
+    await sub(germany, { rooms: ['country:DE'] });
+
+    let germanyGotIndia = false;
+    germany.on(EV.frame, (f) => (germanyGotIndia ||= f.r === 'country:IN'));
+    const frame = nextFrame(india, 'country:IN');
+    server.broadcaster.append('country:IN', 's:1794565823000', 'bgp', { ann: 34, wd: 5, pfx: 2 });
+    server.broadcaster.set('country:IN', 'now', 'health', 97);
+
+    expect(await frame).toMatchObject({
+      r: 'country:IN',
+      s: 1,
+      d: [
+        ['s:1794565823000', 'bgp', { ann: 34, wd: 5, pfx: 2 }],
+        ['now', 'health', 97],
+      ],
+    });
+    await new Promise((r) => setTimeout(r, 60));
+    expect(germanyGotIndia).toBe(false);
+  });
+
+  it('conflates: within one interval only the last value of a key is sent', async () => {
+    const client = await openClient();
+    await sub(client, { rooms: ['country:FR'] });
+    server.broadcaster.flush();
+    const frame = nextFrame(client, 'country:FR');
+    for (const health of [90, 80, 70])
+      server.broadcaster.set('country:FR', 'now', 'health', health);
+    server.broadcaster.append('country:FR', 's:1', 'bgp', { ann: 1, wd: 0, pfx: 0 });
+    server.broadcaster.append('country:FR', 's:2', 'bgp', { ann: 2, wd: 0, pfx: 0 });
+    server.broadcaster.flush();
+    expect((await frame).d).toEqual([
+      ['now', 'health', 70],
+      ['s:1', 'bgp', { ann: 1, wd: 0, pfx: 0 }],
+      ['s:2', 'bgp', { ann: 2, wd: 0, pfx: 0 }],
+    ]);
+  });
+
+  it('does not resend an unchanged value, or one within epsilon', async () => {
+    const client = await openClient();
+    await sub(client, { rooms: ['country:ES'] });
+    server.broadcaster.set('country:ES', 'now', 'health', 90);
+    server.broadcaster.flush();
+    const skippedBefore = server.broadcaster.stats.skippedUnchanged;
+    server.broadcaster.set('country:ES', 'now', 'health', 90);
+    server.broadcaster.set('country:ES', 'now', 'health', 90.5, 1);
+    expect(server.broadcaster.stats.skippedUnchanged).toBe(skippedBefore + 2);
+  });
+
+  it('spends no sequence numbers on a room nobody is in', async () => {
+    server.broadcaster.append('country:JP', 's:1', 'bgp', { ann: 1, wd: 0, pfx: 0 });
+    server.broadcaster.flush();
+    const client = await openClient();
+    const ack = await sub(client, { rooms: ['country:JP'] });
+    expect(ack).toMatchObject({ ok: true, seqs: { 'country:JP': 0 } });
+  });
+
+  it('replays missed frames on resync, and says when they are too old', async () => {
+    const client = await openClient();
+    await sub(client, { rooms: ['country:BR'] });
+    for (let i = 1; i <= 3; i++) {
+      server.broadcaster.append('country:BR', `s:${i}`, 'bgp', { ann: i, wd: 0, pfx: 0 });
+      server.broadcaster.flush();
+    }
+    const replayed = await resync(client, { r: 'country:BR', after: 1 });
+    expect(replayed.ok && replayed.frames.map((f) => f.s)).toEqual([2, 3]);
+    expect(await resync(client, { r: 'country:BR', after: 3 })).toEqual({ ok: true, frames: [] });
+
+    // The ring keeps 5 frames in this test; push it past that.
+    for (let i = 4; i <= 9; i++) {
+      server.broadcaster.append('country:BR', `s:${i}`, 'bgp', { ann: i, wd: 0, pfx: 0 });
+      server.broadcaster.flush();
+    }
+    expect(await resync(client, { r: 'country:BR', after: 1 })).toMatchObject({
+      ok: false,
+      error: { code: 'gap_too_old' },
+    });
+    const recent = await resync(client, { r: 'country:BR', after: 5 });
+    expect(recent.ok && recent.frames.map((f) => f.s)).toEqual([6, 7, 8, 9]);
+  });
+
+  it('refuses resync for a room the client is not in, and malformed requests', async () => {
+    const client = await openClient();
+    expect(await resync(client, { r: 'country:BR', after: 0 })).toMatchObject({
+      ok: false,
+      error: { code: 'forbidden' },
+    });
+    for (const bad of [
+      null,
+      { r: 'country:BR' },
+      { r: 'nowhere', after: 1 },
+      { r: 'world', after: -1 },
+    ]) {
+      expect(await resync(client, bad)).toMatchObject({
+        ok: false,
+        error: { code: 'bad_request' },
+      });
     }
   });
 });

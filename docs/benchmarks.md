@@ -170,3 +170,19 @@ collectors and three Atlas measurements. Collection sizes from `db.<collection>.
 `metrics_hourly` will grow with every hour until its TTLs start deleting. **Not yet measured:** its
 size after a full hour and after the 2–3 day retention. That decides whether MongoDB Atlas M0
 (512 MB) is enough; re-measure after a long run before deploying.
+
+## Phase 1: live rooms
+
+**Run:** 13 Nov 2026, `pnpm dev` on live data (four RIS collectors, three Atlas measurements). One
+Socket.IO client subscribed to `world`, `country:US`, `country:BR` and `country:DE` for 75 seconds,
+then fetched `GET /api/history` for the same rooms. JSON encoding (MessagePack comes in Phase 3).
+
+| Room | Frames | Frames/s | Gaps | Bytes/s | Deltas per frame | 1 s points overlapping history | Mismatches |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `world` | 103 | 1.4 | 0 | 0.93 KB | 32.0 | 75 | 0 |
+| `country:US` | 70 | 0.9 | 0 | 0.10 KB | 1.1 | 75 | 0 |
+| `country:BR` | 70 | 0.9 | 0 | 0.10 KB | 1.1 | 75 | 0 |
+| `country:DE` | 70 | 0.9 | 0 | 0.10 KB | 1.1 | 75 | 0 |
+
+Every 1-second point that arrived live and also appeared in the history response had identical
+values. `resync` for the last three frames of `country:US` returned exactly frames 68, 69 and 70.

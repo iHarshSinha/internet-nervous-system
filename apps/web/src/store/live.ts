@@ -42,7 +42,7 @@ interface LiveState {
 
 export const useLive = create<LiveState>((set) => ({
   status: 'connecting',
-  stats: { received: 0, duplicates: 0, gaps: 0 },
+  stats: { received: 0, duplicates: 0, gaps: 0, resyncs: 0, tooOld: 0 },
   tick: 0,
   sockets: null,
   upstreams: null,

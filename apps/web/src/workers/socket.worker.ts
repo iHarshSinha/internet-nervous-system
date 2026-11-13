@@ -1,5 +1,4 @@
 import {
-  checkSeq,
   EV,
   NAMESPACES,
   type ClientToServerEvents,
@@ -8,6 +7,7 @@ import {
 } from '@ins/shared';
 import { expose } from 'comlink';
 import { io, type Socket } from 'socket.io-client';
+import { RoomSync } from '../realtime/roomSync.ts';
 
 /*
  * The socket lives in this Web Worker, not on the page's main thread. Decoding
@@ -19,12 +19,16 @@ import { io, type Socket } from 'socket.io-client';
 export type LinkStatus = 'connecting' | 'live' | 'reconnecting';
 
 export interface LinkStats {
-  /** Frames accepted. */
+  /** Frames applied. */
   received: number;
   /** Frames dropped because their sequence number had already been seen. */
   duplicates: number;
   /** Times a sequence number was skipped. */
   gaps: number;
+  /** Times missing frames were fetched again with `resync`. */
+  resyncs: number;
+  /** Times missing frames were too old to fetch again. */
+  tooOld: number;
 }
 
 export interface WorkerUpdate {
@@ -45,14 +49,25 @@ let pending: Frame[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
 const wanted = new Set<string>(); // rooms the page asked for
-const lastSeq = new Map<string, number>(); // last sequence number applied, per room
-const stats: LinkStats = { received: 0, duplicates: 0, gaps: 0 };
+const syncs = new Map<string, RoomSync>(); // per room: ordering, duplicates, gaps
+
+function totals(): LinkStats {
+  const t: LinkStats = { received: 0, duplicates: 0, gaps: 0, resyncs: 0, tooOld: 0 };
+  for (const sync of syncs.values()) {
+    t.received += sync.stats.applied;
+    t.duplicates += sync.stats.duplicates;
+    t.gaps += sync.stats.gaps;
+    t.resyncs += sync.stats.resyncs;
+    t.tooOld += sync.stats.tooOld;
+  }
+  return t;
+}
 
 function flush(): void {
   flushTimer = null;
   const frames = pending;
   pending = [];
-  listener?.({ status, frames, stats: { ...stats } });
+  listener?.({ status, frames, stats: totals() });
 }
 
 function scheduleFlush(): void {
@@ -64,29 +79,40 @@ function setStatus(next: LinkStatus): void {
   scheduleFlush();
 }
 
-function onFrame(frame: Frame): void {
-  const last = lastSeq.get(frame.r);
-  const verdict = last === undefined ? 'next' : checkSeq(last, frame.s);
-  if (verdict === 'duplicate') {
-    stats.duplicates += 1;
-    return;
+/** Queue frames for the page, and ask for a resync if the room has a gap. */
+function handle(room: string, result: ReturnType<RoomSync['receive']>): void {
+  if (result.apply.length > 0) {
+    pending.push(...result.apply);
+    scheduleFlush();
   }
-  // Phase 1 answers a gap with `resync`; for now it is counted and shown.
-  if (verdict === 'gap') stats.gaps += 1;
+  if (result.resyncAfter !== undefined && socket?.connected) {
+    socket.emit(EV.resync, { r: room, after: result.resyncAfter }, (ack) => {
+      const sync = syncs.get(room);
+      if (!sync) return;
+      // Phase 1 step 5 reloads history for a stale room; for now it is counted.
+      handle(room, sync.resynced(ack.ok ? ack.frames : null));
+    });
+  }
+}
 
-  lastSeq.set(frame.r, frame.s);
-  stats.received += 1;
-  pending.push(frame);
-  scheduleFlush();
+function onFrame(frame: Frame): void {
+  const sync = syncs.get(frame.r);
+  if (sync) handle(frame.r, sync.receive(frame));
 }
 
 function join(roomNames: string[]): void {
   if (!socket?.connected || roomNames.length === 0) return;
+  // A fresh start for each room: frames are held until the server says
+  // where the stream begins.
+  for (const room of roomNames) syncs.set(room, new RoomSync());
   socket.emit(EV.sub, { rooms: roomNames }, (ack) => {
     if (!ack.ok) return;
     // The server's current sequence number is our starting point: the next
     // frame for each room must be exactly one more.
-    for (const [room, seq] of Object.entries(ack.seqs)) lastSeq.set(room, seq);
+    for (const [room, seq] of Object.entries(ack.seqs)) {
+      const sync = syncs.get(room);
+      if (sync) handle(room, sync.start(seq));
+    }
   });
 }
 
@@ -118,7 +144,7 @@ const api = {
   unsubscribe(roomNames: string[]): void {
     for (const room of roomNames) {
       wanted.delete(room);
-      lastSeq.delete(room);
+      syncs.delete(room);
     }
     if (socket?.connected) socket.emit(EV.unsub, { rooms: roomNames }, () => {});
   },

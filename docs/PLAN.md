@@ -537,7 +537,7 @@ Build in this order and cut from the bottom if time runs short. After Phase 1, t
 - [x] RIS Live and Atlas connectors with reconnect and resubscribe
 - [x] Validate, normalise, dedupe, 1-second and 1-minute windows with watermarks
 - [x] `metrics_hourly` upserts and the history endpoint
-- [ ] `/live` namespace with `world` and `country:<CC>` rooms, sequence numbers and ring buffers
+- [x] `/live` namespace with `world` and `country:<CC>` rooms, sequence numbers and ring buffers
 - [ ] Globe: country health and probe dots; country page with history merged into live
 - [ ] JWT auth and roles, zod validation, REST and socket rate limits
 - [ ] Deploy the full Compose stack to the server (Atlas for the database); write the README skeleton
