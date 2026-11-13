@@ -91,4 +91,60 @@ not a prediction of it.
 
 ## Phase 0 recording: 30 minutes of real traffic
 
-Filled in when the recording finishes.
+**Run:** 13 Nov 2026, 08:59–09:29 UTC, 1,800 seconds. `pnpm capture --minutes 30`, same machine.
+This run also wrote the recordings used for replay and stress tests, and `tools/replay-prep` ran on
+the same machine for part of it.
+
+| Stream | Messages | Messages/s (avg) | Events/s (avg) | Events/s (peak 10 s) | Lag p50 | Lag p95 | Lag p99 | Reconnects | Failed schema |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `ris-full` | 1,005,394 | 558.5 | 1,432.5 | 3,708.1 | 43.2 s | 92.7 s | 180.7 s | 23 | 0 |
+| `ris-filtered` (`rrc00`) | 1,101,620 | 612.0 | 1,386.7 | 4,841.3 | 4.0 s | 32.5 s | 149.3 s | 4 | 0 |
+| `atlas` | 320,641 | 178.1 | 178.1 | 296.4 | 69.7 s | 123.4 s | 198.7 s | 0 | 0 |
+
+Process: peak RSS 113.6 MB, peak heap 24.6 MB, average CPU 6.2% of one core (this run also
+gzipped two files), event-loop delay p99 11.8 ms, max 40.4 ms. Memory stayed flat for 30 minutes.
+
+Recorded files (not committed; regenerate with the command above):
+
+| File | Size | Contents |
+| --- | --- | --- |
+| `deploy/seed/capture/ris-full-20261113T085859Z.ndjson.gz` | 33.0 MB | 1,005,394 RIS messages |
+| `deploy/seed/capture/atlas-20261113T085859Z.ndjson.gz` | 19.0 MB | 320,641 Atlas messages |
+
+### What the longer run adds
+
+1. **The filter is what keeps a RIS connection healthy.** The connection filtered to one collector
+   had a median lag of 4.0 seconds and 4 reconnects in 30 minutes. The unfiltered one had a median
+   lag of 43.2 seconds and 23 reconnects. This confirms the first run's conclusion with three times
+   the data, though still on the same day.
+2. **The unfiltered stream is a thin sample.** It delivered 97,825 messages from `rrc00` while the
+   filtered connection delivered 1,101,620: about 9%.
+3. **One collector alone is about as much as one connection carries.** `rrc00` averaged 612
+   messages per second (1,387 events per second) and still lagged at times (p95 32.5 s).
+4. **Atlas lateness, measured properly this time.** 727 results (0.23%) carried timestamps more
+   than a minute ahead of our clock and were set aside. Of the rest, a result arrived a median of
+   102 s behind the newest timestamp already seen, 164 s at p95 and 240 s at p99. An allowed
+   lateness of 2 minutes would mark roughly half of Atlas results as late; **about 4 minutes
+   covers 99%.** The plan's 2-minute figure needs to change.
+5. **Schemas held.** All 2,427,655 messages in this run passed validation.
+
+## Phase 0: Facebook outage replay file
+
+`pnpm replay-prep` (13 Nov 2026). RIS update files for 4 Oct 2021, 15:20–16:30 UTC, collectors
+`rrc05`, `rrc10`, `rrc11`, `rrc14`. Full per-minute data is in
+`deploy/seed/replay/facebook-20211004.summary.json`.
+
+| Measure | Value |
+| --- | --- |
+| MRT records read | 3,196,459 (0 malformed, 19,349 skipped as not updates) |
+| Events written | 8,569,494 (7,536,132 announcements, 1,028,937 withdrawals, 4,425 peer state changes) |
+| Output size | 88.6 MB gzipped |
+| Average rate at 1× | about 2,040 events per second (8,569,494 events over 70 minutes) |
+| AS32934 prefixes seen announced | 175 |
+| AS32934 withdrawals per minute, 15:20–15:39 | 0 in every minute except 15:30 (2) |
+| First AS32934 withdrawals of the burst | 15:40 UTC (12 withdrawals, 3 prefixes) |
+| First minute with at least 20 AS32934 prefixes withdrawn | 15:42 UTC (378 withdrawals, 25 prefixes) |
+| Peak minute | 15:43 UTC (769 withdrawals, 27 prefixes) |
+
+Withdrawals are attributed to AS32934 only for prefixes the tool had already seen announced by it
+in this window, so these counts are a lower bound.

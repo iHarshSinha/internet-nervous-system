@@ -529,7 +529,7 @@ Build in this order and cut from the bottom if time runs short. After Phase 1, t
 - [x] Hello world end to end: `docker compose up` serves the web app, which connects to Socket.IO through Caddy and shows a live heartbeat
 - [x] CI: lint, type-check, test and build on pull requests; on `main`, build multi-arch images and push them to GitHub Container Registry
 - [ ] Create MongoDB Atlas M0, a Cloudflare API token and the server VM; deploy the hello-world stack to the VM with HTTPS
-- [ ] Build the capture tool; measure real RIS and Atlas event rates and server memory; record 30 minutes to NDJSON
+- [x] Build the capture tool; measure real RIS and Atlas event rates and server memory; record 30 minutes to NDJSON
 - [x] Convert the Facebook outage window to NDJSON with `bgpkit-parser` *(done with our own MRT reader in `tools/replay-prep` instead of bgpkit-parser, so regenerating needs only Node)*
 
 **Phase 1 · Core loop**

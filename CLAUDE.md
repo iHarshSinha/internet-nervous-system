@@ -152,10 +152,19 @@ Needs Node 22.18+ (`.nvmrc`) and pnpm 11.28.9 (pinned in `package.json`; `corepa
 - `apps/web`: socket in a Web Worker, Zustand store, a canvas pulse sphere and live readouts.
 - Dockerfiles, `docker-compose.yml` (`live` and `demo` profiles), Caddyfile. Verified at :8080.
 
-Not done yet in Phase 0: CI workflows (session 2), the capture tool and measured event rates
-(session 3), the Facebook replay file (session 4), accounts (Atlas, Cloudflare, Railway).
+Also done: `tools/capture` and measured rates (`docs/benchmarks.md`), `tools/replay-prep` and the
+Facebook replay file, CI workflows (not yet confirmed green on GitHub).
+
+Not done yet in Phase 0: accounts (Atlas, Cloudflare, Railway) and a first deploy.
 
 Known gaps to close in Phase 1: no `resync` handler or ring buffer yet (gaps are only counted), no
 socket rate limiting, no auth, no helmet. `MODE=replay` only changes a label until Phase 2.
 
-Next task: session 3 (capture tool), because real event rates shape Phase 1's design.
+**Measured facts that change the plan** (details in `docs/benchmarks.md`):
+- Never subscribe to the unfiltered RIS firehose: it lags 40+ s, reconnects constantly and carries
+  about 9–15% of a collector's messages. Use several connections, each filtered to one collector.
+- One collector (`rrc00`) is about 600 messages/s, 1,400 events/s.
+- Atlas needs about 4 minutes of allowed lateness, not 2. Ignore timestamps ahead of the clock.
+- The Facebook replay is 8.57M events (about 2,040/s at 1x); the burst starts 15:40 UTC.
+
+Next task: Phase 1, one step at a time, starting with the RIS and Atlas connectors.
