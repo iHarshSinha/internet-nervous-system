@@ -4,6 +4,9 @@
   "private": true,
   "description": "Express API, Socket.IO delivery and the ingest pipeline.",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "node --watch --env-file-if-exists=../../.env --disable-warning=ExperimentalWarning src/index.ts",
     "build": "tsc -p tsconfig.build.json",

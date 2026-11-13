@@ -521,12 +521,12 @@ Build in this order and cut from the bottom if time runs short. After Phase 1, t
 
 **Phase 0 · Foundations and spikes**
 
-- [ ] Scaffold the pnpm monorepo (`apps/server`, `apps/web`, `packages/shared`, `tools/`) with strict TypeScript, ESLint and Prettier
-- [ ] Add `CLAUDE.md`, `docs/PLAN.md` and the problem statement PDF to the repo
-- [ ] Write the shared contracts in `packages/shared`: event envelope, room names, REST and socket payload schemas
-- [ ] Dockerfiles for server and web (multi-stage, non-root, health check) and a `.dockerignore`
-- [ ] `docker-compose.yml` with `proxy`, `server`, `mongo` and `seed`, plus the `demo`, `loadtest` and `scale` profiles; `deploy/Caddyfile`; `.env.example`
-- [ ] Hello world end to end: `docker compose up` serves the web app, which connects to Socket.IO through Caddy and shows a live heartbeat
+- [x] Scaffold the pnpm monorepo (`apps/server`, `apps/web`, `packages/shared`, `tools/`) with strict TypeScript, ESLint and Prettier
+- [x] Add `CLAUDE.md`, `docs/PLAN.md` and the problem statement PDF to the repo
+- [x] Write the shared contracts in `packages/shared`: event envelope, room names, REST and socket payload schemas
+- [x] Dockerfiles for server and web (multi-stage, non-root, health check) and a `.dockerignore`
+- [x] `docker-compose.yml` with `proxy`, `server`, `mongo` and `seed`, plus the `demo`, `loadtest` and `scale` profiles; `deploy/Caddyfile`; `.env.example` *(done with `live` and `demo` profiles; `loadtest` arrives with Phase 3 and `scale` with the stretch goal, when there is something real to run in them)*
+- [x] Hello world end to end: `docker compose up` serves the web app, which connects to Socket.IO through Caddy and shows a live heartbeat
 - [ ] CI: lint, type-check, test and build on pull requests; on `main`, build multi-arch images and push them to GitHub Container Registry
 - [ ] Create MongoDB Atlas M0, a Cloudflare API token and the server VM; deploy the hello-world stack to the VM with HTTPS
 - [ ] Build the capture tool; measure real RIS and Atlas event rates and server memory; record 30 minutes to NDJSON

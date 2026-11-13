@@ -1,0 +1,93 @@
+# Internet Nervous System: the whole stack.
+#
+#   docker compose up mongo            database only, for native development (pnpm dev)
+#   docker compose --profile demo up   full stack on recorded data  -> http://localhost:8080
+#   docker compose --profile live up   full stack on the real feeds -> http://localhost:8080
+#
+# Add --build after "up" to rebuild the images from source.
+
+name: ins
+
+# Settings shared by the server in both modes and by the seed job.
+x-server: &server
+  build:
+    context: .
+    dockerfile: apps/server/Dockerfile
+  image: ins-server:local
+  depends_on:
+    mongo:
+      condition: service_healthy
+
+x-server-env: &server-env
+  NODE_ENV: production
+  PORT: 3000
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  # Defaults to the mongo container below. Set MONGODB_URI to use MongoDB Atlas instead.
+  MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017/ins}
+
+services:
+  mongo:
+    image: mongo:8
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:27017:27017' # reachable from this machine only
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  # The same image runs in one of two modes. Both answer to the name "server"
+  # on the network, so the proxy does not care which one is up.
+  server:
+    <<: *server
+    profiles: [live]
+    restart: unless-stopped
+    environment:
+      <<: *server-env
+      MODE: live
+    networks:
+      default:
+        aliases: [server]
+
+  server-replay:
+    <<: *server
+    profiles: [demo]
+    restart: unless-stopped
+    environment:
+      <<: *server-env
+      MODE: replay
+    networks:
+      default:
+        aliases: [server]
+
+  # Runs once and exits: prepares the database (and, from Phase 2, loads the
+  # recorded history and replay files in deploy/seed).
+  seed:
+    <<: *server
+    profiles: [live, demo]
+    restart: 'no'
+    command: ['node', 'dist/seed.js']
+    environment:
+      <<: *server-env
+
+  proxy:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: ins-web:local
+    profiles: [live, demo]
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:8080}
+    ports:
+      - '${HTTP_PORT:-8080}:8080'
+    volumes:
+      - caddy-data:/data # certificates, when SITE_ADDRESS is a real domain
+
+volumes:
+  mongo-data:
+  caddy-data:

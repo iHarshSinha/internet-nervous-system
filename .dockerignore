@@ -1,0 +1,20 @@
+# Keep the build context small and keep secrets out of images.
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+.git
+.github
+.claude
+.DS_Store
+
+# Secrets never go into an image; they are passed as environment variables.
+.env
+.env.*
+!.env.example
+
+# Not needed to build
+docs
+*.md
+tools
+deploy/seed

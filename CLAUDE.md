@@ -54,13 +54,28 @@ docs/           PLAN.md, problem statement, architecture.md, benchmarks.md
 
 ## Commands
 
-These are planned. Update this section as soon as the scaffold exists.
+Needs Node 22.18+ (`.nvmrc`) and pnpm 11.28.9 (pinned in `package.json`; `corepack enable` provides it).
 
 - `pnpm install`
-- `docker compose up mongo`: local database for development
-- `pnpm dev`: server and web with hot reload (run natively, not in Docker)
-- `pnpm lint`, `pnpm typecheck`, `pnpm test`: all must pass before every commit
-- `docker compose --profile demo up`: full stack in replay mode at http://localhost:8080
+- `docker compose up -d mongo`: local database for development
+- `pnpm dev`: shared (tsc watch), server (:3000) and web (:5173) with hot reload. Open http://localhost:5173
+- `pnpm lint`, `pnpm typecheck`, `pnpm test`: all must pass before every commit (`pnpm format` fixes style)
+- `docker compose --profile demo up --build`: full stack in replay mode at http://localhost:8080
+- `docker compose --profile live up --build`: the same stack on the real feeds
+
+## Toolchain notes (decided while scaffolding)
+
+- **TypeScript is pinned to 6.0.x.** typescript-eslint does not support TypeScript 7 yet.
+- **The server runs `.ts` files directly with Node** (type stripping, no tsx or ts-node). So in
+  `apps/server` and `packages/shared`: import with the real `.ts` extension, use `import type` for
+  types, and avoid enums and constructor parameter properties (`erasableSyntaxOnly` enforces this).
+  `tsc` rewrites the extensions to `.js` in the production build.
+- **`packages/shared` is consumed from its `dist`.** `pnpm dev` keeps it rebuilt; the root `typecheck`
+  and `test` scripts build it first.
+- **pnpm 12 does not start under corepack on this setup**, which is why 11.28.9 is pinned.
+- **Hosting is Railway, not a VM** (decided 13 Nov 2026). Railway runs one Dockerfile per service, not
+  Compose, so for production the Express server will also serve the built web app (same origin kept).
+  Not built yet. Compose with Caddy stays for local runs and for judges. Database: MongoDB Atlas M0.
 
 ## Contracts (defined in packages/shared; change them there first)
 
@@ -127,5 +142,20 @@ These are planned. Update this section as soon as the scaffold exists.
 
 ## Current status
 
-Phase 0 has not started. First task: scaffold the monorepo, add the shared contracts, and get the
-Docker Compose hello-world running (see `docs/KICKOFF.md`, session 1).
+**Phase 0 in progress** (updated 13 Nov 2026). `docs/KICKOFF.md` session 1 is done:
+
+- Monorepo scaffold, lint, typecheck and tests all pass (36 shared tests, 12 server tests).
+- `packages/shared`: event envelope, rooms, delta frames, sub/unsub/resync payloads, history query
+  and response. Treat these as frozen; change them there first.
+- `apps/server`: `/healthz`, `/readyz`, `/api/status`; Socket.IO `/live` with validated `sub`/`unsub`,
+  per-room sequence numbers and a 1 Hz heartbeat frame to `world` (a stand-in for real telemetry).
+- `apps/web`: socket in a Web Worker, Zustand store, a canvas pulse sphere and live readouts.
+- Dockerfiles, `docker-compose.yml` (`live` and `demo` profiles), Caddyfile. Verified at :8080.
+
+Not done yet in Phase 0: CI workflows (session 2), the capture tool and measured event rates
+(session 3), the Facebook replay file (session 4), accounts (Atlas, Cloudflare, Railway).
+
+Known gaps to close in Phase 1: no `resync` handler or ring buffer yet (gaps are only counted), no
+socket rate limiting, no auth, no helmet. `MODE=replay` only changes a label until Phase 2.
+
+Next task: session 3 (capture tool), because real event rates shape Phase 1's design.

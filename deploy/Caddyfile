@@ -1,0 +1,32 @@
+# One origin for everything: Caddy serves the built web app and forwards API
+# and Socket.IO traffic to the server. Because the browser only ever talks to
+# this one address, the app needs no CORS and can use relative URLs.
+#
+# SITE_ADDRESS defaults to plain HTTP on :8080 (local runs and the demo).
+# Set it to a real domain and Caddy obtains an HTTPS certificate by itself.
+
+{$SITE_ADDRESS::8080} {
+	encode zstd gzip
+
+	# API, WebSocket and health checks go to the Node server.
+	@server path /api/* /socket.io/* /healthz /readyz
+	handle @server {
+		reverse_proxy {$SERVER_UPSTREAM:server:3000}
+	}
+
+	# Vite puts a content hash in every asset file name, so they can be cached forever.
+	handle /assets/* {
+		root * /srv
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	# Everything else is the single-page app. index.html itself is never cached,
+	# so a new deploy is picked up on the next page load.
+	handle {
+		root * /srv
+		header Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}
