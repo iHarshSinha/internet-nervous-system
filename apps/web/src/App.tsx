@@ -68,7 +68,7 @@ const Readouts = memo(function Readouts() {
   const risLag = useLive((s) => s.sources.ris?.lag);
   const upstreams = useLive((s) => s.upstreams);
   const upstreamsUp = useLive((s) => s.upstreamsUp);
-  const prefixes = useLive((s) => s.pipe.prefixes);
+  const countries = useLive((s) => s.world.countries);
   const duplicates = useLive((s) => s.pipe.dup);
   const gaps = useLive((s) => s.stats.gaps);
 
@@ -79,7 +79,7 @@ const Readouts = memo(function Readouts() {
       <Readout label="Routes announced" value={num(announced)} unit="/ s" />
       <Readout label="Routes withdrawn" value={num(withdrawn)} unit="/ s" />
       <Readout label="Median latency" value={p50 === undefined ? '—' : p50.toFixed(1)} unit="ms" />
-      <Readout label="Prefixes known" value={num(prefixes)} />
+      <Readout label="Countries active" value={num(countries)} />
       <Readout label="Duplicates dropped" value={num(duplicates)} />
       <Readout
         label="Routing feed delay"

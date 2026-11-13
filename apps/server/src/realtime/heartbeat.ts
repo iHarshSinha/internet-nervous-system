@@ -68,10 +68,11 @@ export function startHeartbeat(
 
       // The latest closed windows, by EVENT time: routing per second, and
       // latency per minute (Atlas results arrive minutes late, see benchmarks).
-      const second = ingest.latest.second?.world;
+      const second = ingest.latest.second;
       if (second) {
-        put('world', 'ann', second.ann);
-        put('world', 'wd', second.wd);
+        put('world', 'ann', second.world.ann);
+        put('world', 'wd', second.world.wd);
+        put('world', 'countries', second.countries);
       }
       const latency = ingest.latest.atlasMinute?.world;
       if (latency) {

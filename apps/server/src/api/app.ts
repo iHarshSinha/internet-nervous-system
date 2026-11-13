@@ -1,4 +1,4 @@
-import express, { type ErrorRequestHandler, type Express } from 'express';
+import express, { type ErrorRequestHandler, type Express, type Router } from 'express';
 import type { Config } from '../config.ts';
 import type { Mongo } from '../db/client.ts';
 import type { Ingest } from '../ingest/index.ts';
@@ -11,10 +11,22 @@ export interface AppDeps {
   ingest: Ingest;
   /** Number of browsers connected to the public namespace right now. */
   liveSockets: () => number;
+  /** Feature routers (history, and later auth, watchlists, ...). */
+  routes?: Router[];
+  /** Extra fields for /api/status. */
+  extraStatus?: () => Record<string, unknown>;
 }
 
 /** Build the Express app: health checks now, the REST API as later phases add it. */
-export function createApp({ config, log, mongo, ingest, liveSockets }: AppDeps): Express {
+export function createApp({
+  config,
+  log,
+  mongo,
+  ingest,
+  liveSockets,
+  routes = [],
+  extraStatus,
+}: AppDeps): Express {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '256kb' }));
@@ -43,8 +55,11 @@ export function createApp({ config, log, mongo, ingest, liveSockets }: AppDeps):
       // Dedupe, lateness and window counters, and the latest closed windows.
       pipeline: ingest.pipeline.snapshot(),
       latest: ingest.latest,
+      ...extraStatus?.(),
     });
   });
+
+  for (const router of routes) app.use(router);
 
   app.use((_req, res) => {
     res.status(404).json({ error: { code: 'not_found', message: 'No such route' } });

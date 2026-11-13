@@ -1,8 +1,12 @@
 import { createServer, type Server as HttpServer } from 'node:http';
 import { Server } from 'socket.io';
 import { createApp } from './api/app.ts';
+import { historyRouter } from './api/history.ts';
 import type { Config } from './config.ts';
 import type { Mongo } from './db/client.ts';
+import type { MetricsStore } from './db/metrics.ts';
+import type { Lookup } from './ingest/pipeline/pipeline.ts';
+import { RecentSeconds } from './ingest/recent.ts';
 import { startIngest } from './ingest/index.ts';
 import type { Logger } from './logger.ts';
 import { startHeartbeat } from './realtime/heartbeat.ts';
@@ -13,6 +17,12 @@ export interface ServerDeps {
   config: Config;
   log: Logger;
   mongo: Mongo;
+  /** Where closed 1-minute windows are stored and history is read from. */
+  store: MetricsStore;
+  /** Network and probe locations (filled in by the reference data loader). */
+  lookup?: Lookup;
+  /** Extra numbers for /api/status, such as reference data counts. */
+  extraStatus?: () => Record<string, unknown>;
   /** Tests shorten this so they do not wait whole seconds. */
   heartbeatMs?: number;
 }
@@ -25,7 +35,8 @@ export interface RunningServer {
 }
 
 /** Wire Express and Socket.IO onto one HTTP server. Does not start listening. */
-export function buildServer({ config, log, mongo, heartbeatMs }: ServerDeps): RunningServer {
+export function buildServer(deps: ServerDeps): RunningServer {
+  const { config, log, mongo, store, heartbeatMs } = deps;
   const seq = new RoomSequencer();
 
   // The app needs the socket count and Socket.IO needs the HTTP server, so the
@@ -33,9 +44,30 @@ export function buildServer({ config, log, mongo, heartbeatMs }: ServerDeps): Ru
   let liveSockets = () => 0;
 
   // The live sources and the pipeline that turns their events into windows.
-  const ingest = startIngest(config, log);
+  const ingest = startIngest(config, log, deps.lookup);
 
-  const app = createApp({ config, log, mongo, ingest, liveSockets: () => liveSockets() });
+  // Recent 1-second points in memory; every closed minute goes to MongoDB.
+  const recent = new RecentSeconds();
+  ingest.onSecond((window) => recent.add(window));
+  ingest.onMinute((window) => {
+    store
+      .writeMinute(window)
+      .catch((err: unknown) => log.error({ err, family: window.family }, 'metrics write failed'));
+  });
+
+  const app = createApp({
+    config,
+    log,
+    mongo,
+    ingest,
+    liveSockets: () => liveSockets(),
+    routes: [historyRouter({ store, recent, seq })],
+    extraStatus: () => ({
+      ...deps.extraStatus?.(),
+      metrics: store.stats,
+      recentScopes: recent.scopes,
+    }),
+  });
   const http = createServer(app);
 
   const io: IoServer = new Server(http, {

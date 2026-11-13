@@ -18,6 +18,13 @@ const envSchema = z.object({
     .enum(['on', 'off'])
     .default('on')
     .transform((v) => v === 'on'),
+  /** Set to "off" to skip downloading network and probe reference data. */
+  REFDATA: z
+    .enum(['on', 'off'])
+    .default('on')
+    .transform((v) => v === 'on'),
+  /** Per minute, store history for at most this many of the busiest networks. */
+  METRICS_ASN_LIMIT: z.coerce.number().int().min(0).max(5000).default(300),
   /** RIS Live asks every client to identify itself. */
   RIS_CLIENT_NAME: z.string().min(1).max(64).default('internet-nervous-system'),
   /**

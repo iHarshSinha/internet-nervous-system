@@ -178,5 +178,15 @@ socket rate limiting, no auth, no helmet. `MODE=replay` only changes a label unt
   message (dedupe checks the first event's ID). Routing gets 1 s windows (world) and 1 min windows
   (world + `asn:<n>`), one watermark partition per collector; Atlas gets 1 min windows only
   (lateness 240 s). `ingest.onMinute(listener)` is where storage and detection attach.
-- [ ] Next: reference data (probe and ASN to country), per-country scopes, `metrics_hourly`
-  upserts and `GET /api/history`.
+- [x] Reference data and storage: `apps/server/src/refdata/` loads network registration countries
+  from the five RIR delegated-extended files (collection `asn_ranges`, refreshed weekly; the plan
+  said RIPEstat per country, this is 5 requests instead of ~250) and Atlas probes (`probes`, daily),
+  cached in MongoDB. Pipeline adds `country:<CC>` scopes (routing: the origin network's registration
+  country; latency: the probe's own country). `db/metrics.ts` writes `metrics_hourly` with field-level
+  `$set` (routing and latency fill the same minute separately), TTL world 7 d / country 3 d / asn 2 d,
+  busiest `METRICS_ASN_LIMIT` networks only. `GET /api/history` (`api/history.ts`) returns minutes,
+  15 min of in-memory seconds (`ingest/recent.ts`) and `snapshotSeq`. Health score v1 lives in
+  `packages/shared/src/health.ts`. Local MongoDB is the Docker `mongo` container; `mongosh` is only a
+  client for inspecting it.
+- [ ] Next: live rooms (`country:<CC>` frames from the 1 s windows, ring buffer of 120 frames,
+  `resync`), so `snapshotSeq` becomes meaningful for country rooms.

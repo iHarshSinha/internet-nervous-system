@@ -290,3 +290,106 @@ describe('Pipeline on recorded Atlas traffic', () => {
     expect(withBad.pipeline.counters.lateMinute).toBe(c.lateMinute);
   });
 });
+
+describe('Pipeline country scopes', () => {
+  const lookup = {
+    asnCountry: (asn: number) => (asn === 32934 ? 'US' : asn === 9829 ? 'IN' : undefined),
+    probe: (id: number) => (id === 7 ? { cc: 'DE', asn: 3320 } : undefined),
+  };
+  const base = { v: 1 as const, src: 'replay' as const, its: T, data: {} };
+
+  it('puts routing events in the country their network is registered in', () => {
+    const seconds: WindowResult[] = [];
+    const minutes: WindowResult[] = [];
+    const p = new Pipeline({
+      lookup,
+      onSecond: (w) => seconds.push(w),
+      onMinute: (w) => minutes.push(w),
+    });
+    p.ingest(
+      [
+        {
+          ...base,
+          eid: 'replay:a#0',
+          kind: 'bgp.announce',
+          ts: T,
+          entity: { prefix: '157.240.0.0/16', asn: 32934, collector: 'rrc00' },
+        },
+      ],
+      T,
+    );
+    // A withdrawal names no network; the owner comes from the announcement above.
+    p.ingest(
+      [
+        {
+          ...base,
+          eid: 'replay:b#0',
+          kind: 'bgp.withdraw',
+          ts: T + 10,
+          entity: { prefix: '157.240.0.0/16', collector: 'rrc00' },
+        },
+      ],
+      T,
+    );
+    p.ingest(
+      [
+        {
+          ...base,
+          eid: 'replay:c#0',
+          kind: 'bgp.announce',
+          ts: T + 20,
+          entity: { prefix: '10.0.0.0/8', asn: 64512, collector: 'rrc00' },
+        },
+      ],
+      T,
+    );
+    p.flush();
+
+    const minute = minutes.find((w) => w.family === 'bgp')!;
+    expect(minute.scopes.get('country:US')).toMatchObject({ ann: 1, wd: 1, pfx: 1 });
+    expect(minute.scopes.get('asn:32934')).toMatchObject({ ann: 1, wd: 1 });
+    expect(minute.scopes.get('world')).toMatchObject({ ann: 2, wd: 1 });
+    expect([...minute.scopes.keys()].filter((k) => k.startsWith('country:'))).toEqual([
+      'country:US',
+    ]);
+    expect(seconds[0]!.scopes.get('country:US')).toMatchObject({ ann: 1, wd: 1 });
+  });
+
+  it("puts latency results in the probe's own country and network", () => {
+    const minutes: WindowResult[] = [];
+    const p = new Pipeline({ lookup, onSecond: () => {}, onMinute: (w) => minutes.push(w) });
+    p.ingest(
+      [
+        {
+          ...base,
+          src: 'atlas',
+          eid: 'atlas:1-7-1',
+          kind: 'atlas.ping',
+          ts: T,
+          entity: { probeId: 7 },
+          data: { rtt: 12.5 },
+        },
+      ],
+      T,
+    );
+    p.ingest(
+      [
+        {
+          ...base,
+          src: 'atlas',
+          eid: 'atlas:1-8-1',
+          kind: 'atlas.ping',
+          ts: T,
+          entity: { probeId: 8 },
+          data: { rtt: null },
+        },
+      ],
+      T,
+    );
+    p.flush();
+    const [minute] = minutes;
+    expect(minute!.scopes.get('country:DE')).toMatchObject({ p50: 12.5, pings: 1, up: 1 });
+    expect(minute!.scopes.get('asn:3320')).toMatchObject({ pings: 1 });
+    expect(minute!.scopes.get('world')).toMatchObject({ pings: 2, lost: 1, up: 2 });
+  });
+});

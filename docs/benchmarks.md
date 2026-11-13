@@ -148,3 +148,25 @@ Recorded files (not committed; regenerate with the command above):
 
 Withdrawals are attributed to AS32934 only for prefixes the tool had already seen announced by it
 in this window, so these counts are a lower bound.
+
+## Phase 1: storage, first measurements
+
+**Run:** 13 Nov 2026, about 10:23–10:33 UTC, `pnpm dev` with the Docker `mongo:8` container, four RIS
+collectors and three Atlas measurements. Collection sizes from `db.<collection>.stats()`.
+
+| Collection | Documents | Data | Storage (compressed) | Indexes |
+| --- | --- | --- | --- | --- |
+| `asn_ranges` | 103,403 | 4.83 MB | 1.14 MB | 1.09 MB |
+| `probes` | 17,910 | 1.63 MB | 0.57 MB | 0.20 MB |
+| `metrics_hourly` (after about 6 stored minutes) | 848 | 0.13 MB | 0.07 MB | 0.13 MB |
+
+- Reference data: the first download (five registry files plus 36 pages of probes) took about
+  40 seconds; later restarts load it from MongoDB.
+- One minute of routing touched the world, 104 countries and 579 networks (the 300 busiest are
+  stored per family per minute). A bulk write of one minute's documents took 9–28 ms.
+- Pipeline over the run: 235,977 events received, 235,602 counted, 3 duplicates dropped, 316 late,
+  56 with timestamps from the future.
+
+`metrics_hourly` will grow with every hour until its TTLs start deleting. **Not yet measured:** its
+size after a full hour and after the 2–3 day retention. That decides whether MongoDB Atlas M0
+(512 MB) is enough; re-measure after a long run before deploying.

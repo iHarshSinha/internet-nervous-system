@@ -12,6 +12,8 @@ export interface Agg {
   rtt: number[];
   /** Pings that got no answer at all. */
   lost: number;
+  /** Distinct probes that reported a ping result (answered or not). */
+  probes: Set<number>;
   /** Probes that connected / disconnected during the window. */
   joined: number;
   left: number;
@@ -23,6 +25,7 @@ export const newAgg = (): Agg => ({
   pfx: new Set(),
   rtt: [],
   lost: 0,
+  probes: new Set(),
   joined: 0,
   left: 0,
 });
@@ -38,6 +41,8 @@ export interface Totals {
   /** Ping results in the window, answered or not. */
   pings: number;
   lost: number;
+  /** Distinct probes that reported. */
+  up: number;
   joined: number;
   left: number;
 }
@@ -56,6 +61,7 @@ export function applyEvent(agg: Agg, event: EventEnvelope): void {
       const rtt = event.data.rtt;
       if (typeof rtt === 'number') agg.rtt.push(rtt);
       else agg.lost += 1;
+      if (event.entity.probeId !== undefined) agg.probes.add(event.entity.probeId);
       break;
     }
     case 'atlas.probe_status':
@@ -84,6 +90,7 @@ export function finalise(agg: Agg): Totals {
     p95: percentile(sorted, 0.95),
     pings: agg.rtt.length + agg.lost,
     lost: agg.lost,
+    up: agg.probes.size,
     joined: agg.joined,
     left: agg.left,
   };

@@ -15,7 +15,21 @@ export interface WindowResult {
   scopes: Map<string, Totals>;
 }
 
+/**
+ * Where things are. The pipeline only reads this; the reference data module
+ * fills it. Answers are undefined until the data has loaded.
+ */
+export interface Lookup {
+  /** Country a network is registered in. */
+  asnCountry(asn: number): string | undefined;
+  /** Country and network of an Atlas probe. */
+  probe(id: number): { cc?: string; asn?: number } | undefined;
+}
+
+const noLookup: Lookup = { asnCountry: () => undefined, probe: () => undefined };
+
 export interface PipelineOptions {
+  lookup?: Lookup;
   /** Called for every closed 1-second window (routing only). Feeds the live UI. */
   onSecond(window: WindowResult): void;
   /** Called for every closed 1-minute window. Feeds storage and detection. */
@@ -71,6 +85,7 @@ export class Pipeline {
 
   private readonly dedupe = new Deduper();
   private readonly opts: PipelineOptions;
+  private readonly lookup: Lookup;
 
   private readonly bgpSecondMark = new Watermark(BGP_SECOND);
   private readonly bgpMinuteMark = new Watermark(BGP_MINUTE);
@@ -81,6 +96,7 @@ export class Pipeline {
 
   constructor(opts: PipelineOptions) {
     this.opts = opts;
+    this.lookup = opts.lookup ?? noLookup;
   }
 
   /**
@@ -122,10 +138,18 @@ export class Pipeline {
       else if (event.kind === 'bgp.withdraw') asn = this.origins.originOf(prefix);
     }
 
-    const second = this.bgpSeconds.slot('world', event.ts);
-    if (second) applyEvent(second, event);
-    else this.counters.lateSecond += 1;
+    const cc = asn === undefined ? undefined : this.lookup.asnCountry(asn);
 
+    // 1-second windows feed the live view: the world and each country.
+    const second = this.bgpSeconds.slot('world', event.ts);
+    if (second) {
+      applyEvent(second, event);
+      if (cc) applyEvent(this.bgpSeconds.slot(`country:${cc}`, event.ts)!, event);
+    } else {
+      this.counters.lateSecond += 1;
+    }
+
+    // 1-minute windows feed storage and detection: world, country and network.
     const minute = this.bgpMinutes.slot('world', event.ts);
     if (!minute) {
       this.counters.lateMinute += 1;
@@ -134,6 +158,7 @@ export class Pipeline {
     applyEvent(minute, event);
     this.counters.counted += 1;
     if (asn !== undefined) applyEvent(this.bgpMinutes.slot(`asn:${asn}`, event.ts)!, event);
+    if (cc) applyEvent(this.bgpMinutes.slot(`country:${cc}`, event.ts)!, event);
   }
 
   private addAtlas(event: EventEnvelope, now: number): void {
@@ -148,6 +173,14 @@ export class Pipeline {
     }
     applyEvent(minute, event);
     this.counters.counted += 1;
+
+    // A probe's own country and network: where it physically is, which is
+    // more meaningful for latency than where a network is registered.
+    const probeId = event.entity.probeId;
+    const probe = probeId === undefined ? undefined : this.lookup.probe(probeId);
+    const asn = probe?.asn ?? event.entity.asn;
+    if (probe?.cc) applyEvent(this.atlasMinutes.slot(`country:${probe.cc}`, event.ts)!, event);
+    if (asn !== undefined) applyEvent(this.atlasMinutes.slot(`asn:${asn}`, event.ts)!, event);
   }
 
   /** Close every window the watermarks allow. Call a few times per second. */

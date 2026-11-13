@@ -1,7 +1,7 @@
 import type { Config } from '../config.ts';
 import type { Logger } from '../logger.ts';
 import type { Totals } from './pipeline/aggregate.ts';
-import { Pipeline, type WindowResult } from './pipeline/pipeline.ts';
+import { Pipeline, type Lookup, type WindowResult } from './pipeline/pipeline.ts';
 import { createAtlasSource } from './sources/atlas.ts';
 import { createRisSource } from './sources/ris.ts';
 import type { UpstreamSocket } from './sources/upstream-socket.ts';
@@ -10,7 +10,7 @@ import { IngestStats } from './stats.ts';
 /** The most recent closed windows for the whole world, for the live frame and status. */
 export interface Latest {
   /** Last closed 1-second routing window. */
-  second: { start: number; world: Totals } | null;
+  second: { start: number; world: Totals; countries: number } | null;
   /** Last closed 1-minute windows, one per feed family. */
   bgpMinute: { start: number; world: Totals; scopes: number } | null;
   atlasMinute: { start: number; world: Totals } | null;
@@ -22,6 +22,8 @@ export interface Ingest {
   latest: Latest;
   /** One entry per upstream connection, for the status endpoint. */
   connections(): { name: string; connected: boolean; reconnects: number; messages: number }[];
+  /** Register a listener for every closed 1-second routing window (live view). */
+  onSecond(listener: (window: WindowResult) => void): void;
   /** Register a listener for every closed 1-minute window (storage, detection). */
   onMinute(listener: (window: WindowResult) => void): void;
   stop(): void;
@@ -32,16 +34,23 @@ export interface Ingest {
  *
  *   sources -> validate -> normalise -> [pipeline: dedupe -> windows -> totals]
  */
-export function startIngest(config: Config, log: Logger): Ingest {
+export function startIngest(config: Config, log: Logger, lookup?: Lookup): Ingest {
   const stats = new IngestStats();
   const sockets: UpstreamSocket[] = [];
   const latest: Latest = { second: null, bgpMinute: null, atlasMinute: null };
   const minuteListeners: ((window: WindowResult) => void)[] = [];
+  const secondListeners: ((window: WindowResult) => void)[] = [];
 
   const pipeline = new Pipeline({
+    ...(lookup && { lookup }),
     onSecond: (window) => {
       const world = window.scopes.get('world');
-      if (world) latest.second = { start: window.start, world };
+      if (world) {
+        let countries = 0;
+        for (const scope of window.scopes.keys()) if (scope.startsWith('country:')) countries += 1;
+        latest.second = { start: window.start, world, countries };
+      }
+      for (const listener of secondListeners) listener(window);
     },
     onMinute: (window) => {
       const world = window.scopes.get('world');
@@ -97,6 +106,7 @@ export function startIngest(config: Config, log: Logger): Ingest {
         reconnects: s.stats.reconnects,
         messages: s.stats.messages,
       })),
+    onSecond: (listener) => secondListeners.push(listener),
     onMinute: (listener) => minuteListeners.push(listener),
     stop: () => {
       clearInterval(ticker);

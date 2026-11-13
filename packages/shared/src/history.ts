@@ -48,12 +48,12 @@ export const metricPointSchema = z.object({
   /** Round-trip time percentiles in ms; null when no probe reported. */
   p50: z.number().min(0).nullable(),
   p95: z.number().min(0).nullable(),
-  /** Probes connected and disconnected. */
+  /** Distinct Atlas probes that reported a result, and probe disconnect events. */
   up: z.number().int().min(0),
   down: z.number().int().min(0),
   /** Health score, 0 (down) to 100 (healthy). */
   health: z.number().min(0).max(100),
-  /** Events that arrived after their window had closed. */
+  /** Events that arrived after their window had closed (not yet tracked per window: 0). */
   late: z.number().int().min(0),
 });
 export type MetricPoint = z.infer<typeof metricPointSchema>;

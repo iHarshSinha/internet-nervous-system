@@ -6,3 +6,4 @@ export * from './frame.ts';
 export * from './socket.ts';
 export * from './history.ts';
 export * from './upstream.ts';
+export * from './health.ts';
