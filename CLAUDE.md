@@ -157,7 +157,7 @@ Facebook replay file, CI workflows (not yet confirmed green on GitHub).
 
 Not done yet in Phase 0: accounts (Atlas, Cloudflare, Railway) and a first deploy.
 
-Known gaps to close in Phase 1: no socket rate limiting (token bucket), no auth, no helmet. `MODE=replay` only changes a label until Phase 2.
+Known gaps: the server does not serve the web app yet (needed for Railway); no content security policy yet. `MODE=replay` only changes a label until Phase 2.
 
 **Measured facts that change the plan** (details in `docs/benchmarks.md`):
 - Never subscribe to the unfiltered RIS firehose: it lags 40+ s, reconnects constantly and carries
@@ -206,5 +206,16 @@ Known gaps to close in Phase 1: no socket rate limiting (token bucket), no auth,
   `three` and `@types/three` were added as direct dependencies (react-globe.gl's engine).
 - FPS cannot be measured in the Claude browser pane (it throttles animation frames to ~1/s even
   with no WebGL on the page); measure in a real browser window.
-- [ ] Next: step 6, auth and limits (JWT login, roles, `/user` and `/admin` namespaces, REST and
-  socket rate limits, helmet).
+- [x] Sign-in and limits. Google only (user's decision): the page shows Google's button, the server
+  verifies the ID token itself against Google's JWKS (`auth/google.ts`, no client secret), then issues
+  our own 15-min access JWT + rotating httpOnly refresh cookie (`api/auth.ts`, `auth/tokens.ts`,
+  `auth/store.ts`). Roles `user`/`admin` (`ADMIN_EMAILS`). `/api/me`, `/api/me/watchlist`,
+  `/api/admin/stats`. Socket `/user` (joins `user:<id>`) and `/admin` (joins `ops`, pipeline numbers
+  each second) in `realtime/private.ts`. Rate limits: REST per IP, Google sign-in per IP, sockets per
+  address, `sub`/`unsub`/`resync` token bucket per socket (`realtime/limits.ts`). helmet. Web:
+  `store/auth.ts`, `components/GoogleButton.tsx`, `components/Account.tsx`, `pages/MePage.tsx`.
+  Sign-in stays hidden until `GOOGLE_CLIENT_ID` is set in `.env` (the user is creating it).
+- Logged-in users get: watchlist (countries, networks, minimum severity, Discord webhook) and a
+  personal alert channel; alerts themselves come with Phase 2 incidents. Admins later get replay
+  controls and the ops page.
+- Deploy is postponed (user's decision); next is Phase 2, detection and alerts.

@@ -2,7 +2,7 @@ import { rooms } from '@ins/shared';
 import { create } from 'zustand';
 import { applyWorldFrame } from './globe.ts';
 import { onRoomFrame } from './series.ts';
-import type { LinkStats, LinkStatus, WorkerUpdate } from '../workers/socket.worker.ts';
+import type { LinkStats, LinkStatus, UserChannel, WorkerUpdate } from '../workers/socket.worker.ts';
 
 /** Live numbers for one upstream source (ris, atlas, ...). */
 export interface SourceLive {
@@ -16,6 +16,8 @@ export interface SourceLive {
 
 interface LiveState {
   status: LinkStatus;
+  /** The personal `/user` channel. */
+  userChannel: UserChannel;
   stats: LinkStats;
   /** Heartbeat counter from the server. */
   tick: number;
@@ -44,6 +46,7 @@ interface LiveState {
 
 export const useLive = create<LiveState>((set) => ({
   status: 'connecting',
+  userChannel: 'off',
   stats: { received: 0, duplicates: 0, gaps: 0, resyncs: 0, tooOld: 0 },
   tick: 0,
   sockets: null,
@@ -58,9 +61,15 @@ export const useLive = create<LiveState>((set) => ({
 
   apply: (update) =>
     set((state) => {
-      const next: Partial<LiveState> = { status: update.status, stats: update.stats };
+      const next: Partial<LiveState> = {
+        status: update.status,
+        userChannel: update.user,
+        stats: update.stats,
+      };
 
       for (const frame of update.frames) {
+        // Personal alerts (Phase 2) arrive in user:<id>; nothing renders them yet.
+        if (frame.r.startsWith('user:')) continue;
         // Other rooms feed the charts; the world room feeds the globe and the readouts.
         if (frame.r !== rooms.world) {
           onRoomFrame(frame);

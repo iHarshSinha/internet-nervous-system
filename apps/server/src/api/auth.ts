@@ -98,7 +98,12 @@ export function authRouter({ config, log, store, verifyGoogle }: AuthDeps): Rout
 
   router.post('/api/auth/refresh', async (req, res) => {
     const token = readCookie(req.get('cookie'), REFRESH_COOKIE);
-    const userId = token ? await store.takeRefreshToken(hashToken(token)) : null;
+    // No cookie at all is the normal visitor case, not an error: 204, nothing to refresh.
+    if (!token) {
+      res.status(204).end();
+      return;
+    }
+    const userId = await store.takeRefreshToken(hashToken(token));
     const user = userId ? await store.getUser(userId) : null;
     if (!user) {
       setCookie(res, null);

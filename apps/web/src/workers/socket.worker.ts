@@ -31,8 +31,12 @@ export interface LinkStats {
   tooOld: number;
 }
 
+/** The personal `/user` channel: off when signed out. */
+export type UserChannel = 'off' | 'connecting' | 'live' | 'refused';
+
 export interface WorkerUpdate {
   status: LinkStatus;
+  user: UserChannel;
   /** Frames accepted since the previous update, in order. */
   frames: Frame[];
   stats: LinkStats;
@@ -45,6 +49,8 @@ const FLUSH_MS = 16;
 let socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
 let listener: Listener | null = null;
 let status: LinkStatus = 'connecting';
+let userSocket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
+let userChannel: UserChannel = 'off';
 let pending: Frame[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -67,7 +73,7 @@ function flush(): void {
   flushTimer = null;
   const frames = pending;
   pending = [];
-  listener?.({ status, frames, stats: totals() });
+  listener?.({ status, user: userChannel, frames, stats: totals() });
 }
 
 function scheduleFlush(): void {
@@ -137,6 +143,45 @@ const api = {
     });
     socket.on('disconnect', () => setStatus('reconnecting'));
     socket.on(EV.frame, onFrame);
+  },
+
+  /**
+   * Open (or update, or close with null) the personal `/user` channel. The
+   * server checks the access token in the handshake; when the token is
+   * renewed, the next reconnect uses the new one.
+   */
+  connectUser(token: string | null): void {
+    if (!token) {
+      userSocket?.close();
+      userSocket = null;
+      userChannel = 'off';
+      scheduleFlush();
+      return;
+    }
+    if (userSocket) {
+      userSocket.auth = { token };
+      return;
+    }
+    userChannel = 'connecting';
+    userSocket = io(NAMESPACES.user, { transports: ['websocket'], auth: { token } });
+    userSocket.on('connect', () => {
+      userChannel = 'live';
+      scheduleFlush();
+    });
+    userSocket.on('disconnect', () => {
+      userChannel = 'connecting';
+      scheduleFlush();
+    });
+    userSocket.on('connect_error', () => {
+      userChannel = 'refused';
+      scheduleFlush();
+    });
+    // Personal alerts arrive here as frames for the `user:<id>` room (Phase 2).
+    userSocket.on(EV.frame, (frame) => {
+      pending.push(frame);
+      scheduleFlush();
+    });
+    scheduleFlush();
   },
 
   /** Join rooms. Resolves with each room's current sequence number (the merge starting point). */

@@ -1,5 +1,6 @@
 import { memo, useEffect, useState, type ReactNode } from 'react';
 import { navigate } from '../router.ts';
+import { Account } from './Account.tsx';
 import { useLive } from '../store/live.ts';
 import type { LinkStatus } from '../workers/socket.worker.ts';
 
@@ -76,6 +77,7 @@ export function Header() {
           <UtcClock />
         </span>
         <StatusPill />
+        <Account />
       </div>
     </header>
   );

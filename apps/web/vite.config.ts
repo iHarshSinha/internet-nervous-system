@@ -14,10 +14,11 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      '/api': server,
+      // xfwd adds X-Forwarded-For, as Caddy does, so rate limits see each client.
+      '/api': { target: server, xfwd: true },
       '/healthz': server,
       '/readyz': server,
-      '/socket.io': { target: server, ws: true },
+      '/socket.io': { target: server, ws: true, xfwd: true },
     },
   },
 });

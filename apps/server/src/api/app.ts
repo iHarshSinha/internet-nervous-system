@@ -40,9 +40,10 @@ export function createApp({
   app.use(express.json({ limit: '256kb' }));
 
   const tooMany = (message: string) => ({ error: { code: 'rate_limited', message } });
-  // Sign-in is the most attractive endpoint to hammer, so it gets its own, tighter limit.
+  // Signing in is the endpoint worth hammering, so it gets its own, tighter limit.
+  // Refresh is not: its token is 256 random bits, and every page load calls it.
   app.use(
-    '/api/auth',
+    '/api/auth/google',
     rateLimit({
       windowMs: 60_000,
       limit: config.AUTH_RATE_PER_MIN,

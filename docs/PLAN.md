@@ -539,7 +539,7 @@ Build in this order and cut from the bottom if time runs short. After Phase 1, t
 - [x] `metrics_hourly` upserts and the history endpoint
 - [x] `/live` namespace with `world` and `country:<CC>` rooms, sequence numbers and ring buffers
 - [x] Globe: country health and probe dots; country page with history merged into live
-- [ ] JWT auth and roles, zod validation, REST and socket rate limits
+- [x] JWT auth and roles, zod validation, REST and socket rate limits *(sign-in is Google only, decided 13 Nov 2026: no passwords stored; the app stays fully usable without signing in)*
 - [ ] Deploy the full Compose stack to the server (Atlas for the database); write the README skeleton
 
 **Phase 2 · Detection and alerts**

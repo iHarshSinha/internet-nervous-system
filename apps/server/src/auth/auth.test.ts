@@ -313,6 +313,12 @@ describe('rate limits', () => {
     expect(codes).toEqual([401, 401, 401, 429]);
   });
 
+  it('does not count session refreshes against the sign-in limit', async () => {
+    for (let i = 0; i < 5; i++) {
+      expect((await post(`${url}/api/auth/refresh`)).status).toBe(204); // no cookie: no session, never 429
+    }
+  });
+
   it('limits sub/unsub/resync per socket, and new sockets per address', async () => {
     const client = await socketTo(url, NAMESPACES.live);
     const sub = () =>
