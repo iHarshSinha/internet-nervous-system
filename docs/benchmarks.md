@@ -186,3 +186,23 @@ then fetched `GET /api/history` for the same rooms. JSON encoding (MessagePack c
 
 Every 1-second point that arrived live and also appeared in the history response had identical
 values. `resync` for the last three frames of `country:US` returned exactly frames 68, 69 and 70.
+
+## Phase 2: detection
+
+**Tuning run:** the 30-minute recording of 13 Nov 2026 (`ris-full-*.ndjson.gz`, sampled firehose)
+replayed through the real pipeline, detectors and incident manager on its own clock (about 20 s of
+CPU). First thresholds opened 19 incidents, mostly small networks whose few known prefixes flapped
+(after a restart we only know prefixes seen since start). Requiring 20 different routers to withdraw
+a prefix before it counts as gone, 20 routers reporting, 3 collectors for a new origin, and reopening
+an incident instead of opening a new one brought it to **4 incidents**, all warnings: two possible
+hijacks (6 and 31 prefixes at a new origin, 13 and 5 collectors) and two small networks whose every
+known prefix was withdrawn by 29–32 routers.
+
+**Facebook scenario (recorded data, 10×):** in the test on a simulated clock a critical incident for
+AS32934 opens 12.7 s after the first withdrawal and resolves after the simulated recovery. Live
+(13 Nov 2026, dev server): the incident opened 24 s after the trigger, with 1,735 withdrawals in a
+minute seen by 105 routers.
+
+**Attack simulator, live (14 Nov 2026):** country blackout on DE (its three largest networks in our
+table, every German Atlas probe): AS29066, AS8881 and AS60664 critical **4.2 s** after the trigger
+(storm + vanished), `country:DE` critical **5.2 s** after (storm + latency + dropout).

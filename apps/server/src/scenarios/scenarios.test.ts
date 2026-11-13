@@ -61,6 +61,10 @@ describe('ScenarioRunner', () => {
       { name: 'a', at: 0 },
       { name: 'b', at: 60 },
     ],
+    asn: 32934,
+    cc: 'US',
+    target: 'AS32934',
+    masked: [32934],
   };
 
   it('stamps events now, labels them simulated, gives fresh IDs per run, and records the run', async () => {

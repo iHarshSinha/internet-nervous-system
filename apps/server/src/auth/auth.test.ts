@@ -1,4 +1,5 @@
 import { generateKeyPairSync } from 'node:crypto';
+import { createMemoryIncidentStore } from '../db/incidents.ts';
 import type { AddressInfo } from 'node:net';
 import {
   EV,
@@ -131,6 +132,7 @@ async function start(env: Record<string, string>) {
     store,
     authStore: createMemoryAuthStore(),
     runsStore: createMemoryRunsStore(),
+    incidentStore: createMemoryIncidentStore(),
     verifyGoogle: fakeGoogle,
     heartbeatMs: 20,
     conflateMs: 20,

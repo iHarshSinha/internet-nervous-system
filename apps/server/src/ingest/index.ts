@@ -1,5 +1,8 @@
+import type { Incident } from '@ins/shared';
 import type { Config } from '../config.ts';
 import type { Logger } from '../logger.ts';
+import { Detectors } from './detect/detectors.ts';
+import { IncidentManager } from './detect/incidents.ts';
 import type { Totals } from './pipeline/aggregate.ts';
 import { Pipeline, type Lookup, type WindowResult } from './pipeline/pipeline.ts';
 import { createAtlasSource } from './sources/atlas.ts';
@@ -23,6 +26,11 @@ export interface Ingest {
   /** Plays recorded incidents through the pipeline (admin-controlled). */
   replay: ReplayPlayer;
   latest: Latest;
+  /** Live and recent incidents, raised by the detectors. */
+  incidents: IncidentManager;
+  detectors: Detectors;
+  /** Register a listener for every incident that opens or changes. */
+  onIncident(listener: (incident: Incident) => void): void;
   /** One entry per upstream connection, for the status endpoint. */
   connections(): { name: string; connected: boolean; reconnects: number; messages: number }[];
   /** Register a listener for every closed 1-second routing window (live view). */
@@ -37,15 +45,34 @@ export interface Ingest {
  *
  *   sources -> validate -> normalise -> [pipeline: dedupe -> windows -> totals]
  */
-export function startIngest(config: Config, log: Logger, lookup?: Lookup): Ingest {
+export interface DetectionDeps {
+  /** Network names for incident text (looked up in the background). */
+  nameOf?(asn: number): string | null;
+  /** Connected Atlas probes in a country. */
+  connectedProbes?(cc: string): number;
+  /** Networks a running scenario is simulating (live updates for them are kept out). */
+  isMasked?(asn: number): boolean;
+}
+
+export function startIngest(
+  config: Config,
+  log: Logger,
+  lookup?: Lookup,
+  detection: DetectionDeps = {},
+): Ingest {
   const stats = new IngestStats();
   const sockets: UpstreamSocket[] = [];
   const latest: Latest = { second: null, bgpMinute: null, atlasMinute: null };
   const minuteListeners: ((window: WindowResult) => void)[] = [];
   const secondListeners: ((window: WindowResult) => void)[] = [];
+  const incidentListeners: ((incident: Incident) => void)[] = [];
+  // Assigned right after the pipeline exists (the detectors read its origin table).
+  let detectors: Detectors | null = null;
 
   const pipeline = new Pipeline({
     ...(lookup && { lookup }),
+    onEvent: (event, ctx) => detectors?.observe(event, ctx, Date.now()),
+    isMasked: (asn) => detection.isMasked?.(asn) ?? false,
     onSecond: (window) => {
       const world = window.scopes.get('world');
       if (world) {
@@ -72,9 +99,28 @@ export function startIngest(config: Config, log: Logger, lookup?: Lookup): Inges
         },
         'minute window closed',
       );
+      if (window.family === 'bgp') detectors?.onMinute(window.scopes);
       for (const listener of minuteListeners) listener(window);
     },
   });
+
+  // Anomaly detection: detectors -> signals -> incidents.
+  detectors = new Detectors({
+    origins: pipeline.origins,
+    connectedProbes: (cc) => detection.connectedProbes?.(cc) ?? 0,
+  });
+  const incidents = new IncidentManager({
+    nameOf: (asn) => detection.nameOf?.(asn) ?? null,
+    countryOf: (asn) => lookup?.asnCountry(asn),
+    onChange: (incident) => {
+      for (const listener of incidentListeners) listener(incident);
+    },
+  });
+  const detectTimer = setInterval(() => {
+    const now = Date.now();
+    incidents.report(detectors!.evaluate(now), now);
+    incidents.tick(now);
+  }, 1000);
 
   // Recorded incidents, retimed to now and fed through the same pipeline.
   const replay = new ReplayPlayer({
@@ -113,6 +159,9 @@ export function startIngest(config: Config, log: Logger, lookup?: Lookup): Inges
     pipeline,
     replay,
     latest,
+    incidents,
+    detectors,
+    onIncident: (listener) => incidentListeners.push(listener),
     connections: () =>
       sockets.map((s) => ({
         name: s.name,
@@ -124,6 +173,7 @@ export function startIngest(config: Config, log: Logger, lookup?: Lookup): Inges
     onMinute: (listener) => minuteListeners.push(listener),
     stop: () => {
       clearInterval(ticker);
+      clearInterval(detectTimer);
       replay.stop();
       for (const socket of sockets) socket.stop();
     },

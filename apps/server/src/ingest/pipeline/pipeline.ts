@@ -28,7 +28,26 @@ export interface Lookup {
 
 const noLookup: Lookup = { asnCountry: () => undefined, probe: () => undefined };
 
+/** What the pipeline knows about one deduplicated event; handed to the detectors. */
+export interface EventContext {
+  /** Owning network: given by announcements, looked up for withdrawals, the probe's for Atlas. */
+  asn: number | undefined;
+  cc: string | undefined;
+  /** For an announcement that changed a prefix's origin: the previous owner. */
+  prevOrigin: number | undefined;
+  /** Live traffic for a network that a running scenario is simulating; detectors ignore it. */
+  masked: boolean;
+}
+
 export interface PipelineOptions {
+  /** Every deduplicated, attributed event, for the detectors. */
+  onEvent?(event: EventEnvelope, ctx: EventContext): void;
+  /**
+   * While a scenario simulates a network, live updates for it would quietly
+   * undo the simulation (the real network is fine). This says which networks
+   * to keep live updates away from, for reachability and detection.
+   */
+  isMasked?(asn: number): boolean;
   lookup?: Lookup;
   /** Called for every closed 1-second window (routing only). Feeds the live UI. */
   onSecond(window: WindowResult): void;
@@ -137,12 +156,22 @@ export class Pipeline {
     // not, so we look up who announced the prefix before.
     const prefix = event.entity.prefix;
     let asn = event.entity.asn;
-    if (prefix) {
-      if (event.kind === 'bgp.announce' && asn !== undefined) this.origins.learn(prefix, asn);
-      else if (event.kind === 'bgp.withdraw') asn = this.origins.originOf(prefix);
+    if (prefix && event.kind === 'bgp.withdraw') asn = this.origins.originOf(prefix);
+    const masked =
+      asn !== undefined && event.data.simulated !== true && (this.opts.isMasked?.(asn) ?? false);
+
+    // Update who owns what and what is reachable (not for masked live traffic).
+    let prevOrigin: number | undefined;
+    if (prefix && !masked) {
+      if (event.kind === 'bgp.announce' && asn !== undefined) {
+        prevOrigin = this.origins.learn(prefix, asn);
+      } else if (event.kind === 'bgp.withdraw') {
+        this.origins.withdraw(prefix);
+      }
     }
 
     const cc = asn === undefined ? undefined : this.lookup.asnCountry(asn);
+    this.opts.onEvent?.(event, { asn, cc, prevOrigin, masked });
 
     // 1-second windows feed the live view: the world and each country.
     const second = this.bgpSeconds.slot('world', event.ts);
@@ -184,6 +213,12 @@ export class Pipeline {
     const probeId = event.entity.probeId;
     const probe = probeId === undefined ? undefined : this.lookup.probe(probeId);
     const asn = probe?.asn ?? event.entity.asn;
+    this.opts.onEvent?.(event, {
+      asn,
+      cc: probe?.cc,
+      prevOrigin: undefined,
+      masked: false,
+    });
     if (probe?.cc) applyEvent(this.atlasMinutes.slot(`country:${probe.cc}`, event.ts)!, event);
     if (asn !== undefined) applyEvent(this.atlasMinutes.slot(`asn:${asn}`, event.ts)!, event);
   }

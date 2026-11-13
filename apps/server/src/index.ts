@@ -4,6 +4,8 @@ import { createMetricsStore } from './db/metrics.ts';
 import { createGoogleVerifier } from './auth/google.ts';
 import { createMongoAuthStore } from './auth/store.ts';
 import { createMongoRunsStore } from './scenarios/runs.ts';
+import { createMongoIncidentStore } from './db/incidents.ts';
+import { AsnNames } from './ingest/detect/names.ts';
 import { createLogger } from './logger.ts';
 import { RefData, startRefdata } from './refdata/index.ts';
 import { buildServer } from './server.ts';
@@ -14,6 +16,8 @@ const mongo = createMongo(config.MONGODB_URI);
 const store = createMetricsStore(mongo.db, config.METRICS_ASN_LIMIT);
 const refdata = new RefData();
 const authStore = createMongoAuthStore(mongo.db);
+const incidentStore = createMongoIncidentStore(mongo.db);
+const names = new AsnNames(mongo.db, log);
 const server = buildServer({
   config,
   log,
@@ -21,6 +25,8 @@ const server = buildServer({
   store,
   authStore,
   runsStore: createMongoRunsStore(mongo.db),
+  incidentStore,
+  nameOf: (asn) => names.get(asn),
   // Sign-in is switched on only when a Google client ID is configured.
   verifyGoogle: config.GOOGLE_CLIENT_ID ? createGoogleVerifier(config.GOOGLE_CLIENT_ID) : null,
   lookup: refdata,
@@ -35,7 +41,9 @@ if (config.JWT_SECRET_GENERATED) {
 }
 
 // Indexes first (they guarantee one bucket per scope per hour), then reference data.
-void Promise.all([store.ensureIndexes(), authStore.ensureIndexes()])
+void Promise.all([store.ensureIndexes(), authStore.ensureIndexes(), incidentStore.ensureIndexes()])
+  .then(() => incidentStore.closeOrphans(Date.now()))
+  .then((closed) => closed > 0 && log.info({ closed }, 'closed incidents left open by a restart'))
   .then(() => log.info('indexes ready'))
   .catch((err: unknown) => log.error({ err }, 'could not create indexes'));
 const stopRefdata = config.REFDATA ? startRefdata(mongo.db, refdata, log) : () => {};

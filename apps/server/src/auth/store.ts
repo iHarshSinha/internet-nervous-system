@@ -17,6 +17,11 @@ export interface AuthStore {
   deleteRefreshToken(hash: string): Promise<void>;
   getWatchlist(userId: string): Promise<Watchlist>;
   saveWatchlist(userId: string, watchlist: Watchlist): Promise<void>;
+  /** Users watching a country or a network, with the lowest severity they want to hear about. */
+  watchersOf(
+    cc: string | null,
+    asn: number | null,
+  ): Promise<{ userId: string; minSeverity: Watchlist['minSeverity'] }[]>;
 }
 
 interface UserDoc {
@@ -99,6 +104,16 @@ export function createMongoAuthStore(db: Db): AuthStore {
       return watchlist;
     },
 
+    async watchersOf(cc, asn) {
+      const or: Record<string, unknown>[] = [];
+      if (cc) or.push({ countries: cc });
+      if (asn !== null) or.push({ asns: asn });
+      if (or.length === 0) return [];
+      const docs = await watchlists
+        .find({ $or: or }, { projection: { _id: 1, minSeverity: 1 } })
+        .toArray();
+      return docs.map((d) => ({ userId: d._id, minSeverity: d.minSeverity }));
+    },
     async saveWatchlist(userId, watchlist) {
       await watchlists.replaceOne(
         { _id: userId },
@@ -147,5 +162,11 @@ export function createMemoryAuthStore(): AuthStore {
     deleteRefreshToken: async (hash) => void tokens.delete(hash),
     getWatchlist: async (userId) => watchlists.get(userId) ?? EMPTY_WATCHLIST,
     saveWatchlist: async (userId, w) => void watchlists.set(userId, w),
+    watchersOf: async (cc, asn) =>
+      [...watchlists]
+        .filter(
+          ([, w]) => (cc && w.countries.includes(cc)) || (asn !== null && w.asns.includes(asn)),
+        )
+        .map(([userId, w]) => ({ userId, minSeverity: w.minSeverity })),
   };
 }

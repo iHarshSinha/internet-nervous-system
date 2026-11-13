@@ -9,6 +9,7 @@ import {
 import { Router } from 'express';
 import { principalOf, requireAdmin, requireUser } from '../auth/middleware.ts';
 import type { ReplayPlayer } from '../ingest/sources/replay.ts';
+import { AttackError, attackPlan, type AttackDeps } from '../scenarios/attacks.ts';
 import { facebookPlan } from '../scenarios/facebook.ts';
 import type { ScenarioPlan, ScenarioRunner } from '../scenarios/runner.ts';
 import type { RunsStore } from '../scenarios/runs.ts';
@@ -20,6 +21,8 @@ export interface AdminDeps {
   scenarios: ScenarioRunner;
   runs: RunsStore;
   scenarioDir: string;
+  /** Live state the synthetic attacks are built from. */
+  attacks: AttackDeps;
   log: Logger;
 }
 
@@ -30,6 +33,7 @@ export function adminRouter({
   scenarios,
   runs,
   scenarioDir,
+  attacks,
   log,
 }: AdminDeps): Router {
   const router = Router();
@@ -37,21 +41,19 @@ export function adminRouter({
 
   // Scenario files are small; each is read once and kept.
   let facebook: ScenarioPlan | null = null;
-  const planFor = (id: ScenarioId): ScenarioPlan | null => {
-    if (id === 'facebook-2021') {
-      const file = join(scenarioDir, 'facebook-2021.ndjson.gz');
-      if (!existsSync(file)) return null;
-      facebook ??= facebookPlan(file);
-      return facebook;
-    }
-    return null;
+  const recorded = (id: ScenarioId): ScenarioPlan | null => {
+    if (id !== 'facebook-2021') return null;
+    const file = join(scenarioDir, 'facebook-2021.ndjson.gz');
+    if (!existsSync(file)) return null;
+    facebook ??= facebookPlan(file);
+    return facebook;
   };
 
   router.get('/api/admin/scenario', ...adminOnly, (_req, res) => {
     res.json(scenarios.snapshot());
   });
 
-  router.post('/api/admin/scenario', ...adminOnly, (req, res) => {
+  router.post('/api/admin/scenario', ...adminOnly, async (req, res) => {
     const parsed = scenarioCommandSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: { code: 'bad_request', message: 'Invalid scenario command' } });
@@ -61,7 +63,17 @@ export function adminRouter({
     if (cmd.action === 'stop') {
       scenarios.stop();
     } else {
-      const plan = planFor(cmd.scenario);
+      let plan: ScenarioPlan | null;
+      try {
+        plan =
+          cmd.scenario === 'facebook-2021'
+            ? recorded(cmd.scenario)
+            : await attackPlan(cmd.scenario, { asn: cmd.asn, cc: cmd.cc }, attacks);
+      } catch (err) {
+        if (!(err instanceof AttackError)) throw err;
+        res.status(422).json({ error: { code: 'bad_target', message: err.message } });
+        return;
+      }
       if (!plan) {
         res.status(404).json({ error: { code: 'not_found', message: 'Scenario file is missing' } });
         return;

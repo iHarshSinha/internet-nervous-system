@@ -13,6 +13,12 @@ export interface ScenarioPlan {
   steps: ScenarioStep[];
   durationMs: number;
   phases: { name: string; at: number }[];
+  /** What it targets, recorded with the run and shown to viewers. */
+  asn: number | null;
+  cc: string | null;
+  target: string | null;
+  /** Networks whose real live updates are kept out of detection during the run. */
+  masked: number[];
 }
 
 export interface RunnerOptions {
@@ -43,6 +49,7 @@ export class ScenarioRunner {
     startedAt: null,
     durationMs: 0,
     phase: null,
+    target: null,
     run: 0,
     emitted: 0,
   };
@@ -71,6 +78,7 @@ export class ScenarioRunner {
       startedAt,
       durationMs: plan.durationMs,
       phase: plan.phases[0]?.name ?? null,
+      target: plan.target,
       run,
       emitted: 0,
     };
@@ -87,7 +95,7 @@ export class ScenarioRunner {
       this.opts.onEnd?.(this.status.run, this.now());
       this.opts.log.info({ scenario: this.status.id, run: this.status.run }, 'scenario ended');
     }
-    this.status = { ...this.status, state: 'idle', phase: null };
+    this.status = { ...this.status, state: 'idle', phase: null, target: null };
     this.plan = null;
   }
 

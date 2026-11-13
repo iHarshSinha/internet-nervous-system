@@ -6,6 +6,8 @@ import { adminRouter } from './api/admin.ts';
 import { authRouter } from './api/auth.ts';
 import { globeRouter } from './api/globe.ts';
 import { historyRouter } from './api/history.ts';
+import { incidentsRouter } from './api/incidents.ts';
+import type { IncidentStore } from './db/incidents.ts';
 import { meRouter } from './api/me.ts';
 import type { GoogleVerifier } from './auth/google.ts';
 import type { AuthStore } from './auth/store.ts';
@@ -23,9 +25,10 @@ import { attachLive, handleLive, type IoServer, type LiveNamespace } from './rea
 import { attachPrivate } from './realtime/private.ts';
 import { startPublishing } from './realtime/publish.ts';
 import { RoomSequencer } from './realtime/sequencer.ts';
+import { fetchAnnouncedPrefixes } from './scenarios/prefixes.ts';
 import { ScenarioRunner } from './scenarios/runner.ts';
 import type { RunsStore } from './scenarios/runs.ts';
-import { SCENARIOS } from '@ins/shared';
+import { incidentKey, type Incident } from '@ins/shared';
 
 export interface ServerDeps {
   config: Config;
@@ -35,6 +38,10 @@ export interface ServerDeps {
   store: MetricsStore;
   /** Users, sessions and watchlists. */
   authStore: AuthStore;
+  /** Where incidents are kept. */
+  incidentStore: IncidentStore;
+  /** Network names for incident text; null names until looked up. */
+  nameOf?(asn: number): string | null;
   /** Records of scenario runs (simulated stretches of time). */
   runsStore: RunsStore;
   /** Checks Google ID tokens; null when sign-in is not configured. */
@@ -71,10 +78,91 @@ export function buildServer(deps: ServerDeps): RunningServer {
     namespaces?: Record<string, LiveNamespace>;
     publisher?: ReturnType<typeof startPublishing>;
     broadcaster?: Broadcaster;
+    userBroadcaster?: Broadcaster;
+    masked?: Set<number>;
   } = {};
 
   // The live sources and the pipeline that turns their events into windows.
-  const ingest = startIngest(config, log, deps.lookup);
+  // Connected Atlas probes per country, recounted once a minute (for the dropout detector).
+  let probeCounts = new Map<string, number>();
+  let countedAt = 0;
+  const connectedProbes = (cc: string) => {
+    if (Date.now() - countedAt > 60_000) {
+      countedAt = Date.now();
+      probeCounts = new Map();
+      for (const p of deps.lookup?.allProbes?.() ?? []) {
+        if (p.cc && p.status === 'Connected')
+          probeCounts.set(p.cc, (probeCounts.get(p.cc) ?? 0) + 1);
+      }
+    }
+    return probeCounts.get(cc) ?? 0;
+  };
+
+  const ingest = startIngest(config, log, deps.lookup, {
+    nameOf: (asn) => deps.nameOf?.(asn) ?? null,
+    connectedProbes,
+    // While a scenario simulates a network, live updates for it stay out of detection.
+    isMasked: (asn) => late.masked?.has(asn) ?? false,
+  });
+
+  /*
+   * Personal alerts: people whose watchlist covers the incident's country or
+   * network hear about it on their private channel when it opens, when it gets
+   * worse, and when it resolves, if it reaches the severity they chose.
+   */
+  const RANK = { watch: 0, warning: 1, critical: 2 } as const;
+  const alerted = new Map<string, string>(); // incident id -> last state|severity alerted
+  const alertWatchers = (incident: Incident, snapshot: Record<string, unknown>) => {
+    const stage = incident.state === 'resolved' ? 'resolved' : incident.severity;
+    const last = alerted.get(incident.id);
+    if (last === stage || (last === 'critical' && stage === 'warning')) return;
+    if (stage === 'resolved' && last === undefined) return;
+    alerted.set(incident.id, stage);
+    if (stage === 'resolved') setTimeout(() => alerted.delete(incident.id), 60_000).unref();
+    deps.authStore
+      .watchersOf(incident.cc, incident.asn)
+      .then((watchers) => {
+        for (const w of watchers) {
+          if (RANK[incident.severity] < RANK[w.minSeverity]) continue;
+          late.userBroadcaster?.set(rooms.user(w.userId), `alert:${incident.id}`, 'v', snapshot);
+        }
+      })
+      .catch((err: unknown) => log.warn({ err }, 'could not look up watchers'));
+  };
+
+  // Every incident change is saved and sent to the rooms that show it.
+  ingest.onIncident((incident) => {
+    deps.incidentStore
+      .save(incident)
+      .catch((err: unknown) => log.error({ err }, 'could not save incident'));
+    // A frozen copy as plain JSON (the frame format carries objects as records).
+    const snapshot = structuredClone(incident) as unknown as Record<string, unknown>;
+    const key = incidentKey(incident.id);
+    const b = late.broadcaster;
+    if (!b) return;
+    b.set(rooms.incidents, key, 'v', snapshot);
+    if (incident.asn !== null) b.set(rooms.asn(incident.asn), key, 'v', snapshot);
+    if (incident.cc) b.set(rooms.country(incident.cc), key, 'v', snapshot);
+    alertWatchers(incident, snapshot);
+    if (incident.state === 'open' && incident.updatedAt === incident.openedAt) {
+      log.info(
+        { incident: incident.id, scope: incident.scope, severity: incident.severity },
+        'incident opened',
+      );
+    }
+  });
+
+  // Remember what "normal" looked like before a restart: the last hour of stored minutes.
+  if (store.recentWithdrawals) {
+    const to = Date.now() - (Date.now() % 60_000);
+    store
+      .recentWithdrawals(to - 60 * 60_000, to)
+      .then(({ covered, wd }) => {
+        ingest.detectors.warmStart(covered, wd);
+        log.info({ minutes: covered.length, scopes: wd.size }, 'detector baselines loaded');
+      })
+      .catch((err: unknown) => log.warn({ err }, 'could not load detector baselines'));
+  }
 
   // Recent 1-second points in memory; every closed minute goes to MongoDB.
   const recent = new RecentSeconds();
@@ -94,12 +182,13 @@ export function buildServer(deps: ServerDeps): RunningServer {
       ingest.pipeline.ingest(batch, now);
     },
     onStart: (run, plan, startedAt) => {
-      const info = SCENARIOS[plan.id];
-      const id = deps.runsStore.started(plan.id, startedAt, info.asn, info.cc);
+      late.masked = new Set(plan.masked);
+      const id = deps.runsStore.started(plan.id, startedAt, plan.asn, plan.cc);
       id.catch((err: unknown) => log.warn({ err }, 'could not record scenario run'));
       runIds.set(run, id);
     },
     onEnd: (run, endedAt) => {
+      late.masked = undefined;
       void runIds
         .get(run)
         ?.then((id) => deps.runsStore.ended(id, endedAt))
@@ -135,9 +224,21 @@ export function buildServer(deps: ServerDeps): RunningServer {
         scenarios,
         runs: deps.runsStore,
         scenarioDir: config.SCENARIO_DIR,
+        attacks: {
+          prefixesOf: (asn, limit) => ingest.pipeline.origins.prefixesOf(asn, limit),
+          largestIn: (cc, n) =>
+            ingest.pipeline.origins.largest(n, (asn) => deps.lookup?.asnCountry(asn) === cc),
+          probesIn: (cc) =>
+            [...(deps.lookup?.allProbes?.() ?? [])]
+              .filter((p) => p.cc === cc && p.status === 'Connected')
+              .map((p) => p.id),
+          countryOf: (asn) => deps.lookup?.asnCountry(asn),
+          fetchPrefixes: (asn) => fetchAnnouncedPrefixes(asn),
+        },
         log,
       }),
       historyRouter({ store, recent, seq }),
+      incidentsRouter({ manager: ingest.incidents, store: deps.incidentStore, seq }),
       globeRouter({
         probes: () => deps.lookup?.allProbes?.() ?? [],
         pipeline: ingest.pipeline,
@@ -197,6 +298,10 @@ export function buildServer(deps: ServerDeps): RunningServer {
   // The admin-only `ops` room: pipeline and delivery numbers, once a second.
   const opsBroadcaster = new Broadcaster(admin, new RoomSequencer(), opts);
   opsBroadcaster.start();
+  // Personal alerts, in each user's own room of /user.
+  const userBroadcaster = new Broadcaster(user, new RoomSequencer(), opts);
+  late.userBroadcaster = userBroadcaster;
+  userBroadcaster.start();
   const opsTimer = setInterval(() => {
     const s = opsStats();
     const put = (key: string, field: string, value: number | null) =>
@@ -215,6 +320,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
     async close() {
       clearInterval(opsTimer);
       opsBroadcaster.stop();
+      userBroadcaster.stop();
       stopHeartbeat();
       scenarios.stop();
       publisher.stop();

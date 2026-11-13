@@ -1,7 +1,9 @@
 import { rooms, type ReplayStatus, type ScenarioStatus } from '@ins/shared';
 import { create } from 'zustand';
 import { applyWorldFrame } from './globe.ts';
+import { onIncidentFrame } from './incidents.ts';
 import { onRoomFrame } from './series.ts';
+import { onUserFrame } from './alerts.ts';
 import type { LinkStats, LinkStatus, UserChannel, WorkerUpdate } from '../workers/socket.worker.ts';
 
 /** Live numbers for one upstream source (ris, atlas, ...). */
@@ -33,7 +35,7 @@ interface LiveState {
   /** What the replay is doing (everyone sees it, so recorded data is never taken for live). */
   replay: Pick<ReplayStatus, 'state' | 'scenario' | 'speed' | 'clock'>;
   /** An admin-triggered scenario, if one is running (everyone sees it). */
-  scenario: Pick<ScenarioStatus, 'state' | 'id' | 'startedAt' | 'durationMs' | 'phase'>;
+  scenario: Pick<ScenarioStatus, 'state' | 'id' | 'startedAt' | 'durationMs' | 'phase' | 'target'>;
   /** Sequence number and server time of the latest `world` frame. */
   seq: number;
   serverTime: number | null;
@@ -60,7 +62,7 @@ export const useLive = create<LiveState>((set) => ({
   world: {},
   pipe: {},
   replay: { state: 'idle', scenario: null, speed: 1, clock: null },
-  scenario: { state: 'idle', id: null, startedAt: null, durationMs: 0, phase: null },
+  scenario: { state: 'idle', id: null, startedAt: null, durationMs: 0, phase: null, target: null },
   seq: 0,
   serverTime: null,
   delayMs: null,
@@ -74,8 +76,15 @@ export const useLive = create<LiveState>((set) => ({
       };
 
       for (const frame of update.frames) {
-        // Personal alerts (Phase 2) arrive in user:<id>; nothing renders them yet.
-        if (frame.r.startsWith('user:')) continue;
+        // Personal alerts for incidents on the user's watchlist.
+        if (frame.r.startsWith('user:')) {
+          onUserFrame(frame);
+          continue;
+        }
+        if (frame.r === rooms.incidents) {
+          onIncidentFrame(frame);
+          continue;
+        }
         // Other rooms feed the charts; the world room feeds the globe and the readouts.
         if (frame.r !== rooms.world) {
           onRoomFrame(frame);

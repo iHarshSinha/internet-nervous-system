@@ -35,6 +35,7 @@ export function startHeartbeat(
       put('scenario', 'startedAt', s.startedAt);
       put('scenario', 'durationMs', s.durationMs);
       put('scenario', 'phase', s.phase);
+      put('scenario', 'target', s.target);
     }
     put('sys', 'sockets', live.sockets.size);
     if (!ingest) return;

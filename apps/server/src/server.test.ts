@@ -1,4 +1,5 @@
 import type { AddressInfo } from 'node:net';
+import { createMemoryIncidentStore } from './db/incidents.ts';
 import {
   EV,
   frameSchema,
@@ -68,6 +69,7 @@ beforeAll(async () => {
     store,
     authStore: createMemoryAuthStore(),
     runsStore: createMemoryRunsStore(),
+    incidentStore: createMemoryIncidentStore(),
     verifyGoogle: null,
     heartbeatMs: 20,
     conflateMs: 20,

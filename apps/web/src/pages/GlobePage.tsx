@@ -5,6 +5,7 @@ import { Starfield } from '../components/Starfield.tsx';
 import { Welcome } from '../components/Welcome.tsx';
 import { ReplayBadge } from '../components/Replay.tsx';
 import { ScenarioBadge, ScenarioControls } from '../components/Scenario.tsx';
+import { IncidentFeed } from '../components/Incidents.tsx';
 import { Panel, Stat } from '../components/ui.tsx';
 import { countryName } from '../geo.ts';
 import { GLOBE_HOME, GlobeView } from '../globe/GlobeView.tsx';
@@ -459,6 +460,9 @@ export function GlobePage() {
           </div>
 
           <div className="pointer-events-auto flex w-full flex-col gap-3 lg:w-[300px]">
+            <div className="animate-[rise_.9s_.2s_both]">
+              <IncidentFeed />
+            </div>
             <div className="animate-[rise_.9s_.25s_both]">
               <Busiest />
             </div>

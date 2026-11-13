@@ -165,10 +165,30 @@ describe('OriginTable', () => {
     table.learn('1.0.0.0/24', 13335);
     table.learn('2.0.0.0/24', 32934);
     table.learn('3.0.0.0/24', 15169); // table full
-    table.learn('1.0.0.0/24', 64512); // known prefix: still updated
-    expect(table.originOf('1.0.0.0/24')).toBe(64512);
     expect(table.originOf('3.0.0.0/24')).toBeUndefined();
     expect(table).toMatchObject({ size: 2, skipped: 1 });
+  });
+
+  it("tracks how many of a network's prefixes are withdrawn", () => {
+    const table = new OriginTable();
+    for (const p of ['a', 'b', 'c', 'd']) table.learn(p, 32934);
+    expect(table.withdraw('a')).toBe(32934);
+    table.withdraw('b');
+    table.withdraw('b'); // withdrawing twice counts once
+    expect(table.reach(32934)).toEqual({ known: 4, gone: 2 });
+    table.learn('a', 32934); // announced again: reachable
+    expect(table.reach(32934)).toEqual({ known: 4, gone: 1 });
+    expect(table.withdraw('never-seen')).toBeUndefined();
+  });
+
+  it('reports an origin change and moves the prefix to its new owner', () => {
+    const table = new OriginTable();
+    table.learn('1.0.0.0/24', 13335);
+    table.withdraw('1.0.0.0/24');
+    expect(table.learn('1.0.0.0/24', 64666)).toBe(13335);
+    expect(table.reach(13335)).toEqual({ known: 0, gone: 0 });
+    expect(table.reach(64666)).toEqual({ known: 1, gone: 0 });
+    expect(table.learn('1.0.0.0/24', 64666)).toBeUndefined(); // same owner: no change
   });
 });
 

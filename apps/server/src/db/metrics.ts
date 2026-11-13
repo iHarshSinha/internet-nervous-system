@@ -99,6 +99,15 @@ export interface MetricsStore {
   writeMinute(window: WindowResult): Promise<number>;
   /** Minutes in [from, to), oldest first. */
   readMinutes(scope: ScopeType, key: string, from: number, to: number): Promise<MinuteRow[]>;
+  /**
+   * Withdrawals per minute for every stored country and network in [from, to),
+   * and which minutes have data at all (the world row exists whenever we were
+   * running). Seeds the detectors' sense of normal after a restart.
+   */
+  recentWithdrawals?(
+    from: number,
+    to: number,
+  ): Promise<{ covered: number[]; wd: Map<string, Map<number, number>> }>;
   readonly stats: { windows: number; docs: number; errors: number; lastWriteMs: number | null };
 }
 
@@ -173,6 +182,36 @@ export function createMetricsStore(db: Db, asnLimit: number): MetricsStore {
         }
       }
       return rows;
+    },
+
+    async recentWithdrawals(from, to) {
+      const docs = await coll
+        .find(
+          { hour: { $gte: new Date(from - (from % HOUR)), $lt: new Date(to) } },
+          { projection: { scope: 1, key: 1, hour: 1, m: 1 } },
+        )
+        .toArray();
+      const covered = new Set<number>();
+      const wd = new Map<string, Map<number, number>>();
+      for (const doc of docs) {
+        const base = doc.hour.getTime();
+        for (const [mm, slot] of Object.entries(doc.m ?? {})) {
+          const t = base + Number(mm) * 60_000;
+          if (t < from || t >= to || slot.wd === undefined) continue;
+          if (doc.scope === 'world') {
+            covered.add(t);
+            continue;
+          }
+          const scope = `${doc.scope}:${doc.key}`;
+          let m = wd.get(scope);
+          if (!m) {
+            m = new Map();
+            wd.set(scope, m);
+          }
+          m.set(t, slot.wd);
+        }
+      }
+      return { covered: [...covered].sort((a, b) => a - b), wd };
     },
   };
 }

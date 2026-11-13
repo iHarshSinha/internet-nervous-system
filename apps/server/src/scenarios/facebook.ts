@@ -76,6 +76,10 @@ export function facebookPlan(file: string): ScenarioPlan {
 
   return {
     id: 'facebook-2021',
+    asn: FACEBOOK.asn,
+    cc: FACEBOOK.cc,
+    target: `AS${FACEBOOK.asn}`,
+    masked: [FACEBOOK.asn],
     steps,
     durationMs: recoveryAt + RECOVERY_MS + 2000,
     phases: [

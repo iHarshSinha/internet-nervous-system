@@ -1,16 +1,22 @@
 import { create } from 'zustand';
 
 /*
- * A tiny router: two kinds of page do not justify a routing library. The URL
+ * A tiny router: a handful of pages do not justify a routing library. The URL
  * is the source of truth, so links can be shared and the back button works.
  */
 
 export type Route =
-  { page: 'globe' } | { page: 'country'; cc: string } | { page: 'me' } | { page: 'login' };
+  | { page: 'globe' }
+  | { page: 'country'; cc: string }
+  | { page: 'incident'; id: string }
+  | { page: 'me' }
+  | { page: 'login' };
 
 export function parseRoute(path: string): Route {
   const country = /^\/c\/([A-Za-z]{2})\/?$/.exec(path);
   if (country) return { page: 'country', cc: country[1]!.toUpperCase() };
+  const incident = /^\/incident\/([0-9a-f-]{36})\/?$/.exec(path);
+  if (incident) return { page: 'incident', id: incident[1]! };
   if (/^\/me\/?$/.test(path)) return { page: 'me' };
   if (/^\/login\/?$/.test(path)) return { page: 'login' };
   return { page: 'globe' };

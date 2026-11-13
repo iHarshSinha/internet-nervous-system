@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { lazy, Suspense, useEffect } from 'react';
+import { IncidentAlerts, RedAlert } from './components/Incidents.tsx';
 import { Header } from './components/ui.tsx';
 import { startRealtime } from './realtime/client.ts';
 import { initAuth } from './store/auth.ts';
@@ -15,6 +16,10 @@ const LoginPage = lazy(() =>
 const MePage = lazy(() => import('./pages/MePage.tsx').then((m) => ({ default: m.MePage })));
 const CountryPage = lazy(() =>
   import('./pages/CountryPage.tsx').then((m) => ({ default: m.CountryPage })),
+);
+
+const IncidentPage = lazy(() =>
+  import('./pages/IncidentPage.tsx').then((m) => ({ default: m.IncidentPage })),
 );
 
 const queryClient = new QueryClient({
@@ -42,12 +47,21 @@ export function App() {
           <CountryPage key={route.cc} cc={route.cc} />
         ) : route.page === 'me' ? (
           <MePage />
+        ) : route.page === 'incident' ? (
+          <IncidentPage key={route.id} id={route.id} />
         ) : route.page === 'login' ? (
           <LoginPage />
         ) : (
           <GlobePage />
         )}
       </Suspense>
+      {/* Incident alerts follow you on every page except sign-in. */}
+      {route.page !== 'login' && (
+        <>
+          <RedAlert />
+          <IncidentAlerts />
+        </>
+      )}
     </QueryClientProvider>
   );
 }

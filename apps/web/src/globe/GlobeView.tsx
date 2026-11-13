@@ -3,6 +3,9 @@ import Globe, { type GlobeMethods } from 'react-globe.gl';
 import { MeshPhongMaterial, type Object3D, type PerspectiveCamera } from 'three';
 import { countryInfo, countryName, loadCountries, type CountryFeature } from '../geo.ts';
 import { useGlobe } from '../store/globe.ts';
+import { useLive } from '../store/live.ts';
+import { activeIncidents, incidentTitle, useIncidents } from '../store/incidents.ts';
+import { navigate } from '../router.ts';
 import { selectCountry, useUi } from '../store/ui.ts';
 import { BUCKET_COLORS, formatInt, healthColor } from '../theme.ts';
 
@@ -21,7 +24,22 @@ interface Ring {
   lat: number;
   lng: number;
   r: number;
+  /** "r, g, b" of the ripple. */
+  rgb: string;
+  speed: number;
+  period: number;
 }
+
+/** A floating label over a country with an open incident. */
+interface Marker {
+  id: string;
+  lat: number;
+  lng: number;
+  text: string;
+  color: string;
+}
+
+const INCIDENT_RGB = { critical: '255, 77, 94', warning: '255, 180, 84', watch: '155, 140, 255' };
 
 const material = new MeshPhongMaterial({ color: '#08121d', emissive: '#02070e', shininess: 6 });
 
@@ -42,6 +60,21 @@ function tooltip(cc: string | null): string {
   </div>`;
 }
 
+/** The floating incident label (plain DOM: the globe library positions it). */
+function markerElement(m: Marker): HTMLElement {
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.style.cssText = `pointer-events:auto;cursor:pointer;transform:translate(-50%,-140%);white-space:nowrap;
+    font:600 12px system-ui;color:#fff;background:rgba(10,6,8,.88);border:1px solid ${m.color};
+    border-radius:999px;padding:5px 11px 5px 9px;box-shadow:0 0 24px -2px ${m.color};
+    display:flex;align-items:center;gap:6px;animation:pop .5s both`;
+  const dot = document.createElement('span');
+  dot.style.cssText = `width:8px;height:8px;border-radius:50%;background:${m.color};box-shadow:0 0 10px ${m.color};animation:blink 1s infinite`;
+  el.append(dot, document.createTextNode(`⚠ ${m.text}`));
+  el.onclick = () => navigate(`/incident/${m.id}`);
+  return el;
+}
+
 /**
  * The hero: a dark globe whose land is a field of dots coloured by each
  * country's network health, with every RIPE Atlas probe as a point of light
@@ -56,6 +89,37 @@ export function GlobeView() {
   const [hovered, setHovered] = useState<string | null>(null);
   const selected = useUi((s) => s.selected);
   const [frame, setFrame] = useState(0);
+  // Countries with a critical incident blink; this flips twice a second while one is open.
+  const [blink, setBlink] = useState(false);
+  const incidentsById = useIncidents((s) => s.byId);
+  const hasCritical = activeIncidents(incidentsById).some(
+    (i) => i.severity === 'critical' && i.state === 'open',
+  );
+
+  useEffect(() => {
+    if (!hasCritical) return;
+    const timer = setInterval(() => setBlink((b) => !b), 600);
+    return () => clearInterval(timer);
+  }, [hasCritical]);
+
+  // A new incident: fly there, so nobody watching can miss it.
+  useEffect(
+    () =>
+      useIncidents.subscribe((state, prev) => {
+        const id = state.fresh[0];
+        if (!id || id === prev.fresh[0]) return;
+        const incident = state.byId[id];
+        // During a simulation, stay with it rather than chasing real incidents elsewhere.
+        if (useLive.getState().scenario.state === 'running' && !incident?.simulated) return;
+        const cc = incident?.cc;
+        const info = cc ? countryInfo(cc) : undefined;
+        const globe = globeRef.current;
+        if (!info || !globe || useUi.getState().selected) return;
+        globe.controls().autoRotate = false;
+        globe.pointOfView({ lat: info.lat, lng: info.lng, altitude: 1.6 }, 1800);
+      }),
+    [],
+  );
 
   useEffect(() => {
     void loadCountries().then(setFeatures);
@@ -151,8 +215,36 @@ export function GlobeView() {
     [],
   );
 
-  const { probeSets, rings, colorOf } = useMemo(() => {
+  const { probeSets, rings, colorOf, markers } = useMemo(() => {
     const { countries, probePos, probeBucket } = useGlobe.getState();
+
+    // Incidents take over their country: red or amber land, a big ripple, a label.
+    const incidentCc = new Map<string, 'critical' | 'warning' | 'watch'>();
+    const markerList: Marker[] = [];
+    const incidentRings: Ring[] = [];
+    for (const i of activeIncidents(incidentsById)) {
+      if (!i.cc || incidentCc.has(i.cc)) continue;
+      const info = countryInfo(i.cc);
+      if (!info) continue;
+      const severity = i.state === 'open' ? i.severity : 'watch';
+      incidentCc.set(i.cc, severity);
+      const critical = severity === 'critical';
+      incidentRings.push({
+        lat: info.lat,
+        lng: info.lng,
+        r: critical ? 14 : 9,
+        rgb: INCIDENT_RGB[severity],
+        speed: critical ? 6 : 4,
+        period: critical ? 500 : 900,
+      });
+      markerList.push({
+        id: i.id,
+        lat: info.lat,
+        lng: info.lng,
+        text: `${incidentTitle(i, countryName)} · ${i.state === 'open' ? i.severity : 'recovering'}`,
+        color: `rgb(${INCIDENT_RGB[severity]})`,
+      });
+    }
 
     const sets: ProbeSet[] = BUCKET_COLORS.map((color) => ({ color, size: 2.2, pts: [] }));
     const unknown: ProbeSet = { color: 'rgba(120,150,180,0.35)', size: 1.4, pts: [] };
@@ -173,6 +265,9 @@ export function GlobeView() {
           lat: label.lat,
           lng: label.lng,
           r: 1.2 + Math.log10((c.act ?? 0) + 1) * 1.6,
+          rgb: '94, 230, 255',
+          speed: 2.2,
+          period: 1100,
         });
       }
     }
@@ -180,6 +275,12 @@ export function GlobeView() {
     const colors = new Map<string, string>();
     for (const f of features) {
       const cc = f.properties.cc;
+      const severity = incidentCc.get(cc);
+      if (severity) {
+        const bright = severity !== 'critical' || blink;
+        colors.set(cc, `rgba(${INCIDENT_RGB[severity]}, ${bright ? 1 : 0.45})`);
+        continue;
+      }
       colors.set(
         cc,
         cc === selected
@@ -191,12 +292,13 @@ export function GlobeView() {
     }
     return {
       probeSets: [unknown, ...sets],
-      rings: ringList,
+      rings: [...incidentRings, ...ringList],
+      markers: markerList,
       colorOf: (f: object) => colors.get(ccOf(f) ?? '') ?? '#1d2a3a',
     };
     // `frame` is the trigger: the data lives in the mutable store.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [frame, features, hovered, selected]);
+  }, [frame, features, hovered, selected, incidentsById, blink]);
 
   function onReady() {
     const globe = globeRef.current;
@@ -271,9 +373,14 @@ export function GlobeView() {
           ringLng="lng"
           ringAltitude={0.008}
           ringMaxRadius="r"
-          ringColor={() => (t: number) => `rgba(94, 230, 255, ${(1 - t) * 0.85})`}
-          ringPropagationSpeed={2.2}
-          ringRepeatPeriod={1100}
+          ringColor={(d: object) => (t: number) => `rgba(${(d as Ring).rgb}, ${(1 - t) * 0.85})`}
+          ringPropagationSpeed={(d: object) => (d as Ring).speed}
+          ringRepeatPeriod={(d: object) => (d as Ring).period}
+          htmlElementsData={markers}
+          htmlLat="lat"
+          htmlLng="lng"
+          htmlAltitude={0.04}
+          htmlElement={(d: object) => markerElement(d as Marker)}
         />
       )}
     </div>

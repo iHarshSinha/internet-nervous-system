@@ -1,6 +1,7 @@
 import { rooms } from '@ins/shared';
 import { proxy, wrap, type Remote } from 'comlink';
 import { useAuth } from '../store/auth.ts';
+import { loadIncidents } from '../store/incidents.ts';
 import { useLive } from '../store/live.ts';
 import type { SocketWorkerApi } from '../workers/socket.worker.ts';
 
@@ -20,6 +21,9 @@ export function startRealtime(): void {
   api = wrap<SocketWorkerApi>(worker);
   void api.start(proxy((update) => useLive.getState().apply(update)));
   void api.subscribe([rooms.world]);
+  // Incidents are part of every page: join the room first, then load what is already open,
+  // so nothing that happens in between is missed (newer copies win the merge).
+  void api.subscribe([rooms.incidents]).then(() => loadIncidents());
 
   // Keep the personal channel in step with the session: open it on sign-in,
   // hand it each renewed token, close it on sign-out.

@@ -43,6 +43,7 @@ export function normaliseRis(data: RisData, receivedAt: number): EventEnvelope[]
   const path = data.path ?? [];
   const last = path.at(-1);
   const origin = typeof last === 'number' ? last : undefined;
+  const flat = path.flat();
 
   for (const announcement of data.announcements ?? []) {
     for (const prefix of announcement.prefixes) {
@@ -51,7 +52,8 @@ export function normaliseRis(data: RisData, receivedAt: number): EventEnvelope[]
         eid: makeEid('ris', data.id, part++),
         kind: 'bgp.announce',
         entity: { prefix, collector, ...(origin !== undefined && { asn: origin }) },
-        data: { peerAsn, peer: data.peer, pathLen: path.length },
+        // The path lets the hijack detector see whether the old owner is still on the route.
+        data: { peerAsn, peer: data.peer, pathLen: path.length, path: flat },
       });
     }
   }

@@ -220,7 +220,7 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
   controls and the ops page.
 - Deploy is postponed (user's decision).
 
-**Phase 2 progress** (user wants steps 1-4 one at a time; Discord dropped; Cloudflare after step 4):
+**Phase 2 progress** (user now wants the rest of Phase 2 done without stopping; Discord dropped):
 - [x] Step 1, replay and scenarios. User's design (13 Nov 2026): live data flows normally; when an
   admin triggers an outage it happens NOW for about 2 minutes, then everything returns to normal.
   `tools/replay-prep/src/scenario.ts` cuts Facebook's own events (AS32934, 15:39-15:54 UTC) out of the
@@ -232,9 +232,23 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
   `POST /api/admin/scenario`; status in the world room under key `scenario`; everyone sees a
   SIMULATION badge. The full-file `ReplayPlayer` (`/api/admin/replay`) stays for Phase 3 load tests.
   Measured: 14,163 events in 118 s; AS32934 showed 1,683 withdrawals over 27 prefixes in a minute.
-- [ ] Step 2: detectors D1, D1b (network vanished), D2, D3, D4, fusion, incident lifecycle, MongoDB.
-  Note: at 20x one wall minute holds 20 original minutes, so detectors must not assume real time.
-- [ ] Then: attack simulator for admins (user asked: inject labelled simulated withdrawal storm,
-  hijack, latency surge, probe dropout on a chosen country or network, for the video). Build it as
-  more ScenarioPlans (synthetic steps) on the same runner.
-- [ ] Step 3 incidents in the UI; step 4 incident page; then Cloudflare (user creates the token).
+- [x] Step 2, detectors (`apps/server/src/ingest/detect/`): D1 storm (median/MAD z > 6, >= 20 prefixes,
+  >= 5 routers), D1b vanished (prefixes withdrawn by >= 20 routers and not re-announced), D2 origin
+  change (>= 3 collectors, old owner not on the path), D3 latency (per-probe EWMA), D4 probe dropout.
+  `IncidentManager` fuses signals (sum of weights over 10 min; warning >= 0.5, critical >= 0.8),
+  open -> resolving -> resolved after 30 s quiet, reopens a scope within 30 min, template
+  summaries, names from RIPEstat (`asn_names`). Stored in `incidents`, `GET /api/incidents[/:id]`,
+  deltas `inc:<id>` to `incidents`, `country:` and `asn:` rooms; watchers get `alert:<id>` in
+  `user:<id>`. Baselines reload from `metrics_hourly` at startup (`warmStart`). Thresholds were tuned
+  offline on the 30-min recording (19 -> 4 incidents); the harness idea: feed
+  `deploy/seed/capture/ris-full-*.ndjson.gz` through Pipeline + Detectors + IncidentManager.
+  Known limit: our routing table only knows prefixes seen since start (no RIB snapshot).
+- [x] Attack simulator (`scenarios/attacks.ts`): outage, hijack (AS64511), latency, dropout and
+  country blackout, built from live state (real prefixes, real probes; RIPEstat announced-prefixes
+  when the table is thin). Admin picks the target in the Control room. Tested end to end
+  (`attacks.test.ts`). Measured live: Germany blackout -> 3 networks critical in 4.2 s, DE in 5.2 s.
+- [x] Steps 3-4 (web): `store/incidents.ts` (merge by `updatedAt`), feed panel, alert cards (critical,
+  simulated or watchlist only), red edge pulse while a critical incident is open, globe paints the
+  country, ripples, floating label, flies there; `/incident/:id` page (summary, score, evidence,
+  reachability, timeline, network chart).
+- [ ] Step 5: Cloudflare Radar poller (D6) and attack arcs. Token is in `.env` (CLOUDFLARE_API_TOKEN).
