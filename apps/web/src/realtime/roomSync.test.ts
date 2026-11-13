@@ -75,4 +75,16 @@ describe('RoomSync', () => {
     expect(sync.receive(f(14)).apply).toEqual([]);
     expect(seqs(sync.receive(f(16)).apply)).toEqual([16]);
   });
+
+  it('gives up waiting for a resync that never answers, instead of holding frames forever', () => {
+    const sync = new RoomSync();
+    sync.start(0);
+    sync.receive(f(1));
+    sync.receive(f(3)); // gap: waiting for frame 2
+    let sawStale = false;
+    for (let s = 4; s <= 210; s++) sawStale ||= sync.receive(f(s)).stale === true;
+    expect(sawStale).toBe(true); // the caller is told to reload history
+    expect(sync.stats.tooOld).toBe(1);
+    expect(sync.lastApplied).toBe(210); // and the stream carries on
+  });
 });

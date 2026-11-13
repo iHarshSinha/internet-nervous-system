@@ -35,6 +35,9 @@ export interface SyncResult {
  *    response already includes everything up to `seq`, so frames up to it are
  *    dropped and the stream continues from there.
  */
+/** Frames held while waiting before we give up on a resync (about a minute of one room). */
+const MAX_HELD = 200;
+
 export class RoomSync {
   readonly stats: SyncStats = { applied: 0, duplicates: 0, gaps: 0, resyncs: 0, tooOld: 0 };
 
@@ -55,6 +58,8 @@ export class RoomSync {
 
   receive(frame: Frame): SyncResult {
     this.held.push(frame);
+    // A resync that never comes back must not make us hold frames forever.
+    if (this.waiting && this.held.length > MAX_HELD) return this.resynced(null);
     if (this.last === null || this.waiting) return { apply: [] };
     return this.drain();
   }

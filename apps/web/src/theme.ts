@@ -41,6 +41,15 @@ export function healthColor(h: number | undefined, alpha = 1): string {
   return css(BROKEN, alpha);
 }
 
+/** A word for a health score, used next to the number. */
+export function healthLabel(h: number | undefined): string {
+  if (h === undefined) return 'No data yet';
+  if (h >= 90) return 'Healthy';
+  if (h >= 60) return 'Watch';
+  if (h >= 25) return 'Degraded';
+  return 'Disrupted';
+}
+
 /** Probe dot colours by latency bucket (see LATENCY_BUCKETS_MS), last = no reply. */
 export const BUCKET_COLORS = ['#5ee6ff', '#5aa9ff', '#9b8cff', '#d78cff', '#ffb454', '#ff6b6b'];
 export const BUCKET_LABELS = ['< 20 ms', '20–50', '50–100', '100–200', '> 200 ms', 'no reply'];

@@ -9,7 +9,10 @@ export interface Point {
   p50?: number | null;
   p95?: number | null;
   pings?: number;
+  lost?: number;
   up?: number;
+  /** Health as stored with history; live minutes compute it from the fields above. */
+  health?: number;
 }
 
 export interface RoomSeries {
@@ -85,7 +88,10 @@ function applyFrame(s: RoomSeries, frame: Frame): void {
     }
     const at = pointTime(key);
     if (!at || typeof value !== 'object' || value === null || Array.isArray(value)) continue;
-    merge(at.res === 's' ? s.seconds : s.minutes, at.t, value as Point);
+    // A live minute may complete a stored one (latency arrives later than
+    // routing), so drop any stored health and let it be recomputed.
+    const point = at.res === 'm' ? { ...(value as Point), health: undefined } : (value as Point);
+    merge(at.res === 's' ? s.seconds : s.minutes, at.t, point);
   }
   s.lastSeq = frame.s;
 }
@@ -112,7 +118,15 @@ export function loadHistory(res: HistoryResponse): void {
   const s = rooms.get(res.room);
   if (!s) return;
   for (const m of res.minutes) {
-    merge(s.minutes, m.t, { ann: m.ann, wd: m.wd, pfx: m.pfx, p50: m.p50, p95: m.p95, up: m.up });
+    merge(s.minutes, m.t, {
+      ann: m.ann,
+      wd: m.wd,
+      pfx: m.pfx,
+      p50: m.p50,
+      p95: m.p95,
+      up: m.up,
+      health: m.health,
+    });
   }
   for (const p of res.seconds) merge(s.seconds, p.t, { ann: p.ann, wd: p.wd, pfx: p.pfx });
 
