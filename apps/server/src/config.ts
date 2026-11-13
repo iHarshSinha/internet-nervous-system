@@ -67,6 +67,12 @@ const envSchema = z.object({
     .string()
     .default(fileURLToPath(new URL('../../../deploy/seed/scenarios/', import.meta.url))),
 
+  // ---- Cloudflare Radar (optional: without a token the Radar layer stays off)
+  CLOUDFLARE_API_TOKEN: z.preprocess(emptyIsUnset, z.string().min(20).max(200).optional()),
+  /** How often to poll Radar events, and attack pairs (which Radar updates every 15 minutes). */
+  RADAR_EVENTS_EVERY_S: z.coerce.number().int().min(60).max(3600).default(180),
+  RADAR_PAIRS_EVERY_S: z.coerce.number().int().min(300).max(3600).default(900),
+
   // ---- sign-in and access control
   /** Google OAuth client ID. Without it, sign-in is hidden and the app stays visitor-only. */
   GOOGLE_CLIENT_ID: z.preprocess(

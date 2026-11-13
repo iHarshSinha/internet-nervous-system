@@ -26,6 +26,7 @@ const ORDER: SignalType[] = [
   'origin_change',
   'latency_surge',
   'probe_dropout',
+  'cloudflare',
 ];
 
 export interface IncidentDeps {
@@ -56,6 +57,8 @@ function sentence(type: SignalType, d: Record<string, number | string>, who: str
       return `${d.share}% of RIPE Atlas probes there (${d.degraded} of ${d.probes}) are much slower than usual or not answering.`;
     case 'probe_dropout':
       return `${d.disconnected} RIPE Atlas probes there disconnected within five minutes, ${d.share}% of those connected.`;
+    case 'cloudflare':
+      return `Cloudflare Radar reports it too: ${d.title}`;
   }
 }
 

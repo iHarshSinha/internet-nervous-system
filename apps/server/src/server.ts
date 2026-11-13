@@ -8,6 +8,9 @@ import { globeRouter } from './api/globe.ts';
 import { historyRouter } from './api/history.ts';
 import { incidentsRouter } from './api/incidents.ts';
 import type { IncidentStore } from './db/incidents.ts';
+import { createMemoryRadarStore, type RadarStore } from './db/radar.ts';
+import { radarRouter } from './api/radar.ts';
+import { RadarPoller } from './ingest/sources/radar.ts';
 import { meRouter } from './api/me.ts';
 import type { GoogleVerifier } from './auth/google.ts';
 import type { AuthStore } from './auth/store.ts';
@@ -28,7 +31,7 @@ import { RoomSequencer } from './realtime/sequencer.ts';
 import { fetchAnnouncedPrefixes } from './scenarios/prefixes.ts';
 import { ScenarioRunner } from './scenarios/runner.ts';
 import type { RunsStore } from './scenarios/runs.ts';
-import { incidentKey, type Incident } from '@ins/shared';
+import { incidentKey, PAIRS_KEY, type AttackPair, type Incident } from '@ins/shared';
 
 export interface ServerDeps {
   config: Config;
@@ -40,6 +43,8 @@ export interface ServerDeps {
   authStore: AuthStore;
   /** Where incidents are kept. */
   incidentStore: IncidentStore;
+  /** Cloudflare Radar events (memory when not given, as in tests). */
+  radarStore?: RadarStore;
   /** Network names for incident text; null names until looked up. */
   nameOf?(asn: number): string | null;
   /** Records of scenario runs (simulated stretches of time). */
@@ -164,6 +169,57 @@ export function buildServer(deps: ServerDeps): RunningServer {
       .catch((err: unknown) => log.warn({ err }, 'could not load detector baselines'));
   }
 
+  /*
+   * Cloudflare Radar (optional). Events go to the detectors (D6, confirmation)
+   * and MongoDB; new ones and the attack pairs go to the `arcs` room.
+   */
+  const radarStore = deps.radarStore ?? createMemoryRadarStore();
+  let radarPairs: { pairs: AttackPair[]; updatedAt: number | null } = {
+    pairs: [],
+    updatedAt: null,
+  };
+  const token = config.CLOUDFLARE_API_TOKEN;
+  const radar = token
+    ? new RadarPoller({
+        token,
+        log,
+        eventsEveryMs: config.RADAR_EVENTS_EVERY_S * 1000,
+        pairsEveryMs: config.RADAR_PAIRS_EVERY_S * 1000,
+        onEvents: (events) => {
+          ingest.detectors.observeRadar(events);
+          radarStore
+            .save(events)
+            .then((fresh) => {
+              for (const e of fresh) {
+                late.broadcaster?.set(
+                  rooms.arcs,
+                  e.id,
+                  'v',
+                  structuredClone(e) as unknown as Record<string, unknown>,
+                );
+              }
+              if (fresh.length > 0)
+                log.info({ fresh: fresh.length }, 'new cloudflare radar events');
+            })
+            .catch((err: unknown) => log.warn({ err }, 'could not store radar events'));
+        },
+        onPairs: (pairs) => {
+          radarPairs = { pairs, updatedAt: Date.now() };
+          late.broadcaster?.set(rooms.arcs, PAIRS_KEY, 'v', structuredClone(pairs));
+        },
+      })
+    : null;
+  if (radar) {
+    // What Radar reported before a restart still confirms incidents now.
+    radarStore
+      .recent(Date.now() - 7 * 24 * 3600_000, 500)
+      .then((events) => ingest.detectors.observeRadar(events))
+      .catch((err: unknown) => log.warn({ err }, 'could not load radar events'));
+    radar.start();
+  } else {
+    log.info('CLOUDFLARE_API_TOKEN not set: the Cloudflare Radar layer is off');
+  }
+
   // Recent 1-second points in memory; every closed minute goes to MongoDB.
   const recent = new RecentSeconds();
   ingest.onSecond((window) => recent.add(window));
@@ -207,6 +263,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
     broadcast: late.broadcaster?.stats,
     metrics: store.stats,
     memoryMb: Math.round(process.memoryUsage().rss / 1048576),
+    radar: radar?.stats ?? null,
   });
 
   const app = createApp({
@@ -239,6 +296,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
       }),
       historyRouter({ store, recent, seq }),
       incidentsRouter({ manager: ingest.incidents, store: deps.incidentStore, seq }),
+      radarRouter({ enabled: radar !== null, store: radarStore, pairs: () => radarPairs, seq }),
       globeRouter({
         probes: () => deps.lookup?.allProbes?.() ?? [],
         pipeline: ingest.pipeline,
@@ -323,6 +381,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
       userBroadcaster.stop();
       stopHeartbeat();
       scenarios.stop();
+      radar?.stop();
       publisher.stop();
       broadcaster.stop();
       ingest.stop();

@@ -2,6 +2,7 @@ import { rooms, type ReplayStatus, type ScenarioStatus } from '@ins/shared';
 import { create } from 'zustand';
 import { applyWorldFrame } from './globe.ts';
 import { onIncidentFrame } from './incidents.ts';
+import { onArcsFrame } from './radar.ts';
 import { onRoomFrame } from './series.ts';
 import { onUserFrame } from './alerts.ts';
 import type { LinkStats, LinkStatus, UserChannel, WorkerUpdate } from '../workers/socket.worker.ts';
@@ -83,6 +84,10 @@ export const useLive = create<LiveState>((set) => ({
         }
         if (frame.r === rooms.incidents) {
           onIncidentFrame(frame);
+          continue;
+        }
+        if (frame.r === rooms.arcs) {
+          onArcsFrame(frame);
           continue;
         }
         // Other rooms feed the charts; the world room feeds the globe and the readouts.

@@ -251,4 +251,12 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
   simulated or watchlist only), red edge pulse while a critical incident is open, globe paints the
   country, ripples, floating label, flies there; `/incident/:id` page (summary, score, evidence,
   reachability, timeline, network chart).
-- [ ] Step 5: Cloudflare Radar poller (D6) and attack arcs. Token is in `.env` (CLOUDFLARE_API_TOKEN).
+- [x] Step 5, Cloudflare Radar (`ingest/sources/radar.ts`, token in `.env`): polls outage annotations,
+  traffic anomalies, hijacks (minConfidence 8) and leaks (>= 10 peers kept) every 3 min, layer 7 and
+  layer 3 attack pairs every 15 min (Radar only offers 1-day aggregates for pairs). Validated with zod
+  (schemas in `packages/shared/src/radar.ts`), stored in `radar_events` (TTL 30 d), `GET /api/radar`,
+  new events and pairs to the `arcs` room. D6 `cloudflare` signal (0.3): a current Radar event for
+  the same network (or country, for outages and anomalies) confirms our incident, never opens one
+  alone. Web: `store/radar.ts`, attack arcs on the globe, `components/Radar.tsx` panel. Attribution
+  CC BY-NC 4.0 shown in the panel and footer.
+- Phase 2 is complete. Next: Phase 3 (performance, load tests) and the UI polish the user deferred.

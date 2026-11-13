@@ -7,6 +7,7 @@ export const SIGNAL_TYPES = [
   'origin_change', // D2: possible hijack
   'latency_surge', // D3
   'probe_dropout', // D4
+  'cloudflare', // D6: Cloudflare Radar reports something in the same place
 ] as const;
 export type SignalType = (typeof SIGNAL_TYPES)[number];
 
@@ -21,6 +22,7 @@ export const SIGNAL_WEIGHTS: Record<SignalType, number> = {
   origin_change: 0.5,
   latency_surge: 0.2,
   probe_dropout: 0.3,
+  cloudflare: 0.3,
 };
 
 export const SIGNAL_LABELS: Record<SignalType, string> = {
@@ -29,6 +31,7 @@ export const SIGNAL_LABELS: Record<SignalType, string> = {
   origin_change: 'Possible hijack',
   latency_surge: 'Latency surge',
   probe_dropout: 'Probes dropped off',
+  cloudflare: 'Cloudflare Radar',
 };
 
 /** Below 0.5 is only "watch" and opens no incident; warning from 0.5, critical from 0.8. */

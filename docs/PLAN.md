@@ -546,7 +546,7 @@ Build in this order and cut from the bottom if time runs short. After Phase 1, t
 
 - [x] Detectors D1–D4, fusion and the incident lifecycle *(plus D1b "network vanished")*
 - [x] Incident feed, incident page and templated summaries
-- [ ] Cloudflare poller (D6) and attack arcs
+- [x] Cloudflare poller (D6) and attack arcs
 - [x] Replay source with speed control; check that the Facebook replay is detected *(as an on-demand 2-minute scenario, plus an attack simulator for admins)*
 - [x] Watchlists, `/user` alerts, Discord webhook *(Discord dropped by the team)*
 

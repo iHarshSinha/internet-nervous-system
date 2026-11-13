@@ -4,6 +4,7 @@ import { MeshPhongMaterial, type Object3D, type PerspectiveCamera } from 'three'
 import { countryInfo, countryName, loadCountries, type CountryFeature } from '../geo.ts';
 import { useGlobe } from '../store/globe.ts';
 import { useLive } from '../store/live.ts';
+import { useRadar } from '../store/radar.ts';
 import { activeIncidents, incidentTitle, useIncidents } from '../store/incidents.ts';
 import { navigate } from '../router.ts';
 import { selectCountry, useUi } from '../store/ui.ts';
@@ -37,6 +38,16 @@ interface Marker {
   lng: number;
   text: string;
   color: string;
+}
+
+/** A Cloudflare attack corridor: share of layer 7 attack traffic from one country to another. */
+interface Arc {
+  startLat: number;
+  startLng: number;
+  endLat: number;
+  endLng: number;
+  value: number;
+  label: string;
 }
 
 const INCIDENT_RGB = { critical: '255, 77, 94', warning: '255, 180, 84', watch: '155, 140, 255' };
@@ -92,6 +103,7 @@ export function GlobeView() {
   // Countries with a critical incident blink; this flips twice a second while one is open.
   const [blink, setBlink] = useState(false);
   const incidentsById = useIncidents((s) => s.byId);
+  const pairs = useRadar((s) => s.pairs);
   const hasCritical = activeIncidents(incidentsById).some(
     (i) => i.severity === 'critical' && i.state === 'open',
   );
@@ -215,6 +227,29 @@ export function GlobeView() {
     [],
   );
 
+  // Attack arcs change every 15 minutes at most: their own memo, so they never re-animate needlessly.
+  const arcs = useMemo(() => {
+    const list: Arc[] = [];
+    for (const p of pairs) {
+      if (p.layer !== 'l7' || p.from === p.to) continue;
+      const a = countryInfo(p.from);
+      const b = countryInfo(p.to);
+      if (!a || !b) continue;
+      list.push({
+        startLat: a.lat,
+        startLng: a.lng,
+        endLat: b.lat,
+        endLng: b.lng,
+        value: p.value,
+        label: `${countryName(p.from)} → ${countryName(p.to)} · ${p.value}% of layer 7 attack traffic (Cloudflare Radar, 24 h)`,
+      });
+      if (list.length === 14) break;
+    }
+    return list;
+    // `features`: country positions are known only once the shapes have loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pairs, features]);
+
   const { probeSets, rings, colorOf, markers } = useMemo(() => {
     const { countries, probePos, probeBucket } = useGlobe.getState();
 
@@ -222,12 +257,17 @@ export function GlobeView() {
     const incidentCc = new Map<string, 'critical' | 'warning' | 'watch'>();
     const markerList: Marker[] = [];
     const incidentRings: Ring[] = [];
+    const labelled = new Set<string>();
     for (const i of activeIncidents(incidentsById)) {
-      if (!i.cc || incidentCc.has(i.cc)) continue;
+      // One label per country: the worst incident there (the list is sorted worst first).
+      if (!i.cc || labelled.has(i.cc)) continue;
+      labelled.add(i.cc);
       const info = countryInfo(i.cc);
       if (!info) continue;
       const severity = i.state === 'open' ? i.severity : 'watch';
-      incidentCc.set(i.cc, severity);
+      // One network's warning should not paint its whole country: land is
+      // coloured for country incidents and critical ones; others get a ripple and a label.
+      if (i.asn === null || severity === 'critical') incidentCc.set(i.cc, severity);
       const critical = severity === 'critical';
       incidentRings.push({
         lat: info.lat,
@@ -303,6 +343,8 @@ export function GlobeView() {
   function onReady() {
     const globe = globeRef.current;
     if (!globe) return;
+    // Development only: lets us inspect the 3D scene from the browser console.
+    if (import.meta.env.DEV) (window as unknown as { __globe?: GlobeMethods }).__globe = globe;
     // Fly in from far away, then drift.
     globe.pointOfView({ lat: 24, lng: 12, altitude: 4.2 }, 0);
     globe.pointOfView(GLOBE_HOME, 2600);
@@ -376,6 +418,17 @@ export function GlobeView() {
           ringColor={(d: object) => (t: number) => `rgba(${(d as Ring).rgb}, ${(1 - t) * 0.85})`}
           ringPropagationSpeed={(d: object) => (d as Ring).speed}
           ringRepeatPeriod={(d: object) => (d as Ring).period}
+          arcsData={arcs}
+          arcColor={() => ['rgba(255, 77, 94, 0.08)', 'rgba(255, 140, 110, 0.95)']}
+          arcStroke={(d: object) => 0.25 + Math.min(1.2, (d as Arc).value / 6)}
+          arcDashLength={0.4}
+          arcDashGap={0.6}
+          arcDashInitialGap={(d: object) => ((d as Arc).value * 7) % 1}
+          arcDashAnimateTime={2600}
+          arcAltitudeAutoScale={0.42}
+          arcLabel={(d: object) =>
+            `<div style="background:rgba(8,13,22,.92);border:1px solid rgba(255,77,94,.35);border-radius:10px;padding:6px 10px;color:#e8f1f8;font:12px system-ui">${(d as Arc).label}</div>`
+          }
           htmlElementsData={markers}
           htmlLat="lat"
           htmlLng="lng"

@@ -29,6 +29,7 @@ x-server-env: &server-env
   ATLAS_MEASUREMENTS: ${ATLAS_MEASUREMENTS:-1001,1008,1006}
   # Sign-in is optional: without a Google client ID the app is visitor-only.
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
   ADMIN_EMAILS: ${ADMIN_EMAILS:-}
   JWT_SECRET: ${JWT_SECRET:-}
   # Plain-HTTP local runs need the cookie without the Secure flag in some browsers.

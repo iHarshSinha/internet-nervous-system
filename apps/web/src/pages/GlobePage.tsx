@@ -6,6 +6,7 @@ import { Welcome } from '../components/Welcome.tsx';
 import { ReplayBadge } from '../components/Replay.tsx';
 import { ScenarioBadge, ScenarioControls } from '../components/Scenario.tsx';
 import { IncidentFeed } from '../components/Incidents.tsx';
+import { RadarPanel } from '../components/Radar.tsx';
 import { Panel, Stat } from '../components/ui.tsx';
 import { countryName } from '../geo.ts';
 import { GLOBE_HOME, GlobeView } from '../globe/GlobeView.tsx';
@@ -413,6 +414,10 @@ function Legend() {
         <span className="size-3 rounded-full border border-signal/70" />
         <span>busy routing</span>
       </span>
+      <span className="flex items-center gap-2">
+        <span className="h-0.5 w-5 rounded-full bg-gradient-to-r from-critical/10 to-[#ff8c6e]" />
+        <span>attack corridors</span>
+      </span>
     </div>
   );
 }
@@ -452,6 +457,9 @@ export function GlobePage() {
             <div className="animate-[rise_.9s_.3s_both]">
               <Sources />
             </div>
+            <div className="animate-[rise_.9s_.45s_both]">
+              <RadarPanel />
+            </div>
             <ScenarioControls />
           </div>
 
@@ -487,7 +495,7 @@ export function GlobePage() {
           <div className="mt-2.5 flex flex-col gap-1 border-t border-line pt-2.5 lg:flex-row lg:items-center lg:justify-between">
             <PipelineStrip />
             <span className="text-[0.64rem] text-low">
-              Data: RIPE NCC (RIS, Atlas) · Shapes: Natural Earth
+              Data: RIPE NCC (RIS, Atlas) · Cloudflare Radar (CC BY-NC 4.0) · Shapes: Natural Earth
             </span>
           </div>
         </div>

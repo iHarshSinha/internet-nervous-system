@@ -1,4 +1,4 @@
-import { SIGNAL_WEIGHTS, type EventEnvelope, type Signal } from '@ins/shared';
+import { SIGNAL_WEIGHTS, type EventEnvelope, type RadarEvent, type Signal } from '@ins/shared';
 import type { OriginTable } from '../pipeline/origins.ts';
 import type { EventContext } from '../pipeline/pipeline.ts';
 import { MinuteBaseline, SecondRing } from './baseline.ts';
@@ -105,6 +105,8 @@ export class Detectors {
   /** When each scope last stormed: its baseline is frozen meanwhile, so a storm cannot redefine normal. */
   private readonly stormAt = new Map<string, number>();
   private lastNow = 0;
+  /** Cloudflare Radar events by ID (D6). */
+  private readonly radar = new Map<string, RadarEvent>();
   /** Closed routing minutes since start: how long we have been watching every network. */
   private minutesWatched = 0;
 
@@ -348,8 +350,52 @@ export class Detectors {
         if (vanished) signals.push(vanished);
       }
     }
-    signals.push(...this.hijackSignals(now), ...this.latency(now), ...this.dropouts(now));
+    signals.push(
+      ...this.hijackSignals(now),
+      ...this.latency(now),
+      ...this.dropouts(now),
+      ...this.radarSignals(now),
+    );
     return signals;
+  }
+
+  /** D6 input: events from Cloudflare Radar (re-sent every poll; kept by ID). */
+  observeRadar(events: RadarEvent[]): void {
+    for (const e of events) this.radar.set(e.id, e);
+  }
+
+  /**
+   * D6: Cloudflare Radar reports something for the same network or country
+   * right now (ongoing, or ended in the last 30 minutes). On its own it never
+   * opens an incident (0.3); it confirms ours, from an independent vantage point.
+   */
+  private radarSignals(now: number): Signal[] {
+    const out: Signal[] = [];
+    for (const [id, e] of this.radar) {
+      const current = e.end === null ? e.start > now - 3 * 24 * 60 * MIN : e.end > now - 30 * MIN;
+      if (!current) {
+        if ((e.end ?? e.start) < now - 7 * 24 * 60 * MIN) this.radar.delete(id);
+        continue;
+      }
+      if (e.start > now + MIN) continue;
+      // Hijacks and leaks are about networks; outages and anomalies also about countries.
+      const byCountry = e.type === 'outage' || e.type === 'anomaly';
+      const scopes = [
+        ...e.asns.map((a) => `asn:${a}`),
+        ...(byCountry ? e.countries.map((c) => `country:${c}`) : []),
+      ];
+      for (const scope of scopes) {
+        out.push({
+          type: 'cloudflare',
+          scope,
+          at: now,
+          weight: SIGNAL_WEIGHTS.cloudflare,
+          detail: { title: e.title, kind: e.type, url: e.url },
+          simulated: false,
+        });
+      }
+    }
+    return out;
   }
 
   /** D1: far more withdrawals than this network or country normally sends. */

@@ -206,3 +206,11 @@ minute seen by 105 routers.
 **Attack simulator, live (14 Nov 2026):** country blackout on DE (its three largest networks in our
 table, every German Atlas probe): AS29066, AS8881 and AS60664 critical **4.2 s** after the trigger
 (storm + vanished), `country:DE` critical **5.2 s** after (storm + latency + dropout).
+
+## Phase 2: Cloudflare Radar
+
+First poll (14 Nov 2026): 7 days of outage annotations and traffic anomalies plus a day of hijacks
+and leaks returned 60 events and 40 attack pairs (20 layer 7, 20 layer 3). Route leaks were the
+bulk and most were seen by one or two peers, so only leaks seen by at least 10 peers are kept.
+Hijacks are requested with `minConfidence=8`: about 50 in 7 days. Each poll is 4 requests every
+3 minutes plus 2 every 15 minutes, far below Cloudflare's API limits.

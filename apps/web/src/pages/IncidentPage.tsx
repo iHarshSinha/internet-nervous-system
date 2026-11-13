@@ -134,6 +134,8 @@ const DETAIL_LABELS: Record<string, string> = {
   probes: 'probes measuring',
   degraded: 'probes degraded',
   disconnected: 'probes disconnected',
+  title: 'report',
+  kind: 'type',
 };
 
 function Evidence({ signal, now }: { signal: IncidentSignal; now: number }) {
@@ -150,15 +152,32 @@ function Evidence({ signal, now }: { signal: IncidentSignal; now: number }) {
         </span>
       </div>
       <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
-        {Object.entries(signal.detail).map(([k, v]) => (
-          <div key={k} className="flex items-baseline justify-between gap-2 text-[0.7rem]">
-            <dt className="truncate text-low">{DETAIL_LABELS[k] ?? k}</dt>
-            <dd className="font-mono text-mid tabular-nums">
-              {typeof v === 'number' ? formatInt(v) : v}
-            </dd>
-          </div>
-        ))}
+        {Object.entries(signal.detail)
+          .filter(([k]) => k !== 'url' && k !== 'title')
+          .map(([k, v]) => (
+            <div key={k} className="flex items-baseline justify-between gap-2 text-[0.7rem]">
+              <dt className="truncate text-low">{DETAIL_LABELS[k] ?? k}</dt>
+              <dd className="font-mono text-mid tabular-nums">
+                {typeof v === 'number' ? formatInt(v) : v}
+              </dd>
+            </div>
+          ))}
       </dl>
+      {typeof signal.detail.title === 'string' && (
+        <p className="mt-2 text-[0.72rem] leading-snug text-mid">
+          {signal.detail.title}{' '}
+          {typeof signal.detail.url === 'string' && (
+            <a
+              href={signal.detail.url}
+              target="_blank"
+              rel="noreferrer"
+              className="whitespace-nowrap text-signal hover:underline"
+            >
+              View on Cloudflare Radar →
+            </a>
+          )}
+        </p>
+      )}
       <div className="mt-2 text-[0.64rem] text-low">
         first {time(signal.firstAt)} · {live ? 'still firing' : `last ${ago(now - signal.lastAt)}`}
       </div>
