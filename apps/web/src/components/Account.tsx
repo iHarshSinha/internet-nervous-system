@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { navigate } from '../router.ts';
+import { navigate, useRoute } from '../router.ts';
 import { signOut, useAuth } from '../store/auth.ts';
 import { useLive } from '../store/live.ts';
-import { GoogleButton } from './GoogleButton.tsx';
 
 function Avatar({
   name,
@@ -39,9 +38,9 @@ function Avatar({
 export function Account() {
   const status = useAuth((s) => s.status);
   const user = useAuth((s) => s.user);
-  const error = useAuth((s) => s.error);
   const channel = useLive((s) => s.userChannel);
   const [open, setOpen] = useState(false);
+  const onLoginPage = useRoute((s) => s.route.page === 'login');
   const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,15 +54,16 @@ export function Account() {
 
   if (status === 'loading') return null;
   if (status === 'anon' || !user) {
+    // Visitors get a plain button to the sign-in page (not on that page itself).
+    if (onLoginPage) return null;
     return (
-      <div className="relative">
-        <GoogleButton />
-        {error && (
-          <div className="glass absolute top-full right-0 mt-2 w-56 rounded-xl px-3 py-2 text-xs text-caution">
-            {error}
-          </div>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={() => navigate('/login')}
+        className="rounded-full border border-white/10 bg-[#0a0f17] px-4 py-1.5 text-xs font-medium text-hi transition hover:border-signal/50 hover:text-signal"
+      >
+        Sign in
+      </button>
     );
   }
 

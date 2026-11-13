@@ -19,6 +19,7 @@ interface GoogleIdentity {
           shape?: string;
           text?: string;
           logo_alignment?: string;
+          width?: number;
         },
       ): void;
       disableAutoSelect(): void;
@@ -51,7 +52,17 @@ function loadGoogleScript(): Promise<void> {
  * token; we send it to our server, which checks it and starts our session.
  * The page never sees a password.
  */
-export function GoogleButton() {
+export function GoogleButton({
+  theme = 'filled_black',
+  size = 'medium',
+  text = 'signin',
+  width,
+}: {
+  theme?: 'filled_black' | 'outline' | 'filled_blue';
+  size?: 'small' | 'medium' | 'large';
+  text?: 'signin' | 'signin_with' | 'continue_with';
+  width?: number;
+} = {}) {
   const clientId = useAuth((s) => s.googleClientId);
   const box = useRef<HTMLDivElement>(null);
 
@@ -68,17 +79,18 @@ export function GoogleButton() {
         ux_mode: 'popup',
       });
       google.accounts.id.renderButton(box.current, {
-        theme: 'filled_black',
-        size: 'medium',
+        theme,
+        size,
         shape: 'pill',
-        text: 'signin',
+        text,
         logo_alignment: 'left',
+        ...(width && { width }),
       });
     });
     return () => {
       cancelled = true;
     };
-  }, [clientId]);
+  }, [clientId, theme, size, text, width]);
 
   if (!clientId) return null;
   return <div ref={box} className="min-h-8" />;

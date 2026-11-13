@@ -5,12 +5,14 @@ import { create } from 'zustand';
  * is the source of truth, so links can be shared and the back button works.
  */
 
-export type Route = { page: 'globe' } | { page: 'country'; cc: string } | { page: 'me' };
+export type Route =
+  { page: 'globe' } | { page: 'country'; cc: string } | { page: 'me' } | { page: 'login' };
 
 export function parseRoute(path: string): Route {
   const country = /^\/c\/([A-Za-z]{2})\/?$/.exec(path);
   if (country) return { page: 'country', cc: country[1]!.toUpperCase() };
   if (/^\/me\/?$/.test(path)) return { page: 'me' };
+  if (/^\/login\/?$/.test(path)) return { page: 'login' };
   return { page: 'globe' };
 }
 

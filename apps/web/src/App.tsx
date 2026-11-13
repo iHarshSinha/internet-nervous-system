@@ -9,6 +9,9 @@ import { useRoute } from './router.ts';
 const GlobePage = lazy(() =>
   import('./pages/GlobePage.tsx').then((m) => ({ default: m.GlobePage })),
 );
+const LoginPage = lazy(() =>
+  import('./pages/LoginPage.tsx').then((m) => ({ default: m.LoginPage })),
+);
 const MePage = lazy(() => import('./pages/MePage.tsx').then((m) => ({ default: m.MePage })));
 const CountryPage = lazy(() =>
   import('./pages/CountryPage.tsx').then((m) => ({ default: m.CountryPage })),
@@ -25,7 +28,13 @@ export function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-30 bg-gradient-to-b from-void via-void/70 to-transparent pb-6">
+      <div
+        className={`pointer-events-none fixed inset-x-0 top-0 z-30 pb-6 ${
+          route.page === 'login'
+            ? 'bg-[#05070c]'
+            : 'bg-gradient-to-b from-void via-void/70 to-transparent'
+        }`}
+      >
         <Header />
       </div>
       <Suspense fallback={<div className="min-h-dvh" />}>
@@ -33,6 +42,8 @@ export function App() {
           <CountryPage key={route.cc} cc={route.cc} />
         ) : route.page === 'me' ? (
           <MePage />
+        ) : route.page === 'login' ? (
+          <LoginPage />
         ) : (
           <GlobePage />
         )}

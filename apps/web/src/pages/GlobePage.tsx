@@ -2,6 +2,7 @@ import { memo, useEffect, useState } from 'react';
 import { AnimatedNumber } from '../components/AnimatedNumber.tsx';
 import { Sparkline } from '../components/Sparkline.tsx';
 import { Starfield } from '../components/Starfield.tsx';
+import { Welcome } from '../components/Welcome.tsx';
 import { Panel, Stat } from '../components/ui.tsx';
 import { countryName } from '../geo.ts';
 import { GLOBE_HOME, GlobeView } from '../globe/GlobeView.tsx';
@@ -429,6 +430,11 @@ export function GlobePage() {
       </div>
       {/* Edge vignette, so the panels sit on darkness rather than on the globe. */}
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(75%_70%_at_50%_50%,transparent_55%,rgba(4,6,11,0.85)_100%)] max-lg:hidden" />
+
+      {/* Greeting (signed in) or an invitation to sign in, top centre. */}
+      <div className="pointer-events-none relative z-20 flex justify-center px-4 pt-3 lg:fixed lg:inset-x-0 lg:top-20 lg:pt-0">
+        <Welcome />
+      </div>
 
       <div className="pointer-events-none relative z-10 flex flex-col gap-4 px-4 pb-4 sm:px-7 sm:pb-5 lg:min-h-dvh lg:pt-24">
         <div className="flex flex-1 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
