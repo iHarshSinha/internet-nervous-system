@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+coverage/
+.env
+.env.*
+!.env.example
+CLAUDE.local.md
+*.log
+.DS_Store
+# large recorded data (regenerate with the scripts in tools/)
+deploy/seed/replay/*.ndjson*
+deploy/seed/capture/
