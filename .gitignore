@@ -11,3 +11,5 @@ CLAUDE.local.md
 # large recorded data (regenerate with the scripts in tools/)
 deploy/seed/replay/*.ndjson*
 deploy/seed/capture/
+*.tsbuildinfo
+.vite/

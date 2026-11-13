@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": [],
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+
+    // Node 22 runs our .ts files directly by stripping types, so we only use
+    // syntax that can be erased (no enums, no parameter properties) and we
+    // import with real ".ts" extensions; tsc rewrites them to ".js" on build.
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "isolatedModules": true,
+
+    "declaration": true,
+    "sourceMap": true,
+    "skipLibCheck": true
+  }
+}

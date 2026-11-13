@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+pnpm-lock.yaml
+# Plan documents are exported from the team doc; keep them byte-identical.
+*.md
+docs/
+deploy/seed/
