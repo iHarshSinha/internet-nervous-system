@@ -146,6 +146,7 @@ async function finish(): Promise<void> {
             max: Math.round(s.lateness.max),
           },
         },
+        futureTimestamps: s.futureTimestamps,
         control: s.control,
         invalid: s.invalid,
         unparseable: s.unparseable,

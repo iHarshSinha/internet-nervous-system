@@ -17,6 +17,8 @@ export class StreamStats {
   maxMessageBytes = 0;
   /** Messages whose event time is earlier than one we had already seen. */
   outOfOrder = 0;
+  /** Messages stamped more than a minute ahead of our clock (a probe with a wrong clock). */
+  futureTimestamps = 0;
   readonly byType: Record<string, number> = {};
   /** RIS only: messages per route collector. */
   readonly byCollector: Record<string, number> = {};
@@ -53,6 +55,14 @@ export class StreamStats {
     this.byType[type] = (this.byType[type] ?? 0) + 1;
     if (collector) this.byCollector[collector] = (this.byCollector[collector] ?? 0) + 1;
     if (bytes > this.maxMessageBytes) this.maxMessageBytes = bytes;
+
+    // A timestamp from the future must not move "newest seen" forward, or
+    // every later message would look hours late. The real pipeline needs the
+    // same guard on its watermark.
+    if (tsMs > now + 60_000) {
+      this.futureTimestamps += 1;
+      return;
+    }
 
     this.lag.add(now - tsMs);
     if (tsMs < this.newestTs) {
