@@ -1,6 +1,7 @@
 import { loadConfig } from './config.ts';
 import { createMongo } from './db/client.ts';
 import { createMetricsStore } from './db/metrics.ts';
+import { createMongoAuthStore } from './auth/store.ts';
 import { createLogger } from './logger.ts';
 
 /*
@@ -26,6 +27,7 @@ try {
       { upsert: true },
     );
   await createMetricsStore(mongo.db, config.METRICS_ASN_LIMIT).ensureIndexes();
+  await createMongoAuthStore(mongo.db).ensureIndexes();
   log.info({ firstRun: result.upsertedCount === 1 }, 'seed complete');
 } catch (err) {
   log.error({ err }, 'seed failed');

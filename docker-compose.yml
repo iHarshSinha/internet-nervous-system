@@ -27,6 +27,12 @@ x-server-env: &server-env
   RIS_CLIENT_NAME: ${RIS_CLIENT_NAME:-internet-nervous-system}
   RIS_COLLECTORS: ${RIS_COLLECTORS:-rrc00,rrc10,rrc11,rrc14}
   ATLAS_MEASUREMENTS: ${ATLAS_MEASUREMENTS:-1001,1008,1006}
+  # Sign-in is optional: without a Google client ID the app is visitor-only.
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+  JWT_SECRET: ${JWT_SECRET:-}
+  # Plain-HTTP local runs need the cookie without the Secure flag in some browsers.
+  COOKIE_SECURE: ${COOKIE_SECURE:-}
 
 services:
   mongo:

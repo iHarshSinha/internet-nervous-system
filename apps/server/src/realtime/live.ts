@@ -18,6 +18,7 @@ import {
 import type { Namespace, Server } from 'socket.io';
 import type { Logger } from '../logger.ts';
 import type { Broadcaster } from './broadcaster.ts';
+import { TokenBucket } from './limits.ts';
 import type { RoomSequencer } from './sequencer.ts';
 
 export type IoServer = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -42,14 +43,31 @@ export function handleLive(
   seq: RoomSequencer,
   broadcaster: Broadcaster,
   log: Logger,
+  messagesPerSec: number = LIMITS.socketMessagesPerSecond,
 ): void {
   live.on('connection', (socket) => {
     log.debug({ id: socket.id, recovered: socket.recovered }, 'live socket connected');
+
+    // sub, unsub and resync share one token bucket per socket (5 per second by
+    // default). A client that keeps hitting the limit is disconnected.
+    const bucket = new TokenBucket(messagesPerSec, Math.max(1, Math.ceil(messagesPerSec)));
+    let strikes = 0;
+    const allowed = (reply: (r: AckError) => void): boolean => {
+      if (bucket.take()) return true;
+      strikes += 1;
+      reply(fail('rate_limited', 'Too many requests on this socket'));
+      if (strikes > 20) {
+        log.warn({ id: socket.id }, 'disconnecting a socket that kept exceeding its rate limit');
+        socket.disconnect(true);
+      }
+      return false;
+    };
 
     // Payloads come from the network, so they are `unknown` until zod has checked them.
     socket.on(EV.sub, (raw: unknown, ack: unknown) => {
       if (typeof ack !== 'function') return;
       const reply = ack as (r: SubAck) => void;
+      if (!allowed(reply)) return;
 
       const parsed = subPayloadSchema.safeParse(raw);
       if (!parsed.success) return reply(fail('bad_request', 'Invalid subscription'));
@@ -82,6 +100,7 @@ export function handleLive(
 
     socket.on(EV.unsub, (raw: unknown, ack: unknown) => {
       const reply = typeof ack === 'function' ? (ack as (r: UnsubAck) => void) : () => {};
+      if (!allowed(reply)) return;
       const parsed = unsubPayloadSchema.safeParse(raw);
       if (!parsed.success) return reply(fail('bad_request', 'Invalid unsubscription'));
       for (const name of parsed.data.rooms) void socket.leave(name);
@@ -94,6 +113,7 @@ export function handleLive(
     socket.on(EV.resync, (raw: unknown, ack: unknown) => {
       if (typeof ack !== 'function') return;
       const reply = ack as (r: ResyncAck) => void;
+      if (!allowed(reply)) return;
       const parsed = resyncPayloadSchema.safeParse(raw);
       if (!parsed.success) return reply(fail('bad_request', 'Invalid resync request'));
       const { r, after } = parsed.data;

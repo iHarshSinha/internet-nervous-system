@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 
 /**
@@ -5,6 +6,9 @@ import { z } from 'zod';
  * startup. A bad value stops the server with a readable message instead of
  * causing a strange failure later.
  */
+/** Docker Compose passes unset variables as empty strings; treat those as not set. */
+const emptyIsUnset = (v: unknown) => (v === '' ? undefined : v);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
@@ -47,9 +51,47 @@ const envSchema = z.object({
     .default('1001,1008,1006')
     .transform((v) => v.split(',').map((n) => Number(n.trim())))
     .pipe(z.array(z.number().int().positive()).min(1).max(20)),
+
+  // ---- sign-in and access control
+  /** Google OAuth client ID. Without it, sign-in is hidden and the app stays visitor-only. */
+  GOOGLE_CLIENT_ID: z.preprocess(
+    emptyIsUnset,
+    z
+      .string()
+      .regex(/^[\w-]+\.apps\.googleusercontent\.com$/, 'expected <id>.apps.googleusercontent.com')
+      .optional(),
+  ),
+  /** Signs our own session tokens. Recommended in production (at least 32 characters). */
+  JWT_SECRET: z.preprocess(
+    emptyIsUnset,
+    z.string().min(32, 'use at least 32 characters (openssl rand -hex 32)').optional(),
+  ),
+  /** Google accounts that get the admin role, comma-separated. */
+  ADMIN_EMAILS: z
+    .string()
+    .default('')
+    .transform((v) =>
+      v
+        .split(',')
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  /** Send the refresh cookie only over HTTPS. Defaults to on in production. */
+  COOKIE_SECURE: z.preprocess(emptyIsUnset, z.enum(['on', 'off']).optional()),
+
+  // ---- rate limits (starting values from docs/PLAN.md "Security")
+  API_RATE_PER_MIN: z.coerce.number().int().min(1).default(100),
+  AUTH_RATE_PER_MIN: z.coerce.number().int().min(1).default(10),
+  SOCKET_CONNECTIONS_PER_MIN: z.coerce.number().int().min(1).default(20),
+  SOCKET_MESSAGES_PER_SEC: z.coerce.number().min(0.1).default(5),
 });
 
-export type Config = z.infer<typeof envSchema>;
+export type Config = Omit<z.infer<typeof envSchema>, 'JWT_SECRET' | 'COOKIE_SECURE'> & {
+  JWT_SECRET: string;
+  /** True when no JWT_SECRET was given and a random one is in use. */
+  JWT_SECRET_GENERATED: boolean;
+  COOKIE_SECURE: boolean;
+};
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const parsed = envSchema.safeParse(env);
@@ -59,5 +101,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       .join('\n');
     throw new Error(`Invalid environment variables:\n${problems}`);
   }
-  return parsed.data;
+  const c = parsed.data;
+  return {
+    ...c,
+    // Without a configured secret a random one is used. That is still secure;
+    // sessions simply end when the server restarts. Startup logs a warning.
+    JWT_SECRET: c.JWT_SECRET ?? randomBytes(32).toString('hex'),
+    JWT_SECRET_GENERATED: c.JWT_SECRET === undefined,
+    COOKIE_SECURE: c.COOKIE_SECURE ? c.COOKIE_SECURE === 'on' : c.NODE_ENV === 'production',
+  };
 }

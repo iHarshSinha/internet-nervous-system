@@ -8,3 +8,4 @@ export * from './history.ts';
 export * from './upstream.ts';
 export * from './health.ts';
 export * from './live.ts';
+export * from './auth.ts';

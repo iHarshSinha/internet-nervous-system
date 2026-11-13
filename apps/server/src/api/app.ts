@@ -1,4 +1,6 @@
 import express, { type ErrorRequestHandler, type Express, type Router } from 'express';
+import { rateLimit } from 'express-rate-limit';
+import helmet from 'helmet';
 import type { Config } from '../config.ts';
 import type { Mongo } from '../db/client.ts';
 import type { Ingest } from '../ingest/index.ts';
@@ -29,7 +31,36 @@ export function createApp({
 }: AppDeps): Express {
   const app = express();
   app.disable('x-powered-by');
+  // One proxy sits in front (Vite in development, Caddy or Railway in
+  // production), so the client's address is the first forwarded one.
+  app.set('trust proxy', 1);
+  // Standard security headers. The content security policy is set where the
+  // web page itself is served (Caddy now; the server, once it serves the page).
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(express.json({ limit: '256kb' }));
+
+  const tooMany = (message: string) => ({ error: { code: 'rate_limited', message } });
+  // Sign-in is the most attractive endpoint to hammer, so it gets its own, tighter limit.
+  app.use(
+    '/api/auth',
+    rateLimit({
+      windowMs: 60_000,
+      limit: config.AUTH_RATE_PER_MIN,
+      standardHeaders: 'draft-8',
+      legacyHeaders: false,
+      message: tooMany('Too many sign-in attempts; try again in a minute'),
+    }),
+  );
+  app.use(
+    '/api',
+    rateLimit({
+      windowMs: 60_000,
+      limit: config.API_RATE_PER_MIN,
+      standardHeaders: 'draft-8',
+      legacyHeaders: false,
+      message: tooMany('Too many requests; slow down'),
+    }),
+  );
 
   // Liveness: the process is up. Docker's HEALTHCHECK calls this.
   app.get('/healthz', (_req, res) => {

@@ -16,6 +16,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { loadConfig } from './config.ts';
 import type { Mongo } from './db/client.ts';
 import type { MetricsStore, MinuteRow } from './db/metrics.ts';
+import { createMemoryAuthStore } from './auth/store.ts';
 import { createLogger } from './logger.ts';
 import { buildServer, type RunningServer } from './server.ts';
 
@@ -50,12 +51,21 @@ let baseUrl: string;
 const clients: Client[] = [];
 
 beforeAll(async () => {
-  const config = loadConfig({ NODE_ENV: 'test', MODE: 'replay' });
+  const config = loadConfig({
+    NODE_ENV: 'test',
+    MODE: 'replay',
+    // This file opens many sockets and requests quickly; limits have their own tests.
+    API_RATE_PER_MIN: '100000',
+    SOCKET_CONNECTIONS_PER_MIN: '100000',
+    SOCKET_MESSAGES_PER_SEC: '100000',
+  });
   server = buildServer({
     config,
     log: createLogger(config),
     mongo,
     store,
+    authStore: createMemoryAuthStore(),
+    verifyGoogle: null,
     heartbeatMs: 20,
     conflateMs: 20,
     ringSize: 5,
