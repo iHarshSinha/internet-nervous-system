@@ -8,8 +8,12 @@ export interface ReplayOptions {
   /** gzipped NDJSON of event envelopes, sorted by time (made by tools/replay-prep). */
   files: Partial<Record<ReplayScenario, string>>;
   log: Logger;
-  /** Receives the events of one original message at a time. */
-  sink(batch: EventEnvelope[], now: number): void;
+  /**
+   * Receives the events of one original message at a time. A returned
+   * promise means "the queue is filling, wait": reading pauses until it
+   * resolves, then the clock is re-anchored so the events are not stamped late.
+   */
+  sink(batch: EventEnvelope[], now: number, lossy: boolean): void | Promise<void>;
   /** Wall clock, overridable in tests. */
   now?: () => number;
 }
@@ -48,6 +52,8 @@ export class ReplayPlayer {
     emitted: 0,
     run: 0,
     error: null,
+    lossy: false,
+    amplify: 1,
   };
   /** Playback maps original time to wall time through this anchor. */
   private anchor = { wall: 0, orig: 0 };
@@ -63,7 +69,7 @@ export class ReplayPlayer {
   }
 
   /** Start a new run (stopping any current one). */
-  start(scenario: ReplayScenario, speed: number, from: number): void {
+  start(scenario: ReplayScenario, speed: number, from: number, lossy = false, amplify = 1): void {
     const file = this.opts.files[scenario];
     if (!file || !existsSync(file)) {
       this.status = {
@@ -75,7 +81,17 @@ export class ReplayPlayer {
     }
     this.wake(); // release a paused run so it can see it was replaced
     const run = this.status.run + 1;
-    this.status = { state: 'loading', scenario, speed, clock: from, emitted: 0, run, error: null };
+    this.status = {
+      state: 'loading',
+      scenario,
+      speed,
+      clock: from,
+      emitted: 0,
+      run,
+      error: null,
+      lossy,
+      amplify,
+    };
     this.anchor = { wall: this.now(), orig: from };
     void this.play(run, file, from).catch((err: unknown) => {
       if (this.status.run !== run) return;
@@ -129,11 +145,19 @@ export class ReplayPlayer {
     let batch: EventEnvelope[] = [];
     let batchMessage = '';
 
-    const flush = () => {
+    const flush = async () => {
       if (batch.length === 0) return;
-      this.opts.sink(batch, this.now());
+      const wait = this.opts.sink(batch, this.now(), this.status.lossy);
       this.status.emitted += batch.length;
       batch = [];
+      if (wait) {
+        // Backpressure: the pipeline is behind. Wait, then carry on from here
+        // (like a pause), so the next events are stamped with the real time.
+        await wait;
+        if (current() && this.status.state === 'playing') {
+          this.anchor = { wall: this.now(), orig: this.status.clock ?? this.anchor.orig };
+        }
+      }
     };
 
     try {
@@ -150,34 +174,38 @@ export class ReplayPlayer {
         for (;;) {
           if (!current()) return;
           if (this.status.state === 'paused') {
-            flush();
+            await flush();
             await new Promise<void>((resolve) => (this.resumeWaiter = resolve));
             continue;
           }
           const wait = this.anchor.wall + (ts - this.anchor.orig) / this.status.speed - this.now();
           if (wait <= 0) break;
-          flush();
+          await flush();
           await sleep(Math.min(wait, 50));
         }
 
         const original = JSON.parse(line) as EventEnvelope;
         const message = messageOf(original.eid);
         if (message !== batchMessage) {
-          flush();
+          await flush();
           batchMessage = message;
         }
         const wall = this.anchor.wall + (ts - this.anchor.orig) / this.status.speed;
-        batch.push({
-          ...original,
-          src: 'replay',
-          eid: `replay:r${run}:${original.eid.slice('replay:'.length)}`,
-          ts: Math.round(wall),
-          its: this.now(),
-          data: { ...original.data, origTs: ts },
-        });
+        const rest = original.eid.slice('replay:'.length);
+        // Copy k > 0 exists only in amplified load tests; its ID marks it as a copy.
+        for (let k = 0; k < this.status.amplify; k++) {
+          batch.push({
+            ...original,
+            src: 'replay',
+            eid: k === 0 ? `replay:r${run}:${rest}` : `replay:r${run}x${k}:${rest}`,
+            ts: Math.round(wall),
+            its: this.now(),
+            data: { ...original.data, origTs: ts },
+          });
+        }
         this.status.clock = ts;
       }
-      flush();
+      await flush();
       if (current()) this.status = { ...this.status, state: 'finished' };
     } finally {
       lines.close();

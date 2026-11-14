@@ -247,3 +247,44 @@ network announce", used by the attack simulator) takes 0.010 ms at the median an
 (200 calls, idle). On the live feeds (four RIS collectors and Atlas, a few minutes after start) the
 ingest thread's JavaScript heap was 66 MB, the whole process 328 MB RSS, and the ingest thread's
 event-loop p99 delay about 12 ms. (RSS is per process; only the heap is per thread.)
+
+## Phase 3, step 2: bounded queue, sampling and shedding
+
+Every source now goes through one bounded queue in the ingest thread
+(`apps/server/src/ingest/pipeline/queue.ts`): connectors parse, validate and normalise, offer the
+events, and return; the pipeline drains the queue in slices of up to 8 ms, so socket reads keep
+interleaving. Pressure levels: below 70% everything gets in; 70-95% everything gets in and the raw
+feed sampling ratio k doubles each second (halves again below 50%); 95-100% route announcements
+are shed; 100-120% only withdrawals and probe status get in (a reserve, because outage detection
+needs them); at 120% everything is refused and counted as overflow. Live feeds cannot wait, so they
+shed. A file (the replay) can wait: the player pauses reading until the queue is half empty and
+then re-anchors its clock, so nothing is lost and nothing is stamped late.
+
+Per-event cost, measured on 300,000 recorded RIS messages (796,603 events), one core:
+parse + zod + normalise 2.87 us per message (about 920,000 events/s); dedupe + windows + origin
+table + detectors 1.72 us per event (about 580,000 events/s on this sample).
+
+To load the pipeline beyond the 50x replay, the replay can now `amplify`: each recorded event is
+played N times with its own event ID, as if N times as many routers had reported it. Runs of 25 s
+on the Facebook outage window at 50x, same machine as step 1:
+
+| Run | Queue | Offered/s | Processed/s | Shed/s | Max fill | Longest wait | Notes |
+|---|---|---|---|---|---|---|---|
+| 1x, waits (default) | 100,000 | 91,937 | 91,937 | 0 | 1.3% | 7 ms | |
+| 10x amplified, waits | 100,000 | 913,567 | 913,567 | 0 | 13.3% | 13 ms | |
+| 10x amplified, lossy | 100,000 | 917,629 | 917,629 | 0 | 13.0% | 51 ms | |
+| 10x amplified, waits | 5,000 | 643,773 | 643,789 | 0 | 82.8% | 9 ms | 2,384 pauses, nothing lost |
+| 10x amplified, lossy | 5,000 | 920,860 | 706,578 | 197,468 | 111.6% | 14 ms | shed: 5.22 M announcements, 1,930 peer-state; 446,830 overflow |
+
+What this shows:
+
+- With the default queue the ingest thread processes over 910,000 events a second (about 300 times
+  the live rate of about 3,000) and the queue never passes 14%. The reader and the pipeline share
+  the thread, so the reader only runs when the pipeline yields: that self-limits the queue.
+- With the queue shrunk to 5,000 events to force overload, a file source pauses instead of losing
+  anything, and a live-like source sheds route announcements first. In the Facebook window,
+  withdrawals alone (amplified 10x) exceeded the queue plus its reserve, so the hard limit also
+  refused events; that is counted as overflow and shown, never silent.
+- No event was late in any run (`lateMinute` stayed 0).
+- On the live feeds (four RIS collectors and Atlas) the queue's deepest point in the first minutes
+  was 846 events, with nothing shed.

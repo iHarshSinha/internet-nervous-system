@@ -33,6 +33,11 @@ interface LiveState {
   /** Latest closed windows for the whole world, and pipeline counters. */
   world: Record<string, number>;
   pipe: Record<string, number>;
+  /**
+   * The server's ingest queue: how full (0-1, can pass 1 while the reserve is
+   * used), the pressure level, the raw-feed sampling ratio, events shed so far.
+   */
+  queue: { fill?: number; pressure?: string; sampleEvery?: number; shed?: number };
   /** What the replay is doing (everyone sees it, so recorded data is never taken for live). */
   replay: Pick<ReplayStatus, 'state' | 'scenario' | 'speed' | 'clock'>;
   /** An admin-triggered scenario, if one is running (everyone sees it). */
@@ -62,6 +67,7 @@ export const useLive = create<LiveState>((set) => ({
   sources: {},
   world: {},
   pipe: {},
+  queue: {},
   replay: { state: 'idle', scenario: null, speed: 1, clock: null },
   scenario: { state: 'idle', id: null, startedAt: null, durationMs: 0, phase: null, target: null },
   seq: 0,
@@ -107,6 +113,10 @@ export const useLive = create<LiveState>((set) => ({
           }
           if (key === 'replay') {
             next.replay = { ...(next.replay ?? state.replay), [field]: value };
+            continue;
+          }
+          if (key === 'queue') {
+            next.queue = { ...(next.queue ?? state.queue), [field]: value };
             continue;
           }
           if (typeof value !== 'number') continue;

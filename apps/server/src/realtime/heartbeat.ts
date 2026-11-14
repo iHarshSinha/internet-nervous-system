@@ -88,6 +88,13 @@ export function startHeartbeat(
     put('pipe', 'future', counters.future);
     put('pipe', 'prefixes', counters.knownPrefixes);
 
+    // The ingest queue: how full, whether the raw feed is being thinned, what was shed.
+    const q = ingest.queue();
+    put('queue', 'fill', Math.round(q.fill * 100) / 100);
+    put('queue', 'pressure', q.pressure);
+    put('queue', 'sampleEvery', q.sampleEvery);
+    put('queue', 'shed', q.shedTotal);
+
     const connections = ingest.connections();
     if (connections.length > 0) {
       put('sys', 'upstreams', connections.length);

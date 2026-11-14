@@ -21,7 +21,13 @@ export interface AdminDeps {
   /** Full-file replay controls (the player runs on the ingest side). */
   replay: {
     status(): Promise<ReplayStatus>;
-    start(scenario: ReplayScenario, speed: number, from: number): Promise<ReplayStatus>;
+    start(
+      scenario: ReplayScenario,
+      speed: number,
+      from: number,
+      lossy?: boolean,
+      amplify?: number,
+    ): Promise<ReplayStatus>;
     pause(): Promise<ReplayStatus>;
     resume(): Promise<ReplayStatus>;
     stop(): Promise<ReplayStatus>;
@@ -119,6 +125,8 @@ export function adminRouter({
           cmd.scenario,
           cmd.speed,
           cmd.from ?? REPLAY_SCENARIOS[cmd.scenario].defaultFrom,
+          cmd.lossy ?? false,
+          cmd.amplify ?? 1,
         );
         break;
       case 'pause':

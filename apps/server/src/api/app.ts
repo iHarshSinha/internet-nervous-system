@@ -86,6 +86,8 @@ export function createApp({
       sources: Object.fromEntries(ingest.stats.sources().map((s) => [s, ingest.stats.of(s)])),
       // Dedupe, lateness and window counters, and the latest closed windows.
       pipeline: ingest.pipelineSnapshot(),
+      // The bounded queue in front of the pipeline (pressure, sampling, shedding).
+      queue: ingest.queue(),
       latest: ingest.latest,
       ...extraStatus?.(),
     });

@@ -248,6 +248,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
 
   const opsStats = () => ({
     pipeline: ingest.pipelineSnapshot(),
+    queue: ingest.queue(),
     ingestThread: ingest.thread(),
     sources: Object.fromEntries(ingest.stats.sources().map((s) => [s, ingest.stats.of(s)])),
     upstreams: ingest.connections(),
@@ -363,6 +364,12 @@ export function buildServer(deps: ServerDeps): RunningServer {
     for (const [k, v] of Object.entries(s.pipeline)) if (typeof v === 'number') put('pipe', k, v);
     put('thread', 'heapMb', s.ingestThread.heapMb);
     put('thread', 'loopDelayMs', s.ingestThread.loopDelayMs);
+    put('queue', 'depth', s.queue.depth);
+    put('queue', 'fill', s.queue.fill);
+    put('queue', 'sampleEvery', s.queue.sampleEvery);
+    put('queue', 'waitMaxMs', s.queue.waitMaxMs);
+    put('queue', 'shed', s.queue.shedTotal);
+    put('queue', 'overflow', s.queue.overflow);
     put('broadcast', 'frames', broadcaster.stats.frames);
     put('broadcast', 'deltas', broadcaster.stats.deltas);
   }, heartbeatMs ?? 1000);

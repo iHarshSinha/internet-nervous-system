@@ -552,7 +552,7 @@ Build in this order and cut from the bottom if time runs short. After Phase 1, t
 
 **Phase 3 · Performance and protection**
 
-- [ ] Move ingest to a worker thread; bounded queues, sampling, shedding *(worker thread done 14 Nov 2026; queues, sampling and shedding are step 2)*
+- [x] Move ingest to a worker thread; bounded queues, sampling, shedding *(14 Nov 2026; the sampling ratio is computed in the queue and used by the firehose in the next item; the agent ingest API and its token bucket come with the probe agent in Phase 4)*
 - [ ] Conflation, MessagePack, volatile firehose, slow-client downgrade
 - [ ] Client Web Worker, virtualised lists, render budget
 - [ ] Metrics, the `/ops` page and the HUD

@@ -48,7 +48,7 @@ describe('IngestLink restarts', () => {
     // Sent during the restart: held, then delivered to the new thread.
     const now = Date.now();
     link.ingest('replay', [announce(1, 64502, now)], now);
-    expect(await link.prefixesOf(64502, 5)).toEqual(['10.1.0.0/16']);
+    await eventually(async () => expect(await link!.prefixesOf(64502, 5)).toEqual(['10.1.0.0/16']));
   });
 });
 
@@ -63,15 +63,19 @@ describe.each([
     // One message per event: dedupe looks at the first event of a batch.
     for (let i = 0; i < 3; i++) link.ingest('replay', [announce(i, 64500, now)], now);
 
-    expect((await link.prefixesOf(64500, 10)).sort()).toEqual([
-      '10.0.0.0/16',
-      '10.1.0.0/16',
-      '10.2.0.0/16',
-    ]);
+    // Events wait in the ingest queue until the next drain, so ask until they are in.
+    await eventually(async () =>
+      expect((await link!.prefixesOf(64500, 10)).sort()).toEqual([
+        '10.0.0.0/16',
+        '10.1.0.0/16',
+        '10.2.0.0/16',
+      ]),
+    );
     await eventually(() => {
       expect(link!.stats.of('replay').events).toBe(3);
       expect(link!.pipelineSnapshot().knownPrefixes).toBe(3);
       expect(link!.thread().mode).toBe(thread ? 'worker' : 'inline');
+      expect(link!.queue()).toMatchObject({ offered: 3, processed: 3, depth: 0, shedTotal: 0 });
     });
   });
 

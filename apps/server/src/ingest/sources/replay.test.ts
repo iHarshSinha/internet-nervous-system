@@ -40,7 +40,9 @@ function player(file: string) {
   const p = new ReplayPlayer({
     files: { 'facebook-2021': file },
     log,
-    sink: (batch) => batches.push(batch),
+    sink: (batch) => {
+      batches.push(batch);
+    },
   });
   return { p, batches };
 }
@@ -98,6 +100,30 @@ describe('ReplayPlayer', () => {
     p.resume();
     await until(() => p.snapshot().state === 'finished');
     expect(batches.flat()).toHaveLength(20);
+  });
+
+  it('waits when the sink says the queue is full, then stamps later events with the real time', async () => {
+    const batches: EventEnvelope[][] = [];
+    let release: () => void = () => {};
+    const p = new ReplayPlayer({
+      files: { 'facebook-2021': recording() },
+      log,
+      sink: (batch) => {
+        batches.push(batch);
+        // The third message finds the queue full: hold reading until released.
+        if (batches.length === 3) return new Promise<void>((r) => (release = r));
+      },
+    });
+    p.start('facebook-2021', 50, T0);
+    await until(() => batches.length === 3);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(batches).toHaveLength(3); // nothing read while waiting
+    const releasedAt = Date.now();
+    release();
+    await until(() => p.snapshot().state === 'finished');
+    expect(batches.flat()).toHaveLength(20); // nothing lost
+    // The clock was re-anchored: events after the wait are stamped from the release, not 300 ms late.
+    expect(batches[3]![0]!.ts).toBeGreaterThanOrEqual(releasedAt - 5);
   });
 
   it('stops, and reports a missing file instead of crashing', async () => {

@@ -284,3 +284,12 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
   thread through `RefData.subscribe`. A crashed thread restarts after 1 s (messages queued
   meanwhile). `INGEST_THREAD=off` runs the same code in-thread over a `MessageChannel`.
   Measured at 50x replay (90k events/s): `/healthz` p99 0.35 ms with the thread vs 1.21 ms without.
+- [x] Step 2, bounded queue (`ingest/pipeline/queue.ts`, `INGEST_QUEUE_MAX`, default 100,000).
+  Every source (RIS, Atlas, replay, injected scenarios) goes through it; the pipeline drains in
+  8 ms slices. Pressure levels: <70% normal; 70-95% sampling (`sample()` gives 1 in k for the raw
+  feed, k adapts each second); 95-100% shed `bgp.announce`; 100-120% reserve, only withdrawals and
+  probe status; >=120% overflow. Live feeds shed; the replay waits (`offerAndWait`) and re-anchors
+  its clock. Replay start takes `lossy` (shed like a live feed) and `amplify` (N copies per event,
+  for load tests). Queue numbers: `/api/status` `queue`, world room key `queue`, ops room, and the
+  Pipeline panel (badge when sampling or shedding). Measured: >910k events/s processed, queue
+  <=14% with the default size; forced overload with a 5,000 queue sheds or pauses as designed.

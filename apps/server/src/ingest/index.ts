@@ -5,6 +5,7 @@ import { Detectors } from './detect/detectors.ts';
 import { IncidentManager } from './detect/incidents.ts';
 import type { Totals } from './pipeline/aggregate.ts';
 import { Pipeline, type Lookup, type WindowResult } from './pipeline/pipeline.ts';
+import { IngestQueue } from './pipeline/queue.ts';
 import { createAtlasSource } from './sources/atlas.ts';
 import { ReplayPlayer } from './sources/replay.ts';
 import { createRisSource } from './sources/ris.ts';
@@ -23,6 +24,8 @@ export interface Latest {
 export interface Ingest {
   stats: IngestStats;
   pipeline: Pipeline;
+  /** The bounded queue in front of the pipeline (every source goes through it). */
+  queue: IngestQueue;
   /** Plays recorded incidents through the pipeline (admin-controlled). */
   replay: ReplayPlayer;
   latest: Latest;
@@ -43,7 +46,7 @@ export interface Ingest {
 /**
  * Start the live sources and the pipeline that processes their events:
  *
- *   sources -> validate -> normalise -> [pipeline: dedupe -> windows -> totals]
+ *   sources -> validate -> normalise -> queue -> [pipeline: dedupe -> windows -> totals]
  */
 export interface DetectionDeps {
   /** Network names for incident text (looked up in the background). */
@@ -104,6 +107,12 @@ export function startIngest(
     },
   });
 
+  // Between the sources and the pipeline: bounded, with sampling and shedding.
+  const queue = new IngestQueue({
+    capacity: config.INGEST_QUEUE_MAX,
+    process: (batch) => pipeline.ingest(batch, Date.now()),
+  });
+
   // Anomaly detection: detectors -> signals -> incidents.
   detectors = new Detectors({
     origins: pipeline.origins,
@@ -126,9 +135,11 @@ export function startIngest(
   const replay = new ReplayPlayer({
     files: { 'facebook-2021': config.REPLAY_FACEBOOK_FILE },
     log,
-    sink: (batch, now) => {
+    sink: (batch, now, lossy) => {
       stats.accepted('replay', batch.length, batch[0]!.ts, now);
-      pipeline.ingest(batch, now);
+      // A file can wait for the pipeline (backpressure); a lossy run sheds like a live feed.
+      if (lossy) queue.offer(batch);
+      else return queue.offerAndWait(batch);
     },
   });
 
@@ -137,7 +148,7 @@ export function startIngest(
 
   // In replay mode the recorded file is the only source; the live feeds stay off.
   if (config.MODE === 'live' && config.INGEST) {
-    const sink = (batch: Parameters<Pipeline['ingest']>[0]) => pipeline.ingest(batch, Date.now());
+    const sink = (batch: Parameters<Pipeline['ingest']>[0]) => queue.offer(batch);
     sockets.push(
       ...createRisSource({
         clientName: config.RIS_CLIENT_NAME,
@@ -157,6 +168,7 @@ export function startIngest(
   return {
     stats,
     pipeline,
+    queue,
     replay,
     latest,
     incidents,
@@ -175,6 +187,7 @@ export function startIngest(
       clearInterval(ticker);
       clearInterval(detectTimer);
       replay.stop();
+      queue.stop();
       for (const socket of sockets) socket.stop();
     },
   };

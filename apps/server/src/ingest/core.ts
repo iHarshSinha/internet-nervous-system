@@ -97,6 +97,7 @@ export function serveIngest(
       latest: ingest.latest,
       pipeline: pipeline.snapshot(),
       replay: ingest.replay.snapshot(),
+      queue: ingest.queue.snapshot(),
       probes,
       thread: {
         rssMb: Math.round(mem.rss / 1048576),
@@ -111,7 +112,8 @@ export function serveIngest(
     switch (call.op) {
       case 'replay': {
         const r = ingest.replay;
-        if (call.action === 'start') r.start(call.scenario, call.speed, call.from);
+        if (call.action === 'start')
+          r.start(call.scenario, call.speed, call.from, call.lossy, call.amplify);
         else if (call.action === 'pause') r.pause();
         else if (call.action === 'resume') r.resume();
         else if (call.action === 'stop') r.stop();
@@ -132,7 +134,7 @@ export function serveIngest(
     switch (message.t) {
       case 'events':
         ingest.stats.accepted(message.source, message.batch.length, message.now, message.now);
-        ingest.pipeline.ingest(message.batch, message.now);
+        ingest.queue.offer(message.batch);
         break;
       case 'masked':
         masked = message.asns ? new Set(message.asns) : null;

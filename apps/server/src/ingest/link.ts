@@ -53,6 +53,24 @@ const emptyState = (): IngestState => ({
     emitted: 0,
     run: 0,
     error: null,
+    lossy: false,
+    amplify: 1,
+  },
+  queue: {
+    depth: 0,
+    capacity: 0,
+    fill: 0,
+    pressure: 'normal',
+    sampleEvery: 1,
+    oldestMs: 0,
+    waitMaxMs: 0,
+    offered: 0,
+    processed: 0,
+    shed: {},
+    shedTotal: 0,
+    overflow: 0,
+    pauses: 0,
+    maxDepth: 0,
   },
   probes: [],
   thread: { rssMb: 0, heapMb: 0, loopDelayMs: 0 },
@@ -78,7 +96,7 @@ export class IngestLink {
   private stopping = false;
   private restarts = 0;
   /** Messages sent while a crashed thread is being replaced; delivered to the new one. */
-  private queue: ToIngest[] | null = null;
+  private held: ToIngest[] | null = null;
 
   private state: IngestState = emptyState();
   private nextCall = 1;
@@ -145,12 +163,12 @@ export class IngestLink {
         log.error({ code }, 'ingest thread exited; restarting in 1 s');
         // Calls the dead thread never answered fail now; new messages wait for the new thread.
         this.failCalls('ingest thread exited');
-        this.queue = [];
+        this.held = [];
         this.restarts += 1;
         setTimeout(() => {
           if (this.stopping) return;
-          const waiting = this.queue ?? [];
-          this.queue = null;
+          const waiting = this.held ?? [];
+          this.held = null;
           this.open();
           this.resend();
           for (const m of waiting) this.post(m);
@@ -183,9 +201,9 @@ export class IngestLink {
   }
 
   private post(message: ToIngest): void {
-    if (this.queue) {
+    if (this.held) {
       // Keep control messages and calls; at most a few seconds of scenario events.
-      if (message.t !== 'events' || this.queue.length < 1000) this.queue.push(message);
+      if (message.t !== 'events' || this.held.length < 1000) this.held.push(message);
       return;
     }
     this.port.postMessage(message);
@@ -291,6 +309,10 @@ export class IngestLink {
     return this.state.replay;
   }
 
+  queue(): IngestState['queue'] {
+    return this.state.queue;
+  }
+
   thread(): IngestState['thread'] & { mode: 'worker' | 'inline'; restarts: number } {
     return {
       ...this.state.thread,
@@ -339,8 +361,16 @@ export class IngestLink {
 
   readonly replay = {
     status: () => this.call<ReplayStatus>({ op: 'replay', action: 'status' }),
-    start: (scenario: ReplayScenario, speed: number, from: number) =>
-      this.call<ReplayStatus>({ op: 'replay', action: 'start', scenario, speed, from }),
+    start: (scenario: ReplayScenario, speed: number, from: number, lossy = false, amplify = 1) =>
+      this.call<ReplayStatus>({
+        op: 'replay',
+        action: 'start',
+        scenario,
+        speed,
+        from,
+        lossy,
+        amplify,
+      }),
     pause: () => this.call<ReplayStatus>({ op: 'replay', action: 'pause' }),
     resume: () => this.call<ReplayStatus>({ op: 'replay', action: 'resume' }),
     stop: () => this.call<ReplayStatus>({ op: 'replay', action: 'stop' }),
@@ -360,7 +390,7 @@ export class IngestLink {
     this.stopping = true;
     for (const t of this.nameTimers) clearTimeout(t);
     if (this.worker) {
-      if (!this.queue) await this.call({ op: 'stop' }).catch(() => {});
+      if (!this.held) await this.call({ op: 'stop' }).catch(() => {});
       await this.worker.terminate();
     } else {
       this.stopInline?.();

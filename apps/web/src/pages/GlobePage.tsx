@@ -429,7 +429,15 @@ const PipelineStats = memo(function PipelineStats() {
   const future = useLive((s) => s.pipe.future);
   const prefixes = useLive((s) => s.pipe.prefixes);
   const gaps = useLive((s) => s.stats.gaps);
+  const queue = useLive((s) => s.queue);
   const n = (v: number | undefined) => (v === undefined ? '—' : formatInt(v));
+  // Under load the server thins the raw feed, then sheds route announcements (counted).
+  const pressure =
+    queue.pressure === 'sampling'
+      ? `sampling 1 in ${queue.sampleEvery ?? '?'}`
+      : queue.pressure && queue.pressure !== 'normal'
+        ? 'shedding'
+        : null;
   const rows: [string, string, string][] = [
     ['Latest frame', seq === 0 ? '—' : `#${seq}`, 'Sequence number of the latest world frame'],
     [
@@ -442,6 +450,12 @@ const PipelineStats = memo(function PipelineStats() {
     ['Late events', n(late), 'Events that arrived after their minute closed'],
     ['Future-dated', n(future), 'Events stamped ahead of our clock, set aside'],
     ['Prefixes known', n(prefixes), 'Address blocks whose owner we know'],
+    [
+      'Ingest queue',
+      queue.fill === undefined ? '—' : `${Math.round(queue.fill * 100)}% full`,
+      'Events waiting for the pipeline. Above 70% the raw feed is sampled; above 95% route announcements are shed',
+    ],
+    ['Shed under load', n(queue.shed), 'Events dropped by priority because the queue was full'],
   ];
   return (
     <Panel
@@ -450,9 +464,15 @@ const PipelineStats = memo(function PipelineStats() {
       defaultOpen={false}
       id="pipeline"
       aside={
-        <span className="font-mono text-[0.82rem] text-low">
-          {delayMs === null ? '—' : `${delayMs} ms`}
-        </span>
+        pressure ? (
+          <span className="rounded bg-caution/15 px-1.5 py-0.5 font-mono text-[0.78rem] text-caution">
+            {pressure}
+          </span>
+        ) : (
+          <span className="font-mono text-[0.82rem] text-low">
+            {delayMs === null ? '—' : `${delayMs} ms`}
+          </span>
+        )
       }
     >
       <dl className="divide-y divide-line/70">

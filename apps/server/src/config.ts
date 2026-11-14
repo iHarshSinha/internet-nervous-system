@@ -32,6 +32,13 @@ const envSchema = z.object({
     .enum(['on', 'off'])
     .default('on')
     .transform((v) => v === 'on'),
+  /**
+   * Events the ingest queue holds before it starts shedding route
+   * announcements (sampling starts at 70%, see ingest/pipeline/queue.ts).
+   * The pipeline handles roughly 580,000 events a second on one core, so
+   * 100,000 is a fraction of a second of work but half a minute of live traffic.
+   */
+  INGEST_QUEUE_MAX: z.coerce.number().int().min(100).max(5_000_000).default(100_000),
   /** Set to "off" to skip downloading network and probe reference data. */
   REFDATA: z
     .enum(['on', 'off'])

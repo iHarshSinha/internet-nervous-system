@@ -11,6 +11,7 @@ import type { AsnRange } from '../refdata/rir.ts';
 import type { ProbeInfo } from '../refdata/probes.ts';
 import type { Latest } from './index.ts';
 import type { WindowResult } from './pipeline/pipeline.ts';
+import type { QueueSnapshot } from './pipeline/queue.ts';
 import type { SourceCounters } from './stats.ts';
 
 /*
@@ -44,6 +45,8 @@ export interface IngestState {
     knownPrefixes: number;
   };
   replay: ReplayStatus;
+  /** The bounded queue in front of the pipeline: depth, pressure, what was shed. */
+  queue: QueueSnapshot;
   /** Probes whose latest latency changed since the last state: [id, ts, rtt]. */
   probes: [number, number, number | null][];
   /** Ingest thread health. RSS is the whole process; the heap is this thread's own. */
@@ -52,7 +55,15 @@ export interface IngestState {
 
 /** Requests that expect an answer. */
 export type Call =
-  | { op: 'replay'; action: 'start'; scenario: ReplayScenario; speed: number; from: number }
+  | {
+      op: 'replay';
+      action: 'start';
+      scenario: ReplayScenario;
+      speed: number;
+      from: number;
+      lossy: boolean;
+      amplify: number;
+    }
   | { op: 'replay'; action: 'pause' | 'resume' | 'stop' | 'status' }
   | { op: 'replay'; action: 'speed'; speed: number }
   | { op: 'prefixesOf'; asn: number; limit: number }

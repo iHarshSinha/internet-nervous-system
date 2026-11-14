@@ -27,6 +27,16 @@ export const replayCommandSchema = z.discriminatedUnion('action', [
     ),
     /** Start from this original time (ms); defaults to the scenario's start. */
     from: z.number().int().optional(),
+    /**
+     * Play it like a live feed that cannot wait: when the ingest queue fills,
+     * events are shed instead of the file pausing. For load tests.
+     */
+    lossy: z.boolean().optional(),
+    /**
+     * Load tests: play each recorded event this many times, as if this many
+     * times more routers had reported it (each copy has its own event ID).
+     */
+    amplify: z.number().int().min(1).max(32).optional(),
   }),
   z.object({ action: z.literal('pause') }),
   z.object({ action: z.literal('resume') }),
@@ -55,4 +65,8 @@ export interface ReplayStatus {
   /** Run number: each run gets fresh event IDs, so replaying twice is not "duplicate". */
   run: number;
   error: string | null;
+  /** Played like a live feed (sheds under load) instead of pausing when the queue fills. */
+  lossy: boolean;
+  /** Each recorded event is played this many times (load tests; normally 1). */
+  amplify: number;
 }
