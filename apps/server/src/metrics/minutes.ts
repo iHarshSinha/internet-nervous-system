@@ -40,7 +40,15 @@ export class MinuteRecorder {
       put(`${src}.lagCount`, c.lagCount);
     }
     const p = s.pipeline as Record<string, unknown>;
-    for (const k of ['received', 'duplicates', 'lateSecond', 'lateMinute', 'future', 'counted']) {
+    for (const k of [
+      'received',
+      'duplicates',
+      'amendedSecond',
+      'lateSecond',
+      'lateMinute',
+      'future',
+      'counted',
+    ]) {
       put(`pipeline.${k}`, typeof p[k] === 'number' ? p[k] : 0);
     }
     put('pipeline.shed', s.queue.shedTotal);
@@ -80,6 +88,7 @@ export class MinuteRecorder {
       t,
       received: d('pipeline.received'),
       duplicates: d('pipeline.duplicates'),
+      amendedSecond: d('pipeline.amendedSecond'),
       lateSecond: d('pipeline.lateSecond'),
       lateMinute: d('pipeline.lateMinute'),
       future: d('pipeline.future'),

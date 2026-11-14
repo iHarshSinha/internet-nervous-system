@@ -395,3 +395,37 @@ second that ended about 11 s earlier.
 (only 34 missed it), so stored history and detection are exact, but the live per-second figure
 undercounts while RIS runs this far behind. Options for later: a longer lateness for second
 windows, or showing the per-second figure from the minute rate when lateness is high.
+
+## Phase 3: the per-second undercount, fixed
+
+**Cause.** A 1-second window closes once every collector within 15 s of the leader has passed it
+(plus 5 s lateness). A collector further behind is left out so it cannot hold everyone back, and
+before this fix its events were then simply dropped from the per-second numbers (still counted in
+their minute). RIS lag is uneven: in the minute measured in step 5 one collector fell far behind,
+mean lag 21 s, and 58% of RIS events missed their second; the next minute, lag 3 s, none did.
+
+**Fix: allowed lateness with corrections.**
+1. Closed 1-second windows are kept for 2 minutes. A late event is added to its window, and the
+   window's changed scopes are sent again with their full new totals, under the same key
+   (`s:<start>`). Clients already keep points by time, so charts fill in; the server's recent
+   seconds (used by `/api/history`) are corrected the same way. "Now" values (health, activity)
+   are never taken from a correction.
+2. The headline "route changes a second" is the newest second that every connected collector has
+   delivered, lagging ones included (`Watermark.complete`), so it is complete rather than fast.
+   The panel says which second it is ("as of 17:37:57").
+
+**Measured on the live feeds after the fix** (3 minutes, headline sampled every 5 s, then compared
+with each second's final corrected total once the 2-minute horizon had passed):
+
+| Measure | Value |
+|---|---|
+| Headline samples compared with final totals | 29 |
+| Headline / final total | 1.000 for all 29 (min, median and max) |
+| Age of the second shown | median 10.1 s, max 11.2 s |
+| Events added to already-closed seconds | 22,505 (4.5% of 504,255 counted) |
+| Events too late even for the 2-minute horizon | 0 |
+
+Collectors were within 6 s of each other during this run, so this is the healthy case: even then
+4.5% of events arrive after their second closes, and before this fix they were left out of every
+per-second figure. The lagging-collector case (a collector 40 s behind, its events arriving late)
+is reproduced in `pipeline.test.ts` ("Pipeline with a lagging collector").

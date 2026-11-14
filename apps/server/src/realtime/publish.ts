@@ -66,7 +66,10 @@ export function startPublishing(ingest: IngestLink, broadcaster: Broadcaster): P
 
   ingest.onSecond((window) => {
     for (const [scope, totals] of window.scopes) {
+      // Sent again, same key, when late events correct it: clients keep points by time.
       broadcaster.append(scope, secondKey(window.start), 'bgp', { ...bgp(totals) });
+      // "Now" values come from fresh seconds only, never from a correction of an older one.
+      if (window.amended) continue;
       // Health from one second only judges routing (latency is per minute).
       const health = healthScore({ ann: totals.ann, wd: totals.wd, pings: 0, lost: 0 });
       broadcaster.set(scope, 'now', 'health', health, 1);

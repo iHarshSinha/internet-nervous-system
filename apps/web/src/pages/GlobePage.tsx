@@ -28,6 +28,7 @@ import {
   healthColor,
   healthLabel,
 } from '../theme.ts';
+import { formatTime, useClockZone } from '../time.ts';
 
 /** Re-read the globe store on a slow rhythm; it changes many times a second. */
 function useGlobeTick(ms = 1000) {
@@ -45,11 +46,23 @@ const RightNow = memo(function RightNow() {
   const wd = useLive((s) => s.world.wd);
   const p50 = useLive((s) => s.world.p50);
   const countries = useLive((s) => s.world.countries);
+  const second = useLive((s) => s.world.t);
+  useClockZone((s) => s.local);
   const open = useIncidents((s) => activeIncidents(s.byId).length);
   const changes = ann === undefined ? undefined : ann + (wd ?? 0);
 
   return (
-    <Panel title="Right now" aside={<span className="text-[0.86rem] text-low">last 2 min</span>}>
+    <Panel
+      title="Right now"
+      aside={
+        <span
+          className="font-mono text-[0.8rem] text-low"
+          title="The newest second that every route collector has delivered, so the count is complete. Collectors run a few seconds behind, more when one lags; late updates are added as they arrive."
+        >
+          {second ? `as of ${formatTime(second, true)}` : ''}
+        </span>
+      }
+    >
       <div className="flex items-end gap-2">
         <span className="font-mono text-[2.9rem] leading-none text-hi tabular-nums">
           <AnimatedNumber value={changes} />

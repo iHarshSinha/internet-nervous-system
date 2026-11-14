@@ -89,6 +89,22 @@ export class Watermark {
     return this.value;
   }
 
+  /**
+   * Event time up to which EVERY partition still sending has delivered (less
+   * the lateness), lagging ones included. `current` leaves a partition that
+   * is far behind out so it cannot hold everyone back; this does not, so a
+   * window before this mark has (nearly) all its events, late ones too.
+   */
+  complete(now: number): number {
+    let slowest = Infinity;
+    for (const part of this.parts.values()) {
+      if (now - part.seenAt > this.opts.idleMs) continue;
+      if (part.maxTs < slowest) slowest = part.maxTs;
+    }
+    if (slowest === Infinity) return this.newestTs;
+    return slowest - this.opts.latenessMs;
+  }
+
   /** How far each partition is behind the leader, in ms. For the status page. */
   skews(): Record<string, number> {
     const out: Record<string, number> = {};

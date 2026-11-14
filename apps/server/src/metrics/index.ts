@@ -124,8 +124,15 @@ export function createMetrics(src: MetricsSources): ServerMetrics {
   ]);
   mirrored(
     registry,
+    'ins_amended_total',
+    'Late events added to an already-closed 1-second window (a correction is sent)',
+    [],
+    () => [[none, num(pipe().amendedSecond)]],
+  );
+  mirrored(
+    registry,
     'ins_late_total',
-    'Events that arrived after their window closed',
+    'Events that arrived after their window closed (second: even after the 2-minute correction horizon)',
     ['window'],
     () => [
       [{ window: 'second' }, num(pipe().lateSecond)],

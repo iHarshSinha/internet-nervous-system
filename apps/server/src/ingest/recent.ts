@@ -26,7 +26,7 @@ export class RecentSeconds {
         ring = [];
         this.rings.set(scope, ring);
       }
-      ring.push({
+      const point: MetricPoint = {
         t: window.start,
         ann: t.ann,
         wd: t.wd,
@@ -37,7 +37,13 @@ export class RecentSeconds {
         down: 0,
         health: healthScore({ ann: t.ann, wd: t.wd, pings: 0, lost: 0 }),
         late: 0,
-      });
+      };
+      // Usually the newest point. A correction (late events for a second that
+      // already closed) replaces its point, or slots in if that second was empty.
+      let i = ring.length - 1;
+      while (i >= 0 && ring[i]!.t > point.t) i -= 1;
+      if (i >= 0 && ring[i]!.t === point.t) ring[i] = point;
+      else ring.splice(i + 1, 0, point);
       // Trim in chunks rather than shifting one element every second.
       if (ring.length > this.max + 60) ring.splice(0, ring.length - this.max);
     }

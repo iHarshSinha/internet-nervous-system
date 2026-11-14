@@ -19,7 +19,12 @@ import { IngestStats } from './stats.ts';
 
 /** The most recent closed windows for the whole world, for the live frame and status. */
 export interface Latest {
-  /** Last closed 1-second routing window. */
+  /**
+   * The newest COMPLETE 1-second routing window: every connected collector
+   * has delivered past it, and late events have been added. While one
+   * collector lags this is a few seconds older than the newest closed
+   * window, but it is not an undercount.
+   */
   second: { start: number; world: Totals; countries: number } | null;
   /** Last closed 1-minute windows, one per feed family. */
   bgpMinute: { start: number; world: Totals; scopes: number } | null;
@@ -80,6 +85,20 @@ export function startIngest(
   // Assigned right after the pipeline exists (the detectors read its origin table).
   let detectors: Detectors | null = null;
 
+  // Recent world seconds, kept up to date by corrections, to pick the newest complete one.
+  type SecondPoint = { start: number; world: Totals; countries: number };
+  const worldSeconds = new Map<number, SecondPoint>();
+  const refreshLatest = () => {
+    const complete = pipeline.secondsComplete;
+    let best: SecondPoint | null = null;
+    let newest: SecondPoint | null = null;
+    for (const s of worldSeconds.values()) {
+      if (!newest || s.start > newest.start) newest = s;
+      if (s.start + 1000 <= complete && (!best || s.start > best.start)) best = s;
+    }
+    latest.second = best ?? newest;
+  };
+
   const pipeline = new Pipeline({
     ...(lookup && { lookup }),
     onEvent: (event, ctx) => {
@@ -92,7 +111,17 @@ export function startIngest(
       if (world) {
         let countries = 0;
         for (const scope of window.scopes.keys()) if (scope.startsWith('country:')) countries += 1;
-        latest.second = { start: window.start, world, countries };
+        // A correction carries only the countries it changed; keep the larger count.
+        const before = worldSeconds.get(window.start)?.countries ?? 0;
+        worldSeconds.set(window.start, {
+          start: window.start,
+          world,
+          countries: Math.max(before, countries),
+        });
+        for (const start of worldSeconds.keys()) {
+          if (start < window.start - 180_000) worldSeconds.delete(start);
+        }
+        refreshLatest();
       }
       for (const listener of secondListeners) listener(window);
     },
@@ -155,7 +184,10 @@ export function startIngest(
   });
 
   // Windows close when the watermark passes them; check four times a second.
-  const ticker = setInterval(() => pipeline.tick(Date.now()), 250);
+  const ticker = setInterval(() => {
+    pipeline.tick(Date.now());
+    refreshLatest();
+  }, 250);
 
   // In replay mode the recorded file is the only source; the live feeds stay off.
   if (config.MODE === 'live' && config.INGEST) {

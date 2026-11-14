@@ -70,6 +70,8 @@ export function startHeartbeat(
     }
     const second = ingest.latest.second;
     if (second) {
+      // Which second these numbers describe: the newest one every collector has delivered.
+      put('world', 't', second.start);
       put('world', 'ann', second.world.ann);
       put('world', 'wd', second.world.wd);
       put('world', 'countries', second.countries);

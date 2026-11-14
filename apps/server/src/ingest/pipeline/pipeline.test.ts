@@ -76,6 +76,14 @@ describe('Watermark', () => {
     expect(w.current(T + 20_000)).toBe(before);
   });
 
+  it('reports completeness including a lagging partition that current() leaves out', () => {
+    const w = new Watermark(opts);
+    w.observe('rrc00', T + 60_000, T + 61_000);
+    w.observe('rrc10', T + 20_000, T + 61_000); // 40 s behind
+    expect(w.current(T + 61_000)).toBe(T + 55_000); // does not wait for rrc10
+    expect(w.complete(T + 61_000)).toBe(T + 15_000); // but rrc10 has only delivered up to here
+  });
+
   it('releases everything once every partition is idle', () => {
     const w = new Watermark(opts);
     w.observe('a', T + 1000, T + 1000);
@@ -114,6 +122,32 @@ describe('TumblingWindows', () => {
     expect(w.slot('world', T + 500)).toBeNull(); // late
     expect(w.slot('world', T + 1500)).toBeNull(); // its window was empty but is closed too
     expect(w.slot('world', T + 2500)).not.toBeNull();
+  });
+
+  it('with an amendment horizon, corrects closed windows with late events', () => {
+    const w = new TumblingWindows<{ n: number }>(1000, () => ({ n: 0 }), 10_000);
+    w.slot('world', T + 100)!.n += 1;
+    w.slot('country:DE', T + 200)!.n += 1;
+    w.close(T + 3000); // [T, T+1000) closed with world 1, DE 1
+    expect(w.takeAmended()).toEqual([]);
+
+    w.lateSlot('world', T + 500)!.n += 4; // a slow collector's events arrive
+    w.lateSlot('world', T + 1500)!.n += 2; // this window had closed empty
+    const amended = w.takeAmended();
+    expect(amended.map((a) => [a.start - T, Object.fromEntries(a.scopes)])).toEqual([
+      [0, { world: { n: 5 } }], // full new total, and only the scope that changed
+      [1000, { world: { n: 2 } }],
+    ]);
+    expect(w.takeAmended()).toEqual([]); // handed out once
+  });
+
+  it('refuses corrections beyond the horizon, and for windows still open', () => {
+    const w = new TumblingWindows<{ n: number }>(1000, () => ({ n: 0 }), 10_000);
+    w.slot('world', T)!.n += 1;
+    w.close(T + 20_000);
+    expect(w.lateSlot('world', T + 500)).toBeNull(); // 20 s ago: past the 10 s horizon
+    expect(w.lateSlot('world', T + 15_000)).not.toBeNull();
+    expect(w.lateSlot('world', T + 25_000)).toBeNull(); // not closed: use slot()
   });
 
   it('keeps scopes apart inside a window', () => {
@@ -411,5 +445,41 @@ describe('Pipeline country scopes', () => {
     expect(minute!.scopes.get('country:DE')).toMatchObject({ p50: 12.5, pings: 1, up: 1 });
     expect(minute!.scopes.get('asn:3320')).toMatchObject({ pings: 1 });
     expect(minute!.scopes.get('world')).toMatchObject({ pings: 2, lost: 1, up: 2 });
+  });
+});
+
+describe('Pipeline with a lagging collector', () => {
+  const ev = (eid: string, collector: string, ts: number) => ({
+    v: 1 as const,
+    src: 'ris' as const,
+    eid,
+    kind: 'bgp.withdraw' as const,
+    ts,
+    its: ts,
+    entity: { prefix: `10.0.${eid.length}.0/24`, collector },
+    data: {},
+  });
+
+  it('closes seconds without the slow collector, then corrects them when its events arrive', () => {
+    const seconds: WindowResult[] = [];
+    const p = new Pipeline({ onSecond: (w) => seconds.push(w), onMinute: () => {} });
+    // rrc00 is live; rrc10 has delivered nothing newer than T + 1.
+    p.ingest([ev('ris:slow-old', 'rrc10', T + 1)], T + 40_000);
+    for (let i = 0; i < 40; i++) p.ingest([ev(`ris:fast-${i}`, 'rrc00', T + i * 1000)], T + 40_000);
+    p.tick(T + 40_000);
+    // rrc10 is more than 15 s behind, so seconds close on rrc00's progress alone.
+    const first = seconds.find((w) => w.start === T + 10_000 && !w.amended);
+    expect(first?.scopes.get('world')?.wd).toBe(1);
+    // ...but they are not complete: rrc10 has only delivered up to T + 1 (minus 5 s lateness).
+    expect(p.secondsComplete).toBe(T + 1 - 5000);
+
+    // rrc10 catches up: its events for those seconds arrive late.
+    p.ingest([ev('ris:slow-a', 'rrc10', T + 10_200)], T + 41_000);
+    p.ingest([ev('ris:slow-bb', 'rrc10', T + 10_700)], T + 41_000);
+    p.tick(T + 41_000);
+    const fix = seconds.find((w) => w.start === T + 10_000 && w.amended);
+    expect(fix?.scopes.get('world')?.wd).toBe(3); // the full corrected total
+    expect(p.counters).toMatchObject({ amendedSecond: 2, lateSecond: 0 });
+    expect(p.secondsComplete).toBe(T + 10_700 - 5000);
   });
 });

@@ -467,7 +467,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
 
   // How long after a second ends (event time) its numbers leave the server: watermark + conflation.
   let secondEnds: number[] = [];
-  ingest.onSecond((w) => secondEnds.push(w.start + w.sizeMs));
+  ingest.onSecond((w) => !w.amended && secondEnds.push(w.start + w.sizeMs));
   broadcaster.onFlush((now) => {
     if (secondEnds.length === 0 || !broadcaster.hasMembers(rooms.world)) {
       secondEnds = [];

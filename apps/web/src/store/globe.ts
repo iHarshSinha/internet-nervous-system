@@ -58,8 +58,12 @@ export function applyWorldFrame(frame: Frame): void {
     const at = pointTime(key);
     if (at?.res === 's' && field === 'bgp' && typeof value === 'object' && value !== null) {
       const v = value as { ann?: number; wd?: number };
-      if (!worldSeconds.some((p) => p.t === at.t)) {
-        worldSeconds.push({ t: at.t, ann: v.ann ?? 0, wd: v.wd ?? 0 });
+      const point = { t: at.t, ann: v.ann ?? 0, wd: v.wd ?? 0 };
+      // The same second again is a correction (late events from a slow collector): replace it.
+      const i = worldSeconds.findIndex((p) => p.t === at.t);
+      if (i >= 0) worldSeconds[i] = point;
+      else {
+        worldSeconds.push(point);
         worldSeconds.sort((a, b) => a.t - b.t);
         if (worldSeconds.length > 120) worldSeconds.shift();
       }

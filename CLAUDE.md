@@ -318,5 +318,11 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
   `metrics/loop.ts` subtracts Node's sampling interval from event-loop delay (it was reading
   ~10 ms too high; benchmarks corrected). `metrics/minutes.ts` + `db/ingestStats.ts`: rows per
   source, `pipeline`, `delivery` each minute (`$set`, TTL 7 d), `GET /api/ops/history` (public).
-  Finding: with RIS lagging ~21 s, 58% of RIS events miss their 1-second window (minutes are
-  exact); see benchmarks, not changed yet.
+- [x] Per-second undercount fixed (user's choice before step 6). 1-second windows keep closed
+  windows 2 min (`TumblingWindows` `amendMs`, `lateSlot`, `takeAmended`); late events correct
+  them and the pipeline re-emits changed scopes with `amended: true` (publisher re-appends
+  `s:<start>`, skips "now" values; `RecentSeconds` and the globe sparkline upsert by time).
+  Headline = newest second at or before `Watermark.complete` (slowest connected collector, no skew
+  exclusion; `Pipeline.secondsComplete`, monotonic), shown "as of HH:MM:SS". Counters:
+  `amendedSecond`, `lateSecond` (beyond the horizon). Live: headline equals final total in 29/29
+  samples; 4.5% of events were corrected in.
