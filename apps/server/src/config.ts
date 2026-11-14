@@ -23,6 +23,15 @@ const envSchema = z.object({
     .enum(['on', 'off'])
     .default('on')
     .transform((v) => v === 'on'),
+  /**
+   * Run the feeds, pipeline and detectors in their own worker thread, so
+   * bursts never delay HTTP and Socket.IO. "off" runs them in the main thread
+   * (same code, same messages; used by tests).
+   */
+  INGEST_THREAD: z
+    .enum(['on', 'off'])
+    .default('on')
+    .transform((v) => v === 'on'),
   /** Set to "off" to skip downloading network and probe reference data. */
   REFDATA: z
     .enum(['on', 'off'])

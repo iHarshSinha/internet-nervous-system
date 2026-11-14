@@ -20,6 +20,8 @@ const PROBE_MAX_AGE = DAY;
 export class RefData {
   private asns = new AsnCountryIndex([]);
   private probes = new Map<number, ProbeInfo>();
+  private ranges: AsnRange[] = [];
+  private readonly listeners: ((update: RefDataUpdate) => void)[] = [];
 
   asnCountry(asn: number): string | undefined {
     return this.asns.lookup(asn);
@@ -35,15 +37,35 @@ export class RefData {
 
   setAsnRanges(ranges: AsnRange[]): void {
     this.asns = new AsnCountryIndex(ranges);
+    this.ranges = ranges;
+    for (const l of this.listeners) l({ ranges });
   }
 
   setProbes(list: ProbeInfo[]): void {
     this.probes = new Map(list.map((p) => [p.id, p]));
+    for (const l of this.listeners) l({ probes: list });
+  }
+
+  /**
+   * Hear about every change, starting with what is loaded now. The ingest
+   * thread keeps its own copy for its synchronous lookups.
+   */
+  subscribe(listener: (update: RefDataUpdate) => void): void {
+    this.listeners.push(listener);
+    const now: RefDataUpdate = {};
+    if (this.ranges.length > 0) now.ranges = this.ranges;
+    if (this.probes.size > 0) now.probes = [...this.probes.values()];
+    if (now.ranges || now.probes) listener(now);
   }
 
   stats() {
     return { asnRanges: this.asns.size, probes: this.probes.size };
   }
+}
+
+export interface RefDataUpdate {
+  ranges?: AsnRange[];
+  probes?: ProbeInfo[];
 }
 
 interface MetaDoc {

@@ -1,13 +1,13 @@
 import { latencyBucket, rooms, type CountriesResponse, type ProbesResponse } from '@ins/shared';
 import { Router } from 'express';
-import type { Pipeline } from '../ingest/pipeline/pipeline.ts';
 import type { Publisher } from '../realtime/publish.ts';
 import type { RoomSequencer } from '../realtime/sequencer.ts';
 
 export interface GlobeDeps {
   /** Probe locations. Empty until the reference data has loaded. */
   probes: () => Iterable<{ id: number; lat?: number; lon?: number; cc?: string; status: string }>;
-  pipeline: Pipeline;
+  /** Latest latency per probe (kept up to date from the ingest side). */
+  probeLatest: ReadonlyMap<number, { rtt: number | null }>;
   publisher: Publisher;
   seq: RoomSequencer;
 }
@@ -19,14 +19,14 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  * bucket, and every country's current health. Both carry the world room's
  * sequence number, so the client knows which live deltas are newer.
  */
-export function globeRouter({ probes, pipeline, publisher, seq }: GlobeDeps): Router {
+export function globeRouter({ probes, probeLatest, publisher, seq }: GlobeDeps): Router {
   const router = Router();
 
   router.get('/api/probes', (_req, res) => {
     const rows: ProbesResponse['probes'] = [];
     for (const p of probes()) {
       if (p.lat === undefined || p.lon === undefined || p.status !== 'Connected') continue;
-      const latest = pipeline.probeLatest.get(p.id);
+      const latest = probeLatest.get(p.id);
       rows.push([
         p.id,
         round2(p.lat),

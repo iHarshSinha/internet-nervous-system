@@ -4,11 +4,12 @@ import {
   REPLAY_SCENARIOS,
   replayCommandSchema,
   scenarioCommandSchema,
+  type ReplayScenario,
+  type ReplayStatus,
   type ScenarioId,
 } from '@ins/shared';
 import { Router } from 'express';
 import { principalOf, requireAdmin, requireUser } from '../auth/middleware.ts';
-import type { ReplayPlayer } from '../ingest/sources/replay.ts';
 import { AttackError, attackPlan, type AttackDeps } from '../scenarios/attacks.ts';
 import { facebookPlan } from '../scenarios/facebook.ts';
 import type { ScenarioPlan, ScenarioRunner } from '../scenarios/runner.ts';
@@ -17,7 +18,15 @@ import type { Logger } from '../logger.ts';
 
 export interface AdminDeps {
   secret: string;
-  replay: ReplayPlayer;
+  /** Full-file replay controls (the player runs on the ingest side). */
+  replay: {
+    status(): Promise<ReplayStatus>;
+    start(scenario: ReplayScenario, speed: number, from: number): Promise<ReplayStatus>;
+    pause(): Promise<ReplayStatus>;
+    resume(): Promise<ReplayStatus>;
+    stop(): Promise<ReplayStatus>;
+    setSpeed(speed: number): Promise<ReplayStatus>;
+  };
   scenarios: ScenarioRunner;
   runs: RunsStore;
   scenarioDir: string;
@@ -92,40 +101,41 @@ export function adminRouter({
     res.json(await runs.between(from, to));
   });
 
-  router.get('/api/admin/replay', ...adminOnly, (_req, res) => {
-    res.json(replay.snapshot());
+  router.get('/api/admin/replay', ...adminOnly, async (_req, res) => {
+    res.json(await replay.status());
   });
 
-  router.post('/api/admin/replay', ...adminOnly, (req, res) => {
+  router.post('/api/admin/replay', ...adminOnly, async (req, res) => {
     const parsed = replayCommandSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: { code: 'bad_request', message: 'Invalid replay command' } });
       return;
     }
     const cmd = parsed.data;
+    let status: ReplayStatus;
     switch (cmd.action) {
       case 'start':
-        replay.start(
+        status = await replay.start(
           cmd.scenario,
           cmd.speed,
           cmd.from ?? REPLAY_SCENARIOS[cmd.scenario].defaultFrom,
         );
         break;
       case 'pause':
-        replay.pause();
+        status = await replay.pause();
         break;
       case 'resume':
-        replay.resume();
+        status = await replay.resume();
         break;
       case 'stop':
-        replay.stop();
+        status = await replay.stop();
         break;
       case 'speed':
-        replay.setSpeed(cmd.speed);
+        status = await replay.setSpeed(cmd.speed);
         break;
     }
     log.info({ admin: principalOf(res).email, command: cmd }, 'admin: replay command');
-    res.json(replay.snapshot());
+    res.json(status);
   });
 
   return router;

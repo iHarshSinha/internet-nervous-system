@@ -273,3 +273,14 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
 - India's outline follows the Government of India's boundary (Natural Earth India point-of-view
   edition, in `prepare-countries.mjs`, with a check that Aksai Chin, Gilgit, Tawang are inside).
 - Next: Phase 3 (performance, load tests).
+
+**Phase 3 progress** (user wants it step by step, a report after each; commits carry NO Co-Authored-By line):
+- [x] Step 1, ingest worker thread. Feeds, pipeline, detectors, incident manager and the full-file
+  replay player run in `ingest/worker.ts` via `ingest/core.ts` (`serveIngest(port)`). The main
+  thread uses `ingest/link.ts` (`IngestLink`): a mirror of the ingest state (sent every 250 ms),
+  closed windows and incidents as messages, and promise calls for replay controls and the attack
+  simulator's routing-table questions. Messages are typed in `ingest/protocol.ts`. MongoDB writes,
+  Socket.IO, the scenario runner and Radar stay on the main thread. Reference data reaches the
+  thread through `RefData.subscribe`. A crashed thread restarts after 1 s (messages queued
+  meanwhile). `INGEST_THREAD=off` runs the same code in-thread over a `MessageChannel`.
+  Measured at 50x replay (90k events/s): `/healthz` p99 0.35 ms with the thread vs 1.21 ms without.

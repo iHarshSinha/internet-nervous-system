@@ -3,14 +3,14 @@ import { rateLimit } from 'express-rate-limit';
 import helmet from 'helmet';
 import type { Config } from '../config.ts';
 import type { Mongo } from '../db/client.ts';
-import type { Ingest } from '../ingest/index.ts';
+import type { IngestLink } from '../ingest/link.ts';
 import type { Logger } from '../logger.ts';
 
 export interface AppDeps {
   config: Config;
   log: Logger;
   mongo: Pick<Mongo, 'ping'>;
-  ingest: Ingest;
+  ingest: IngestLink;
   /** Number of browsers connected to the public namespace right now. */
   liveSockets: () => number;
   /** Feature routers (history, and later auth, watchlists, ...). */
@@ -85,7 +85,7 @@ export function createApp({
       upstreams: ingest.connections(),
       sources: Object.fromEntries(ingest.stats.sources().map((s) => [s, ingest.stats.of(s)])),
       // Dedupe, lateness and window counters, and the latest closed windows.
-      pipeline: ingest.pipeline.snapshot(),
+      pipeline: ingest.pipelineSnapshot(),
       latest: ingest.latest,
       ...extraStatus?.(),
     });

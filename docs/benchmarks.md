@@ -214,3 +214,36 @@ and leaks returned 60 events and 40 attack pairs (20 layer 7, 20 layer 3). Route
 bulk and most were seen by one or two peers, so only leaks seen by at least 10 peers are kept.
 Hijacks are requested with `minConfidence=8`: about 50 in 7 days. Each poll is 4 requests every
 3 minutes plus 2 every 15 minutes, far below Cloudflare's API limits.
+
+## Phase 3, step 1: ingest in its own worker thread
+
+The upstream feeds, the pipeline, the detectors and the replay player now run in a worker thread
+(`apps/server/src/ingest/worker.ts`). The main thread keeps Express, Socket.IO and MongoDB and
+talks to the ingest side through `ingest/link.ts` (messages defined in `ingest/protocol.ts`).
+`INGEST_THREAD=off` runs the same code in the main thread over a `MessageChannel`, which is how
+the comparison below was made.
+
+Setup: Apple M4 Pro (12 cores, 24 GB), Node 22.23, local MongoDB in Docker, a separate database,
+`NODE_ENV=production`, live feeds off. The Facebook outage file replayed at 50x while a client sent
+`GET /healthz` back to back for 30 s. `/healthz` does no work, so its timing is the main thread's
+own responsiveness.
+
+| | Ingest thread on | Ingest thread off |
+|---|---|---|
+| Replay throughput through the pipeline | 90,681 events/s | 90,569 events/s |
+| `/healthz` p50 | 0.09 ms | 0.09 ms |
+| `/healthz` p95 | 0.15 ms | 0.31 ms |
+| `/healthz` p99 | 0.35 ms | 1.21 ms |
+| `/healthz` slowest | 3.7 ms | 16.5 ms |
+| Requests answered in 30 s | 280,594 | 208,206 |
+| Idle `/healthz` p99, before the replay | 0.47 ms | 0.44 ms |
+
+So at 90k events/s the main thread's p99 stays at idle level with the thread, and is 3.5 times
+worse without it (and the slowest request 4.5 times worse). Throughput is the same either way; at
+50x the pipeline is not yet the limit. Higher speeds and Socket.IO fan-out are T1 and T2.
+
+A request from the main thread into the ingest thread (for example "which prefixes does this
+network announce", used by the attack simulator) takes 0.010 ms at the median and 0.113 ms at p99
+(200 calls, idle). On the live feeds (four RIS collectors and Atlas, a few minutes after start) the
+ingest thread's JavaScript heap was 66 MB, the whole process 328 MB RSS, and the ingest thread's
+event-loop p99 delay about 12 ms. (RSS is per process; only the heap is per thread.)

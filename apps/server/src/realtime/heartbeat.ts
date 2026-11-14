@@ -1,5 +1,5 @@
 import { rooms, type DeltaValue, type ScenarioStatus } from '@ins/shared';
-import type { Ingest } from '../ingest/index.ts';
+import type { IngestLink } from '../ingest/link.ts';
 import type { Broadcaster } from './broadcaster.ts';
 import type { LiveNamespace } from './live.ts';
 
@@ -15,7 +15,7 @@ import type { LiveNamespace } from './live.ts';
 export function startHeartbeat(
   live: LiveNamespace,
   broadcaster: Broadcaster,
-  ingest: Ingest | null,
+  ingest: IngestLink | null,
   intervalMs = 1000,
   scenario?: () => ScenarioStatus,
 ): () => void {
@@ -76,17 +76,17 @@ export function startHeartbeat(
     }
 
     // Everyone sees when a replay is running, so recorded data is never mistaken for live.
-    const r = ingest.replay.snapshot();
+    const r = ingest.replayStatus();
     put('replay', 'state', r.state);
     put('replay', 'scenario', r.scenario);
     put('replay', 'speed', r.speed);
     put('replay', 'clock', r.clock);
 
-    const counters = ingest.pipeline.counters;
+    const counters = ingest.pipelineSnapshot();
     put('pipe', 'dup', counters.duplicates);
     put('pipe', 'late', counters.lateMinute);
     put('pipe', 'future', counters.future);
-    put('pipe', 'prefixes', ingest.pipeline.origins.size);
+    put('pipe', 'prefixes', counters.knownPrefixes);
 
     const connections = ingest.connections();
     if (connections.length > 0) {

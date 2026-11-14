@@ -17,8 +17,9 @@ import type { AuthStore } from './auth/store.ts';
 import type { Config } from './config.ts';
 import type { Mongo } from './db/client.ts';
 import type { MetricsStore } from './db/metrics.ts';
-import { startIngest } from './ingest/index.ts';
-import type { Lookup } from './ingest/pipeline/pipeline.ts';
+import type { IngestLookup } from './ingest/core.ts';
+import { IngestLink } from './ingest/link.ts';
+import type { RefDataUpdate } from './refdata/index.ts';
 import { RecentSeconds } from './ingest/recent.ts';
 import type { Logger } from './logger.ts';
 import { Broadcaster } from './realtime/broadcaster.ts';
@@ -52,8 +53,9 @@ export interface ServerDeps {
   /** Checks Google ID tokens; null when sign-in is not configured. */
   verifyGoogle: GoogleVerifier | null;
   /** Network and probe locations (filled in by the reference data loader). */
-  lookup?: Lookup & {
-    allProbes?(): Iterable<{ id: number; lat?: number; lon?: number; cc?: string; status: string }>;
+  lookup?: IngestLookup & {
+    /** Changes to the reference data, forwarded to the ingest thread's own copy. */
+    subscribe?(listener: (update: RefDataUpdate) => void): void;
   };
   /** Extra numbers for /api/status, such as reference data counts. */
   extraStatus?: () => Record<string, unknown>;
@@ -67,6 +69,8 @@ export interface RunningServer {
   http: HttpServer;
   io: IoServer;
   broadcaster: Broadcaster;
+  /** The ingest side (worker thread or in-thread), for tests and tools. */
+  ingest: IngestLink;
   /** Stop timers, disconnect sockets, close the HTTP server and the database. */
   close(): Promise<void>;
 }
@@ -84,31 +88,23 @@ export function buildServer(deps: ServerDeps): RunningServer {
     publisher?: ReturnType<typeof startPublishing>;
     broadcaster?: Broadcaster;
     userBroadcaster?: Broadcaster;
-    masked?: Set<number>;
   } = {};
 
-  // The live sources and the pipeline that turns their events into windows.
-  // Connected Atlas probes per country, recounted once a minute (for the dropout detector).
-  let probeCounts = new Map<string, number>();
-  let countedAt = 0;
-  const connectedProbes = (cc: string) => {
-    if (Date.now() - countedAt > 60_000) {
-      countedAt = Date.now();
-      probeCounts = new Map();
-      for (const p of deps.lookup?.allProbes?.() ?? []) {
-        if (p.cc && p.status === 'Connected')
-          probeCounts.set(p.cc, (probeCounts.get(p.cc) ?? 0) + 1);
-      }
-    }
-    return probeCounts.get(cc) ?? 0;
-  };
-
-  const ingest = startIngest(config, log, deps.lookup, {
+  /*
+   * The live sources, the pipeline and the detectors run on the other side of
+   * this link: in their own worker thread unless INGEST_THREAD=off. This
+   * thread receives closed windows and incidents, stores them and broadcasts.
+   */
+  const thread = config.INGEST_THREAD;
+  const ingest = new IngestLink({
+    config,
+    log,
+    thread,
     nameOf: (asn) => deps.nameOf?.(asn) ?? null,
-    connectedProbes,
-    // While a scenario simulates a network, live updates for it stay out of detection.
-    isMasked: (asn) => late.masked?.has(asn) ?? false,
+    // In the same thread the lookup is shared; a worker gets copies as they change.
+    ...(!thread && deps.lookup && { lookup: deps.lookup }),
   });
+  if (thread) deps.lookup?.subscribe?.((update) => ingest.setRefdata(update));
 
   /*
    * Personal alerts: people whose watchlist covers the incident's country or
@@ -140,8 +136,8 @@ export function buildServer(deps: ServerDeps): RunningServer {
     deps.incidentStore
       .save(incident)
       .catch((err: unknown) => log.error({ err }, 'could not save incident'));
-    // A frozen copy as plain JSON (the frame format carries objects as records).
-    const snapshot = structuredClone(incident) as unknown as Record<string, unknown>;
+    // Already a copy (it crossed from the ingest side); the frame format carries objects as records.
+    const snapshot = incident as unknown as Record<string, unknown>;
     const key = incidentKey(incident.id);
     const b = late.broadcaster;
     if (!b) return;
@@ -163,7 +159,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
     store
       .recentWithdrawals(to - 60 * 60_000, to)
       .then(({ covered, wd }) => {
-        ingest.detectors.warmStart(covered, wd);
+        ingest.warmStart(covered, wd);
         log.info({ minutes: covered.length, scopes: wd.size }, 'detector baselines loaded');
       })
       .catch((err: unknown) => log.warn({ err }, 'could not load detector baselines'));
@@ -186,7 +182,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
         eventsEveryMs: config.RADAR_EVENTS_EVERY_S * 1000,
         pairsEveryMs: config.RADAR_PAIRS_EVERY_S * 1000,
         onEvents: (events) => {
-          ingest.detectors.observeRadar(events);
+          ingest.observeRadar(events);
           radarStore
             .save(events)
             .then((fresh) => {
@@ -213,7 +209,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
     // What Radar reported before a restart still confirms incidents now.
     radarStore
       .recent(Date.now() - 7 * 24 * 3600_000, 500)
-      .then((events) => ingest.detectors.observeRadar(events))
+      .then((events) => ingest.observeRadar(events))
       .catch((err: unknown) => log.warn({ err }, 'could not load radar events'));
     radar.start();
   } else {
@@ -233,18 +229,15 @@ export function buildServer(deps: ServerDeps): RunningServer {
   const runIds = new Map<number, Promise<string>>();
   const scenarios = new ScenarioRunner({
     log,
-    sink: (batch, now) => {
-      ingest.stats.accepted('replay', batch.length, now, now);
-      ingest.pipeline.ingest(batch, now);
-    },
+    sink: (batch, now) => ingest.ingest('replay', batch, now),
     onStart: (run, plan, startedAt) => {
-      late.masked = new Set(plan.masked);
+      ingest.setMasked(plan.masked);
       const id = deps.runsStore.started(plan.id, startedAt, plan.asn, plan.cc);
       id.catch((err: unknown) => log.warn({ err }, 'could not record scenario run'));
       runIds.set(run, id);
     },
     onEnd: (run, endedAt) => {
-      late.masked = undefined;
+      ingest.setMasked(null);
       void runIds
         .get(run)
         ?.then((id) => deps.runsStore.ended(id, endedAt))
@@ -254,7 +247,8 @@ export function buildServer(deps: ServerDeps): RunningServer {
   });
 
   const opsStats = () => ({
-    pipeline: ingest.pipeline.snapshot(),
+    pipeline: ingest.pipelineSnapshot(),
+    ingestThread: ingest.thread(),
     sources: Object.fromEntries(ingest.stats.sources().map((s) => [s, ingest.stats.of(s)])),
     upstreams: ingest.connections(),
     sockets: Object.fromEntries(
@@ -282,9 +276,8 @@ export function buildServer(deps: ServerDeps): RunningServer {
         runs: deps.runsStore,
         scenarioDir: config.SCENARIO_DIR,
         attacks: {
-          prefixesOf: (asn, limit) => ingest.pipeline.origins.prefixesOf(asn, limit),
-          largestIn: (cc, n) =>
-            ingest.pipeline.origins.largest(n, (asn) => deps.lookup?.asnCountry(asn) === cc),
+          prefixesOf: (asn, limit) => ingest.prefixesOf(asn, limit),
+          largestIn: (cc, n) => ingest.largestIn(cc, n),
           probesIn: (cc) =>
             [...(deps.lookup?.allProbes?.() ?? [])]
               .filter((p) => p.cc === cc && p.status === 'Connected')
@@ -299,7 +292,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
       radarRouter({ enabled: radar !== null, store: radarStore, pairs: () => radarPairs, seq }),
       globeRouter({
         probes: () => deps.lookup?.allProbes?.() ?? [],
-        pipeline: ingest.pipeline,
+        probeLatest: ingest.probeLatest,
         publisher: { countries: () => late.publisher?.countries() ?? {}, stop: () => {} },
         seq,
       }),
@@ -309,6 +302,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
       metrics: store.stats,
       broadcast: late.broadcaster?.stats,
       recentScopes: recent.scopes,
+      ingestThread: ingest.thread(),
     }),
   });
   const http = createServer(app);
@@ -367,6 +361,8 @@ export function buildServer(deps: ServerDeps): RunningServer {
     put('proc', 'rssMb', s.memoryMb);
     for (const [name, count] of Object.entries(s.sockets)) put('sockets', name, count);
     for (const [k, v] of Object.entries(s.pipeline)) if (typeof v === 'number') put('pipe', k, v);
+    put('thread', 'heapMb', s.ingestThread.heapMb);
+    put('thread', 'loopDelayMs', s.ingestThread.loopDelayMs);
     put('broadcast', 'frames', broadcaster.stats.frames);
     put('broadcast', 'deltas', broadcaster.stats.deltas);
   }, heartbeatMs ?? 1000);
@@ -375,6 +371,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
     http,
     io,
     broadcaster,
+    ingest,
     async close() {
       clearInterval(opsTimer);
       opsBroadcaster.stop();
@@ -384,7 +381,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
       radar?.stop();
       publisher.stop();
       broadcaster.stop();
-      ingest.stop();
+      await ingest.stop();
       await io.close(); // also closes the HTTP server
       await mongo.close();
     },

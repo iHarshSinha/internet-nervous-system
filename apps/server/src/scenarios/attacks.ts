@@ -16,10 +16,10 @@ import type { ScenarioPlan, ScenarioStep } from './runner.ts';
  */
 
 export interface AttackDeps {
-  /** Prefixes the network currently announces (from the live routing table). */
-  prefixesOf(asn: number, limit: number): string[];
+  /** Prefixes the network currently announces (from the live routing table, on the ingest side). */
+  prefixesOf(asn: number, limit: number): string[] | Promise<string[]>;
   /** The country's networks with the most prefixes. */
-  largestIn(cc: string, n: number): number[];
+  largestIn(cc: string, n: number): number[] | Promise<number[]>;
   /** The country's connected RIPE Atlas probes. */
   probesIn(cc: string): number[];
   countryOf(asn: number): string | undefined;
@@ -37,7 +37,7 @@ async function prefixesFor(
   min: number,
   limit: number,
 ): Promise<{ prefixes: string[]; prime: boolean }> {
-  const live = deps.prefixesOf(asn, limit);
+  const live = await deps.prefixesOf(asn, limit);
   if (live.length >= min || !deps.fetchPrefixes) return { prefixes: live, prime: false };
   const fetched = (await deps.fetchPrefixes(asn).catch(() => [])).slice(0, limit);
   return fetched.length > live.length
@@ -260,7 +260,7 @@ export async function attackPlan(
 
   // Blackout: the biggest networks go down, probes slow down and drop off.
   const networks: number[] = [];
-  for (const asn of deps.largestIn(cc, 6)) {
+  for (const asn of await deps.largestIn(cc, 6)) {
     if (networks.length === 3) break;
     const { prefixes, prime } = await prefixesFor(deps, asn, 20, 200);
     if (prefixes.length < 20) continue;

@@ -1,11 +1,11 @@
 import { rooms, type Incident, type IncidentsResponse } from '@ins/shared';
 import { Router } from 'express';
 import type { IncidentStore } from '../db/incidents.ts';
-import type { IncidentManager } from '../ingest/detect/incidents.ts';
 import type { RoomSequencer } from '../realtime/sequencer.ts';
 
 export interface IncidentsDeps {
-  manager: IncidentManager;
+  /** The live incidents (open, resolving, recently resolved). */
+  manager: { active(): Incident[]; get(id: string): Incident | undefined };
   store: IncidentStore;
   seq: RoomSequencer;
 }

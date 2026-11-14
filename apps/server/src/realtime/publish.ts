@@ -10,7 +10,7 @@ import {
   type CountriesResponse,
   type LatencyPoint,
 } from '@ins/shared';
-import type { Ingest } from '../ingest/index.ts';
+import type { IngestLink } from '../ingest/link.ts';
 import type { Totals } from '../ingest/pipeline/aggregate.ts';
 import type { Broadcaster } from './broadcaster.ts';
 
@@ -50,7 +50,7 @@ export interface Publisher {
  *    probe's latency bucket. The broadcaster sends only values that changed,
  *    plus everything again right after someone joins.
  */
-export function startPublishing(ingest: Ingest, broadcaster: Broadcaster): Publisher {
+export function startPublishing(ingest: IngestLink, broadcaster: Broadcaster): Publisher {
   const state = new Map<string, CountryState>();
   const countryOf = (scope: string) =>
     scope.startsWith('country:') ? scope.slice('country:'.length) : null;
@@ -102,7 +102,7 @@ export function startPublishing(ingest: Ingest, broadcaster: Broadcaster): Publi
       broadcaster.set(rooms.world, countryKey(cc), 'h', healthOf(s), 1);
       broadcaster.set(rooms.world, countryKey(cc), 'p50', s.p50, 1);
     }
-    const { probeLatest, probesChanged } = ingest.pipeline;
+    const { probeLatest, probesChanged } = ingest;
     for (const id of probesChanged) {
       const latest = probeLatest.get(id);
       if (latest) broadcaster.set(rooms.world, probeKey(id), 'b', latencyBucket(latest.rtt));
