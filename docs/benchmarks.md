@@ -439,3 +439,130 @@ sent, event-loop p99 about 1.5 ms (main) and 1.6-2.8 ms (ingest), MongoDB write 
 events/s at 3.1 s lag, Atlas 142/s at 87.8 s lag. The HUD (press ~) measured a clock offset of
 0 ms ±1 ms against the server on the same machine; FPS there reads 1 because the Claude browser
 pane throttles animation frames, so frame rate must be read in a real Chrome window (load test T4).
+
+## Phase 3, step 8: load tests T1-T6
+
+All on one machine: Apple M4 Pro (12 cores, 24 GB), Node 22.23, MongoDB 8 in Docker, the server on
+recorded data (`MODE=replay`, its own database) with connection limits raised, the dev server
+stopped. Tool: `tools/loadtest` (`pnpm --filter @ins/loadtest loadtest run ...`); every run's full
+results, including a per-second server timeline, are written to `tools/loadtest/results/`.
+Clients join `world`, `incidents`, `arcs` and one of the ten busiest countries; with `--feed`, one
+in ten also watches the raw feed. CPU is the server process (all threads) as % of one core.
+
+**Caveat for delivery times:** the clients run in one Node process on the same machine, so
+delivery delay includes the load generator's own event loop and shares the CPU with the server.
+They are an upper bound for the server's part.
+
+### T1: ingest throughput
+
+The Facebook outage recording through the full pipeline (queue, dedupe, windows, origin table,
+detectors), 20 clients watching, 30 s per run. `amplify` plays each event N times (as if N times
+as many routers had reported it) to go beyond the file's own rate.
+
+| Load | Events/s in (mean / max) | Processed/s | Queue max | Shed | CPU % mean | RSS max | Event loop p99 max (main / ingest) | Processing p99 |
+|---|---|---|---|---|---|---|---|---|
+| 1x | 2,075 / 4,805 | 2,075 | 1.2% | 0 | 6.6 | 398 MB | 2.0 / 5.3 ms | 9 ms |
+| 10x | 18,014 / 27,902 | 18,014 | 0% | 0 | 18.4 | 407 MB | 4.9 / 10.3 ms | 31 ms |
+| 50x | 90,983 / 157,267 | 90,983 | 0.9% | 0 | 39.9 | 516 MB | 2.8 / 12.2 ms | 5 ms |
+| 50x, amplify 10 | 904,974 / 1,184,297 | 904,909 | 9.4% | 0 | 92.8 | 586 MB | 1.8 / 11.8 ms | 10 ms |
+| 50x, amplify 32 | 1,352,366 / 1,465,243 | 1,352,366 | 1.5% | 0 | 107.7 | 516 MB | 1.9 / 15.9 ms | 12 ms |
+| 50x, amplify 32, lossy | 1,338,613 / 1,461,408 | 1,338,613 | 0.4% | 0 | 107.3 | 516 MB | 1.6 / 18.7 ms | 13 ms |
+
+Shedding never started: at about 1.35 million events/s (about 450 times the live rate) the file
+reader, which shares the ingest thread with the pipeline, is the limit, and the queue stays almost
+empty. The main thread's event loop stays under 5 ms at every load because ingest has its own
+thread. Shedding itself is shown in step 2 with the queue shrunk to 5,000 events.
+
+### T2: fan-out
+
+10x replay (about 17,500 events/s) while N clients watch, 45 s of measurement after the ramp.
+
+| Clients | Connected | Delivery p50 / p95 / p99 / max | Frames per client/s | Bytes per client/s | Sent by server | Server CPU % mean | RSS max | Main loop p99 max | Gaps / duplicates / disconnects |
+|---|---|---|---|---|---|---|---|---|---|
+| 100 | 100 | 4 / 8 / 10 / 12 ms | 2.68 | 1,969 | 178 KB/s | 21.1 | 404 MB | 4.5 ms | 0 / 0 / 0 |
+| 500 | 500 | 12 / 21 / 24 / 29 ms | 2.68 | 1,991 | 861 KB/s | 21.5 | 407 MB | 11.4 ms | 0 / 0 / 0 |
+| 1,000 | 1,000 | 20 / 35 / 39 / 61 ms | 2.70 | 2,054 | 1.72 MB/s | 23.5 | 405 MB | 20.0 ms | 0 / 0 / 0 |
+| 2,000 | 2,000 | 33 / 56 / 62 / 92 ms | 2.76 | 2,094 | 3.37 MB/s | 26.2 | 411 MB | 31.0 ms | 0 / 0 / 0 |
+
+Every client connected and stayed connected, and not one frame was missing or repeated. What a
+client receives does not depend on how many others are connected (about 2 KB/s, 2.7 frames/s):
+the server sends each room's frame once per conflation interval, to that room only. Delivery
+grows with the number of clients because each frame is written to more sockets (the main loop's
+p99 rises to 31 ms at 2,000) and because the 2,000 clients share this machine with the server.
+"Bytes per client" is measured by the clients; the server's own byte counter reads about 19% lower
+at 2,000 clients (1,687 against 2,094 bytes per client per second). Why is not yet pinned down
+(possibly room broadcasts that Engine.IO writes without its per-packet event), so the client
+figures are the ones used.
+
+### T5: what each optimisation saves
+
+200 clients, 10x replay, 30 s per run; the server restarted with one switch changed each time.
+
+| Setting | Bytes per client/s | Frames per client/s | Delivery p50 / p99 | Main loop p99 max | Server CPU % |
+|---|---|---|---|---|---|
+| All on (MessagePack, 500 ms conflation, rooms) | 1,565 | 2.59 | 7 / 15 ms | 5.8 ms | 22.9 |
+| JSON instead of MessagePack | 2,216 (x1.4) | 2.59 | 8 / 15 ms | 5.7 ms | 22.0 |
+| Every frame to every client | 2,280 (x1.5) | 2.69 | 9 / 19 ms | 9.0 ms | 19.2 |
+| Conflation off (every change its own frame) | 5,672 (x3.6) | 66.69 | 28 / 161 ms | 188 ms | 26.4 |
+| All three off | 7,395 (x4.7) | 63.88 | 24 / 99 ms | 57.6 ms | 25.2 |
+
+![Bytes per client per second with each optimisation switched off](img/t5-delivery.svg)
+
+- **MessagePack** saves 29% of the bytes (1 - 1,565/2,216); step 3 measured 40% on live data,
+  where frames carry more numbers.
+- **Conflation** is the big one: without it a client gets 67 frames a second instead of 2.6, 3.6
+  times the bytes, and the main thread's event loop reaches 188 ms (delivery p99 161 ms).
+- **Rooms**: sending every frame to everyone cost 46% more here. In this test the clients'
+  rooms overlap heavily (all are in `world`, and ten countries are spread over 200 clients); with
+  real visitors spread over hundreds of countries and networks the saving grows with the number
+  of rooms.
+- CPU differs little between the runs because most of it is the 10x replay's ingest work.
+
+### T6: chaos
+
+| Test | What happened | Result |
+|---|---|---|
+| Upstream cut: RIS connections through a relay, relay killed for 30 s (live mode, 20 clients) | Both RIS connections closed at once (code 1006); the server retried with backoff | Feed back **18.5 s** after the network returned with the old 30 s backoff ceiling; **8.2 s** after lowering it to 10 s (changed in `upstream-socket.ts`). Clients: 0 gaps, 0 disconnects |
+| One client loses its network for 30 s (socket destroyed, no reconnect until then; another client keeps the rooms busy) | Reconnected in 13 ms; Socket.IO connection-state recovery restored its rooms and re-sent what it missed | 0 gaps, 0 duplicates: its `world` sequence ran on unbroken to 40 |
+| The same for 150 s (past the 2-minute recovery window) | Not recovered; it rejoined its rooms (as the web app does) and started from fresh sequence numbers | 0 gaps, 0 duplicates |
+| `kill -9` the server mid-replay with 50 clients | Answering again after 0.27 s; all 50 clients reconnected within 0.79 s | 0 gaps, 0 duplicates (50 disconnects, as expected); `metrics_hourly` 975 documents, 0 duplicate buckets (unique index on scope, key, hour) |
+
+**Finding from the restart test:** an incident that is open when the server dies is closed as
+orphaned at startup, and if the problem continues detection opens a new one about 30 s later
+(seen for AS58336: opened 13:20:33 UTC, server killed 13:20:39, new incident 13:21:03). One
+outage then shows as two incidents. A fix would load recent incidents at startup so the existing
+"reopen within 30 minutes" rule merges them.
+
+### T3: soak
+
+500 clients (one in ten on the raw feed) and the 10x replay, restarted each time it finished (5
+restarts, fresh event IDs each time), for 30 minutes: 1,805 one-second server samples.
+
+| Minutes | RSS | Main thread heap | Ingest thread heap | Events in/s | CPU % | Event loop p99 (main / ingest) |
+|---|---|---|---|---|---|---|
+| 0-2 | 419 MB | 58 MB | 116 MB | 18,423 | 20.1 | 3.6 / 7.0 ms |
+| 5-7 | 846 MB | 60 MB | 320 MB | 17,654 | 23.8 | 3.0 / 9.0 ms |
+| 7-10 | 917 MB | 64 MB | 361 MB | 24,605 | 24.5 | 3.5 / 8.8 ms |
+| 15-17 | 887 MB | 66 MB | 285 MB | 24,237 | 24.7 | 3.9 / 6.6 ms |
+| 22-25 | 965 MB | 72 MB | 366 MB | 16,980 | 22.0 | 4.2 / 7.6 ms |
+| 27-30 | 970 MB | 72 MB | 371 MB | 21,940 | 23.1 | 2.2 / 8.9 ms |
+
+Clients over the whole 30 minutes: 500/500 connected, 0 disconnects, 0 gaps, 0 duplicates,
+delivery p50 11 ms, p99 44 ms, max 69 ms; 3.3 frames and 5.8 KB per client per second.
+
+- **The first 10 minutes' growth is the deduper, and it is bounded.** It keeps a hash of every
+  message ID for 5 to 10 minutes (two 5-minute generations). The recording has about 0.37 messages
+  per event, so the 10x replay is about 7,600 messages/s, or 2.3 to 4.6 million remembered IDs:
+  the ingest heap rises to about 360 MB and then swings between 285 and 375 MB as generations are
+  dropped. At the live rate (about 1,000 messages/s) it is roughly 7 times smaller.
+- **After that, a slow creep that 30 minutes cannot settle:** RSS +50 MB from minute 10 to 30, and
+  the main thread's heap +14 MB over the whole run. Candidates are per-incident state (each replay
+  loop opens new incidents, kept 30 minutes after they resolve) and Socket.IO's 2-minute recovery
+  buffers. A soak of 2 hours or more would show whether it levels off; it is on the list in
+  `docs/manual-checks.md`.
+- Event-loop delay and CPU stayed flat throughout.
+
+### T4: client rendering
+
+Must be measured in a real Chrome window with the HUD open (the Claude browser pane throttles
+animation frames); it is on the list in `docs/manual-checks.md`.

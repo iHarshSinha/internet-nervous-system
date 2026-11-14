@@ -345,3 +345,12 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
   raised limits, own DB `ins_loadtest`, replay file mounted; fleet in `node:22-alpine`): not run,
   Docker pulls hang here (on the manual list). `compose down` also stops the shared `mongo`.
   Trials: 50 clients + 10x replay, delivery p99 8 ms; 500 clients, p99 33 ms, 0 gaps.
+- [x] Step 8, load tests T1-T6 (results in `docs/benchmarks.md`, raw in `tools/loadtest/results/`,
+  T5 chart `docs/img/t5-delivery.svg`). T1: up to 1.35M events/s through the pipeline, no shedding
+  (the file reader is the limit). T2: 2,000 clients, 0 gaps, delivery p99 62 ms (generator on the
+  same machine). T5: conflation x3.6 bytes, MessagePack x1.4, rooms x1.5. T6: upstream cut, client
+  drop (30 s recovered, 150 s rejoined), `kill -9` restart: 0 gaps; backoff ceiling lowered to
+  10 s (`upstream-socket.ts`, feed back 8.2 s after the network instead of 18.5 s). T3: 30 min,
+  bounded deduper growth then a slow creep (longer soak on the manual list). T4 is manual.
+  Known issue: a restart splits an ongoing incident in two (orphan closed, new one opened);
+  `RIS_URL`/`ATLAS_URL` config exists for the chaos relay (`loadtest relay`).

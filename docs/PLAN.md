@@ -556,7 +556,7 @@ Build in this order and cut from the bottom if time runs short. After Phase 1, t
 - [x] Conflation, MessagePack, volatile firehose, slow-client downgrade *(14 Nov 2026; joiners now get current values in the `sub` ack instead of a re-send to the whole room)*
 - [x] Client Web Worker, virtualised lists, render budget *(14 Nov 2026; one store update per animation frame, 1 per second while hidden; `/feed` page and Activity virtualised; the 6-row incident feed is short enough not to need it)*
 - [x] Metrics, the `/ops` page and the HUD *(14 Nov 2026: `/metrics`, `ingest_stats`, `/api/ops/history`; public `stats` room; `/ops` page with live and per-minute charts and admin replay controls; HUD on ~ with clock offset)*
-- [ ] Run load tests T1–T6 and fill in the results table
+- [x] Run load tests T1–T6 and fill in the results table *(14 Nov 2026, in `docs/benchmarks.md`; T4 needs a real Chrome window and a longer soak is advisable, both in `docs/manual-checks.md`)*
 
 **Phase 4 · Polish and ship**
 

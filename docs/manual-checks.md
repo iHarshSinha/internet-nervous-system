@@ -60,6 +60,14 @@ Each line says what to do and what should happen. Tick them off as they are chec
   Careful: `docker compose --profile loadtest down` afterwards also stops the shared `mongo`
   container; bring it back with `docker compose up -d mongo`.
 
+## Needs a long run
+
+- [ ] **A soak of 2 hours or more.** The 30-minute soak (T3) showed the deduper's bounded growth in
+  the first 10 minutes, then RSS +50 MB over 20 minutes and the main heap +14 MB over 30. Run
+  `pnpm --filter @ins/loadtest loadtest run --clients 500 --speed 10 --loop --duration 7200` against
+  a server you started with `JWT_SECRET` set, and see whether `rssMb` and `heapMb` in the results
+  timeline level off.
+
 ## Not yet tested at all
 
 - [ ] **`METRICS_TOKEN`.** Admin access to `/metrics` is tested; a scraper's bearer token is not.

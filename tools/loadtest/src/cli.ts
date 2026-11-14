@@ -11,6 +11,7 @@ import {
   startSampler,
   type ServerSample,
 } from './server.ts';
+import { startRelay } from './relay.ts';
 import { runSwarm } from './swarm.ts';
 
 const HELP = `Load tests for the Internet Nervous System server.
@@ -18,6 +19,9 @@ const HELP = `Load tests for the Internet Nervous System server.
   pnpm loadtest run [options]       clients + optional replay + server sampling -> results/<name>.json
   pnpm loadtest replay start|stop|status [--speed 50 --amplify 1 --lossy]
   pnpm loadtest sample [--duration 60]   server numbers once a second, nothing else
+  pnpm loadtest relay --port 3901 --target wss://ris-live.ripe.net
+                                    a WebSocket relay to cut a server's upstream (chaos test):
+                                    run the server with RIS_URL=ws://localhost:3901/v1/ws/?client=...
 
 Options for run:
   --base URL          server (default http://localhost:3000)
@@ -30,6 +34,7 @@ Options for run:
   --speed X           also play the Facebook replay at X (1-50) during the run
   --amplify N         replay each event N times (load; default 1)
   --lossy             replay sheds like a live feed instead of waiting
+  --loop              start the replay again whenever it finishes (long soak tests)
   --name NAME         results file name (default: a timestamp)
 
 Auth: LOADTEST_TOKEN (an admin access token) or JWT_SECRET (the server's, for your own server).
@@ -47,7 +52,10 @@ const { positionals, values } = parseArgs({
     speed: { type: 'string' },
     amplify: { type: 'string', default: '1' },
     lossy: { type: 'boolean', default: false },
+    loop: { type: 'boolean', default: false },
     name: { type: 'string' },
+    port: { type: 'string', default: '3901' },
+    target: { type: 'string', default: 'wss://ris-live.ripe.net' },
     help: { type: 'boolean', default: false },
   },
 });
@@ -108,6 +116,29 @@ async function run() {
       `replay started at ${values.speed}x, amplify ${values.amplify}${values.lossy ? ', lossy' : ''}`,
     );
   }
+  // A long soak outlasts the recording: start it again (fresh event IDs each run) when it ends.
+  let restarts = 0;
+  const startReplay = () =>
+    replay(base, token, {
+      action: 'start',
+      scenario: 'facebook-2021',
+      speed: Number(values.speed),
+      amplify: Number(values.amplify),
+      lossy: values.lossy,
+    });
+  const looper =
+    values.speed && values.loop
+      ? setInterval(() => {
+          void getJson<{ state: string }>(base, '/api/admin/replay', token)
+            .then(async (r) => {
+              if (r.state !== 'finished') return;
+              await startReplay();
+              restarts += 1;
+              log(`replay finished; started again (${restarts})`);
+            })
+            .catch(() => {});
+        }, 5000)
+      : null;
 
   log(
     `connecting ${clients} clients over ${values.ramp} s, then measuring for ${values.duration} s`,
@@ -121,6 +152,7 @@ async function run() {
       ),
   );
 
+  if (looper) clearInterval(looper);
   if (values.speed) await replay(base, token, { action: 'stop' }).catch(() => {});
   sampler.stop();
 
@@ -135,7 +167,13 @@ async function run() {
       rampS: Number(values.ramp),
       durationS: Number(values.duration),
       replay: values.speed
-        ? { speed: Number(values.speed), amplify: Number(values.amplify), lossy: values.lossy }
+        ? {
+            speed: Number(values.speed),
+            amplify: Number(values.amplify),
+            lossy: values.lossy,
+            loop: values.loop,
+            restarts,
+          }
         : null,
       server: realtime,
     },
@@ -185,6 +223,11 @@ async function main() {
     if (sub === 'status')
       return log(JSON.stringify(await getJson(base, '/api/admin/replay', token)));
     return log(JSON.stringify(await replay(base, token, body)));
+  }
+  if (command === 'relay') {
+    startRelay(Number(values.port), values.target, log);
+    log(`relay listening on :${values.port} -> ${values.target} (Ctrl-C cuts it)`);
+    return new Promise<void>(() => {}); // until killed
   }
   if (command === 'sample') {
     const sampler = startSampler(base, adminToken(), (s) => log(JSON.stringify(s)));

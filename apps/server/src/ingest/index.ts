@@ -196,11 +196,18 @@ export function startIngest(
       ...createRisSource({
         clientName: config.RIS_CLIENT_NAME,
         collectors: config.RIS_COLLECTORS,
+        ...(config.RIS_URL && { url: config.RIS_URL }),
         stats,
         log,
         sink,
       }),
-      createAtlasSource({ measurements: config.ATLAS_MEASUREMENTS, stats, log, sink }),
+      createAtlasSource({
+        measurements: config.ATLAS_MEASUREMENTS,
+        ...(config.ATLAS_URL && { url: config.ATLAS_URL }),
+        stats,
+        log,
+        sink,
+      }),
     );
     for (const socket of sockets) socket.start();
     log.info({ connections: sockets.map((s) => s.name) }, 'ingest started');

@@ -13,11 +13,13 @@
     "@ins/shared": "workspace:*",
     "jsonwebtoken": "^9.0.3",
     "socket.io-client": "^4.8.4",
-    "socket.io-msgpack-parser": "^3.0.2"
+    "socket.io-msgpack-parser": "^3.0.2",
+    "ws": "^8.22.2"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.20.5",
+    "@types/ws": "^8.18.2",
     "typescript": "~6.0.3",
     "vitest": "^5.1.0"
   }

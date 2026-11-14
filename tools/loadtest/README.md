@@ -46,3 +46,13 @@ clients.
 
 Why not Artillery (named in the plan): its Socket.IO engine cannot use our MessagePack parser
 and does not check sequence numbers, and those are what these tests are about.
+
+## Other commands
+
+- `--loop` restarts the replay whenever it finishes (the recording lasts 6 minutes at 10x), for
+  long soak tests.
+- `pnpm loadtest relay --port 3901 --target wss://ris-live.ripe.net` is a WebSocket relay for the
+  chaos test: start the server with `RIS_URL=ws://localhost:3901/v1/ws/?client=<name>`, then stop
+  and start the relay to cut and restore the server's upstream.
+- `pnpm loadtest replay start|stop|status` and `pnpm loadtest sample` drive the replay and print
+  the server's numbers without any clients.

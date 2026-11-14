@@ -74,6 +74,12 @@ const envSchema = z.object({
         .min(1)
         .max(12),
     ),
+  /**
+   * Where the feeds are. Only changed for tests: the chaos test points them
+   * at a relay it can cut (tools/loadtest).
+   */
+  RIS_URL: z.preprocess(emptyIsUnset, z.url().optional()),
+  ATLAS_URL: z.preprocess(emptyIsUnset, z.url().optional()),
   /** Atlas built-in ping measurements (root DNS servers). */
   ATLAS_MEASUREMENTS: z
     .string()

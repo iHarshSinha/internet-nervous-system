@@ -58,7 +58,10 @@ export class UpstreamSocket {
     this.name = options.name;
     this.opts = {
       baseDelayMs: 1000,
-      maxDelayMs: 30_000,
+      // At most 10 s between attempts: after an outage the feed is back within about 10 s
+      // of the network (load test T6 measured 18.5 s with a 30 s ceiling), and one try
+      // every 10 s per connection is still gentle on RIS Live.
+      maxDelayMs: 10_000,
       idleTimeoutMs: 60_000,
       pingIntervalMs: 20_000,
       ...options,

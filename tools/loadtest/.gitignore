@@ -1,2 +1,3 @@
-results/*.json
-!results/.gitkeep
+# Load-test results are kept as evidence (T1-T6); scratch runs are not.
+results/trial*.json
+results/docker-trial*.json
