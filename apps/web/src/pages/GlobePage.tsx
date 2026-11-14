@@ -543,12 +543,6 @@ export function GlobePage() {
       <div className="relative h-[min(58vh,110vw)] lg:fixed lg:inset-y-0 lg:right-0 lg:left-[var(--side)] lg:h-auto">
         <GlobeView />
 
-        {/* A simulation running: everyone sees it, over the globe. */}
-        <div className="pointer-events-none absolute inset-x-0 top-20 z-20 flex flex-col items-center gap-2 px-4">
-          <ScenarioBadge />
-          <ReplayBadge />
-        </div>
-
         {/* The picked country, at the bottom of the globe. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 hidden justify-center px-4 lg:flex">
           <CountryCard />
@@ -564,6 +558,11 @@ export function GlobePage() {
 
       {/* Everything to read, in one column on the left. */}
       <aside className="relative z-10 flex flex-col gap-3 px-4 pb-6 lg:rail lg:fixed lg:top-[4.6rem] lg:bottom-0 lg:left-0 lg:w-[var(--side)] lg:pt-1 lg:pr-0 lg:pl-5">
+        {/* A simulation running: pinned to the top of the column while you scroll. */}
+        <div className="sticky top-0 z-20 flex flex-col gap-2 empty:hidden">
+          <ScenarioBadge />
+          <ReplayBadge />
+        </div>
         <div className="lg:hidden">
           <CountryCard />
         </div>

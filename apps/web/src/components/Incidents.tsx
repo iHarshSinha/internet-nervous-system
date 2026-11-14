@@ -3,7 +3,7 @@ import { memo, useEffect } from 'react';
 import { countryName } from '../geo.ts';
 import { useFlip } from '../hooks/flip.ts';
 import { useTick } from '../hooks/tick.ts';
-import { navigate, useRoute } from '../router.ts';
+import { navigate } from '../router.ts';
 import { useAlerts } from '../store/alerts.ts';
 import { activeIncidents, dismissAlert, incidentTitle, useIncidents } from '../store/incidents.ts';
 import { flag } from '../theme.ts';
@@ -205,72 +205,42 @@ function AlertCard({ incident, personal }: { incident: Incident; personal: boole
 
   return (
     <div
-      className="pointer-events-auto relative w-[min(560px,92vw)] animate-[pop_.5s_both] overflow-hidden rounded-lg border bg-[#1d1416]/95 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9)] backdrop-blur"
-      style={{ borderColor: `${color}80`, boxShadow: `0 0 60px -10px ${color}66` }}
+      className="pointer-events-auto relative w-[min(330px,calc(100vw-2rem))] animate-[toast_.35s_ease-out_both] overflow-hidden rounded-lg border bg-[#1a1c20]/96 shadow-[0_16px_40px_-20px_rgba(0,0,0,0.9)] backdrop-blur"
+      style={{ borderColor: `${color}55` }}
       role="alert"
     >
-      {critical && (
-        <span
-          className="absolute inset-x-0 top-0 h-0.5 animate-[sweep_1.6s_linear_infinite]"
-          style={{ background: `linear-gradient(90deg, transparent, ${color}, transparent)` }}
-        />
-      )}
-      <div className="flex items-start gap-3 p-4">
-        <span
-          className={`mt-0.5 grid size-10 shrink-0 place-items-center rounded-md text-xl ${critical ? 'animate-[blink_1.2s_infinite]' : ''}`}
-          style={{ background: `${color}22`, color }}
-        >
-          ⚠
-        </span>
+      {/* A thin strip in the severity colour, instead of a glow. */}
+      <span className="absolute inset-y-0 left-0 w-0.5" style={{ background: color }} />
+      <div className="flex items-start gap-2.5 py-2.5 pr-2 pl-3.5">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className="font-mono text-[0.74rem] font-semibold tracking-[0.2em] uppercase"
-              style={{ color }}
-            >
-              {incident.state === 'resolved'
-                ? 'Recovered'
-                : critical
-                  ? 'Critical incident'
-                  : 'Incident detected'}
+          <div className="flex items-center gap-2 text-[0.78rem] font-semibold tracking-[0.06em] uppercase">
+            <span style={{ color }}>
+              {incident.state === 'resolved' ? 'Recovered' : critical ? 'Critical' : 'New incident'}
             </span>
-            {incident.simulated && <SimTag />}
-            {personal && <span className="text-[0.76rem] text-signal">★ on your watchlist</span>}
+            {incident.simulated && <span className="text-low">· simulated</span>}
+            {personal && <span className="text-signal">· watchlist</span>}
           </div>
-          <div className="mt-1 text-lg leading-snug font-semibold text-hi">
+          <button
+            type="button"
+            onClick={() => {
+              dismissAlert(incident.id);
+              navigate(`/incident/${incident.id}`);
+            }}
+            className="mt-0.5 block w-full truncate text-left text-[0.98rem] font-semibold text-hi hover:underline"
+            title={incidentTitle(incident, countryName)}
+          >
             {incident.cc ? `${flag(incident.cc)} ` : ''}
             {incidentTitle(incident, countryName)}
-            {incident.asn !== null && (
-              <span className="ml-2 font-mono text-sm font-normal text-mid">AS{incident.asn}</span>
-            )}
-          </div>
-          <p className="mt-1 line-clamp-2 text-[0.88rem] text-mid">{incident.summary}</p>
-          <div className="mt-3 flex items-center gap-3">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
-              <div
-                className="h-full rounded-full transition-[width] duration-700"
-                style={{ width: `${Math.round(incident.score * 100)}%`, background: color }}
-              />
-            </div>
-            <span className="font-mono text-xs tabular-nums" style={{ color }}>
-              {Math.round(incident.score * 100)}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                dismissAlert(incident.id);
-                navigate(`/incident/${incident.id}`);
-              }}
-              className="rounded-lg px-3 py-1.5 text-xs font-medium text-hi ring-1 ring-white/15 transition hover:bg-white/10"
-            >
-              Investigate →
-            </button>
+          </button>
+          <div className="truncate text-[0.84rem] text-mid">
+            {incident.signals.map((s) => SIGNAL_LABELS[s.type]).join(' + ')}
+            {incident.asn !== null ? ` · AS${incident.asn}` : ''}
           </div>
         </div>
         <button
           type="button"
           onClick={() => dismissAlert(incident.id)}
-          className="rounded-md px-1.5 text-low transition hover:text-hi"
+          className="rounded px-1 text-[0.8rem] text-low transition hover:text-hi"
           aria-label="Dismiss"
         >
           ✕
@@ -285,7 +255,6 @@ export function IncidentAlerts() {
   const fresh = useIncidents((s) => s.fresh);
   const byId = useIncidents((s) => s.byId);
   const mine = useAlerts((s) => s.mine);
-  const onGlobe = useRoute((s) => s.route.page === 'globe');
   // Big cards for what matters: critical incidents, simulations being demonstrated,
   // and anything on your watchlist. Everything else is in the incident feed.
   const shown = fresh
@@ -295,16 +264,11 @@ export function IncidentAlerts() {
         i !== undefined &&
         ((i.severity === 'critical' && isMajor(i)) || i.simulated || mine[i.id] !== undefined),
     )
-    .slice(0, 2);
+    .slice(0, 3);
   if (shown.length === 0) return null;
   return (
-    <div
-      className={`pointer-events-none fixed z-40 flex flex-col gap-2 px-3 ${
-        onGlobe
-          ? 'inset-x-0 top-20 items-center'
-          : 'right-0 bottom-4 items-end max-sm:inset-x-0 max-sm:items-center'
-      }`}
-    >
+    // Top right, under the header, on every page: out of the way of the globe and the reading column.
+    <div className="pointer-events-none fixed top-[4.6rem] right-4 z-40 flex flex-col items-end gap-2 sm:right-6">
       {shown.map((i) => (
         <AlertCard key={i.id} incident={i} personal={mine[i.id] !== undefined} />
       ))}

@@ -33,13 +33,35 @@ interface Ring {
 }
 
 /** A floating label over a country with an open incident. */
+type MarkerKind = 'critical' | 'warning' | 'recovering';
+
+/** An incident on the globe: an icon by kind, its name on hover. */
 interface Marker {
   id: string;
   lat: number;
   lng: number;
   text: string;
-  color: string;
+  kind: MarkerKind;
 }
+
+const MARKER_COLOR: Record<MarkerKind, string> = {
+  critical: '#ff4d5e',
+  warning: '#ffb454',
+  recovering: '#6fdc8c',
+};
+
+/** Small glyphs, drawn in the marker's colour with a dark mark on top. */
+const MARKER_ICON: Record<MarkerKind, string> = {
+  critical:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" fill="var(--c)"/><path d="M12 6.4v7.2" stroke="#141518" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="17.6" r="1.5" fill="#141518"/></svg>',
+  warning:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6 22.6 20.9H1.4Z" fill="var(--c)" stroke="var(--c)" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 9v5.6" stroke="#141518" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="17.7" r="1.35" fill="#141518"/></svg>',
+  recovering:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" fill="var(--c)"/><path d="m7.2 12.4 3.3 3.3 6.3-6.6" fill="none" stroke="#141518" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+
+/** Live marker elements, so each frame can switch them between dot and icon. */
+const markerEls = new Map<string, { el: HTMLElement; lat: number; lng: number }>();
 
 /** A Cloudflare attack corridor: share of layer 7 attack traffic from one country to another. */
 interface Arc {
@@ -101,21 +123,22 @@ const hideBehindEarth = (el: HTMLElement, visible: boolean) => {
 
 function markerElement(d: object): HTMLElement {
   const m = d as Marker;
-  // The globe positions the outer element (it overwrites its transform);
-  // the inner label is lifted above the point on its own.
+  // The globe positions this element (it sets its transform). It starts as a
+  // pulsing dot and fades in after a moment: until the globe has placed it, a
+  // new element sits in the corner of the view (that was the flash).
   const wrap = document.createElement('div');
-  const el = document.createElement('button');
-  el.type = 'button';
-  // Invisible for its first moments: until the globe has placed it, a new
-  // element sits in the corner of the view (that was the flash).
-  el.style.cssText = `pointer-events:auto;cursor:pointer;transform:translateY(-120%);white-space:nowrap;
-    max-width:260px;overflow:hidden;text-overflow:ellipsis;
-    font:600 13px Rajdhani,system-ui;color:#fff;background:rgba(20,21,24,.94);border:1px solid ${m.color};
-    border-radius:6px;padding:3px 9px;display:block;opacity:0;animation:fade .4s .25s forwards`;
-  el.textContent = m.text;
-  el.title = m.text;
-  el.onclick = () => navigate(`/incident/${m.id}`);
-  wrap.append(el);
+  wrap.className = 'mk';
+  wrap.dataset.mode = 'dot';
+  wrap.style.setProperty('--c', MARKER_COLOR[m.kind]);
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'mk-btn';
+  button.setAttribute('aria-label', m.text);
+  button.innerHTML = `<span class="mk-dot"></span><span class="mk-icon">${MARKER_ICON[m.kind]}</span><span class="mk-tip"></span>`;
+  button.querySelector('.mk-tip')!.textContent = m.text;
+  button.onclick = () => navigate(`/incident/${m.id}`);
+  wrap.append(button);
+  markerEls.set(m.id, { el: wrap, lat: m.lat, lng: m.lng });
   return wrap;
 }
 
@@ -131,8 +154,7 @@ function isHexDot(obj: Object3D): boolean {
 const markerCache = new Map<string, Marker>();
 function stableMarker(m: Marker): Marker {
   const known = markerCache.get(m.id);
-  if (known && known.text === m.text && known.color === m.color && known.lat === m.lat)
-    return known;
+  if (known && known.text === m.text && known.kind === m.kind && known.lat === m.lat) return known;
   markerCache.set(m.id, m);
   return m;
 }
@@ -266,6 +288,20 @@ export function GlobeView() {
       const angular = Math.asin(radius / distance);
       const px = (size.h / 2) * (Math.tan(angular) / Math.tan(((camera.fov / 2) * Math.PI) / 180));
       ring.style.setProperty('--r', `${Math.round(px)}px`);
+
+      // Incident markers: a full icon when facing the viewer, a pulsing dot
+      // as they turn towards the edge of the globe.
+      const cam = camera.position;
+      for (const [id, mk] of markerEls) {
+        if (!mk.el.isConnected) {
+          markerEls.delete(id);
+          continue;
+        }
+        const c = globe.getCoords(mk.lat, mk.lng, 0);
+        const facing = (c.x * cam.x + c.y * cam.y + c.z * cam.z) / (radius * distance);
+        const mode = facing > 0.8 ? 'icon' : 'dot';
+        if (mk.el.dataset.mode !== mode) mk.el.dataset.mode = mode;
+      }
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
@@ -337,7 +373,7 @@ export function GlobeView() {
           lat: info.lat,
           lng: info.lng,
           text: `${incidentTitle(i, countryName)} · ${i.state === 'open' ? i.severity : 'recovering'}`,
-          color: `rgb(${INCIDENT_RGB[severity]})`,
+          kind: i.state !== 'open' ? 'recovering' : critical ? 'critical' : 'warning',
         }),
       );
     }

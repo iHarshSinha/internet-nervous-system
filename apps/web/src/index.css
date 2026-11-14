@@ -277,6 +277,101 @@ body {
   z-index: 40;
 }
 
+/*
+ * Incident markers on the globe. The globe places .mk; each frame sets
+ * data-mode: "icon" when it faces the viewer, "dot" towards the edge.
+ */
+.mk {
+  opacity: 0;
+  animation: fade 0.4s 0.25s forwards;
+}
+.mk-btn {
+  all: unset;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.mk-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 9999px;
+  background: var(--c);
+  animation: mk-pulse 1.8s ease-out infinite;
+}
+.mk-icon {
+  display: none;
+  width: 24px;
+  height: 24px;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.65));
+  animation: mk-in 0.3s ease-out;
+}
+.mk-icon svg {
+  width: 100%;
+  height: 100%;
+}
+.mk[data-mode='icon'] .mk-dot {
+  display: none;
+}
+.mk[data-mode='icon'] .mk-icon {
+  display: block;
+}
+/* The name, on hover only. */
+.mk-tip {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-line);
+  background: rgba(20, 21, 24, 0.95);
+  color: var(--color-hi);
+  font: 600 13px var(--font-sans);
+}
+.mk-btn:hover .mk-tip,
+.mk-btn:focus-visible .mk-tip {
+  display: block;
+}
+@keyframes mk-pulse {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 70%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 11px transparent;
+  }
+}
+@keyframes mk-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Toasts and banners arrive with a short slide and fade (no bounce). */
+@keyframes toast {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Incidents: the red edge pulse, the scanning bar, and a ripple behind a live dot. */
 @keyframes alarm {
   0%,

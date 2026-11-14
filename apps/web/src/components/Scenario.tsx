@@ -43,23 +43,37 @@ function useProgress() {
 
 /** Shown to every viewer while a scenario runs: it is a simulation, and what part of it is real. */
 export function ScenarioBadge() {
-  const { scenario, running, elapsed } = useProgress();
+  const { scenario, running, elapsed, fraction } = useProgress();
   if (!running || !scenario.id) return null;
   const info = SCENARIOS[scenario.id];
   return (
-    <div className="pointer-events-auto flex max-w-[92vw] animate-[rise_.4s_both] flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-critical/40 bg-[#24151a]/95 px-3 py-2 text-xs text-hi">
-      <span className="rounded-full bg-critical px-2 py-0.5 font-mono text-[0.74rem] font-semibold tracking-[0.12em] text-void uppercase">
-        Simulation
-      </span>
-      <span className="font-medium">
-        {info.title}
-        {scenario.target ? ` · ${scenario.target}` : ''}
-      </span>
-      <span className="text-mid">{PHASE_TEXT[scenario.phase ?? ''] ?? scenario.phase}</span>
-      <span className="font-mono text-mid tabular-nums">
-        {clock(elapsed)} / {clock(scenario.durationMs)}
-      </span>
-      <span className="w-full text-[0.78rem] text-low">{info.note}</span>
+    <div
+      role="status"
+      className="animate-[toast_.35s_ease-out_both] overflow-hidden rounded-lg border border-critical/45 bg-[#221518]/95 backdrop-blur"
+    >
+      <div className="flex items-center gap-2.5 px-3.5 pt-3">
+        <span className="size-2 animate-[blink_1.2s_ease-in-out_infinite] rounded-full bg-critical" />
+        <span className="title text-critical">Simulation</span>
+        <span className="ml-auto font-mono text-[0.86rem] text-mid tabular-nums">
+          {clock(elapsed)} / {clock(scenario.durationMs)}
+        </span>
+      </div>
+      <div className="px-3.5 pt-1.5 pb-3">
+        <div className="text-[1rem] font-semibold text-hi">
+          {info.title}
+          {scenario.target ? ` · ${scenario.target}` : ''}
+        </div>
+        <div className="text-[0.9rem] text-mid">
+          {PHASE_TEXT[scenario.phase ?? ''] ?? scenario.phase}
+        </div>
+        <p className="mt-1 text-[0.84rem] leading-snug text-low">{info.note}</p>
+      </div>
+      <div className="h-0.5 bg-critical/15">
+        <div
+          className="h-full bg-critical transition-[width] duration-500"
+          style={{ width: `${fraction * 100}%` }}
+        />
+      </div>
     </div>
   );
 }
