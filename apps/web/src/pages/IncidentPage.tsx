@@ -8,7 +8,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { columns, TimeChart } from '../charts/TimeChart.tsx';
-import { ago, SEVERITY_COLOR, SeverityTag, SimTag } from '../components/Incidents.tsx';
+import { ago, SEVERITY_COLOR, SeverityTag, SourceTag } from '../components/Incidents.tsx';
 import { Panel } from '../components/ui.tsx';
 import { countryName } from '../geo.ts';
 import { useTick } from '../hooks/tick.ts';
@@ -18,9 +18,9 @@ import { useAlerts } from '../store/alerts.ts';
 import { incidentTitle, merge, useIncidents } from '../store/incidents.ts';
 import { closeSeries, loadHistory, openSeries } from '../store/series.ts';
 import { colors, flag, formatInt } from '../theme.ts';
+import { formatTime, useClockZone, zoneLabel } from '../time.ts';
 
-const time = (ms: number) =>
-  new Date(ms).toLocaleTimeString('en-GB', { timeZone: 'UTC', hour12: false }) + ' UTC';
+const time = (ms: number) => `${formatTime(ms, true)} ${zoneLabel()}`;
 
 function duration(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000));
@@ -192,6 +192,7 @@ export function IncidentPage({ id }: { id: string }) {
   const personal = useAlerts((s) => s.mine[id] !== undefined);
   const { room, loading } = useScopeHistory(incident);
   useTick(1000);
+  useClockZone((s) => s.local); // redraw the times when the clock zone is switched
   const now = Date.now();
 
   if (!incident) {
@@ -237,7 +238,7 @@ export function IncidentPage({ id }: { id: string }) {
                 ? 'recovering'
                 : 'resolved'}
           </span>
-          {incident.simulated && <SimTag />}
+          <SourceTag simulated={incident.simulated} />
           {personal && <span className="text-xs text-signal">★ on your watchlist</span>}
         </div>
         <h1 className="mt-3 font-display text-3xl leading-tight text-hi sm:text-[2.6rem]">

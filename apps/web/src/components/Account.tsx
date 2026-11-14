@@ -84,15 +84,15 @@ export function Account() {
         )}
       </button>
       {open && (
-        <div className="glass absolute top-full right-0 mt-2 w-64 animate-[rise_.2s_both] rounded-lg p-2">
-          <div className="flex items-center gap-3 px-2 py-2">
-            <Avatar name={user.name} picture={user.picture} size={36} />
+        <div className="glass absolute top-full right-0 mt-2 w-[19rem] animate-[rise_.2s_both] rounded-lg p-2.5">
+          <div className="flex items-center gap-3 px-2 py-2.5">
+            <Avatar name={user.name} picture={user.picture} size={42} />
             <div className="min-w-0">
-              <div className="truncate text-sm text-hi">{user.name}</div>
-              <div className="truncate text-[0.8rem] text-low">{user.email}</div>
+              <div className="truncate text-[1.05rem] font-semibold text-hi">{user.name}</div>
+              <div className="truncate text-[0.9rem] text-low">{user.email}</div>
             </div>
           </div>
-          <div className="mx-2 mb-1 flex items-center gap-2 rounded-lg bg-white/[0.03] px-2 py-1.5 text-[0.78rem] text-mid">
+          <div className="mx-1 mb-1.5 flex items-center gap-2 rounded-md bg-white/[0.04] px-3 py-2 text-[0.9rem] text-mid">
             <span
               className={`size-1.5 rounded-full ${channel === 'live' ? 'bg-signal shadow-[0_0_8px_var(--color-signal)]' : 'bg-caution'}`}
             />
@@ -104,7 +104,7 @@ export function Account() {
               setOpen(false);
               navigate('/me');
             }}
-            className="w-full rounded-lg px-2 py-2 text-left text-sm text-hi transition hover:bg-white/[0.06]"
+            className="w-full rounded-md px-3 py-2.5 text-left text-[1rem] text-hi transition hover:bg-white/[0.06]"
           >
             Your watchlist
           </button>
@@ -114,7 +114,7 @@ export function Account() {
               setOpen(false);
               void signOut();
             }}
-            className="w-full rounded-lg px-2 py-2 text-left text-sm text-mid transition hover:bg-white/[0.06] hover:text-hi"
+            className="w-full rounded-md px-3 py-2.5 text-left text-[1rem] text-mid transition hover:bg-white/[0.06] hover:text-hi"
           >
             Sign out
           </button>

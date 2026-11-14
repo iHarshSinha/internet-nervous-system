@@ -8,6 +8,7 @@ import { useRadar } from '../store/radar.ts';
 import { activeIncidents, incidentTitle, useIncidents } from '../store/incidents.ts';
 import { isMajor } from '../components/Incidents.tsx';
 import { navigate } from '../router.ts';
+import { hubOf } from './hubs.ts';
 import { selectCountry, useUi } from '../store/ui.ts';
 import { BUCKET_COLORS, formatInt, healthColor } from '../theme.ts';
 
@@ -322,8 +323,15 @@ export function GlobeView() {
     const list: Arc[] = [];
     for (const p of pairs) {
       if (p.layer !== 'l7' || p.from === p.to) continue;
-      const a = countryInfo(p.from);
-      const b = countryInfo(p.to);
+      // Each end at the country's main internet hub (see hubs.ts), else its label point.
+      const at = (cc: string) => {
+        const hub = hubOf(cc);
+        if (hub) return { lat: hub[0], lng: hub[1], place: `${hub[2]}, ${countryName(cc)}` };
+        const info = countryInfo(cc);
+        return info ? { lat: info.lat, lng: info.lng, place: countryName(cc) } : undefined;
+      };
+      const a = at(p.from);
+      const b = at(p.to);
       if (!a || !b) continue;
       list.push({
         startLat: a.lat,
@@ -331,7 +339,7 @@ export function GlobeView() {
         endLat: b.lat,
         endLng: b.lng,
         value: p.value,
-        label: `${countryName(p.from)} → ${countryName(p.to)} · ${p.value}% of layer 7 attack traffic (Cloudflare Radar, 24 h)`,
+        label: `<b style="color:#ff8c6e">REAL ATTACK TRAFFIC</b><br>${a.place} → ${b.place}<br>${p.value}% of all layer 7 attacks, last 24 h (Cloudflare Radar)`,
       });
       if (list.length === 14) break;
     }
@@ -372,7 +380,7 @@ export function GlobeView() {
           id: i.id,
           lat: info.lat,
           lng: info.lng,
-          text: `${incidentTitle(i, countryName)} · ${i.state === 'open' ? i.severity : 'recovering'}`,
+          text: `${i.simulated ? 'Simulated' : 'Real'} · ${incidentTitle(i, countryName)} · ${i.state === 'open' ? i.severity : 'recovering'}`,
           kind: i.state !== 'open' ? 'recovering' : critical ? 'critical' : 'warning',
         }),
       );

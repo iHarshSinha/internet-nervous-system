@@ -1,5 +1,6 @@
 import { memo, useEffect, useState, type ReactNode } from 'react';
 import { navigate } from '../router.ts';
+import { formatTime, localZoneName, toggleZone, useClockZone, zoneLabel } from '../time.ts';
 import { Account } from './Account.tsx';
 import { useLive } from '../store/live.ts';
 import type { LinkStatus } from '../workers/socket.worker.ts';
@@ -38,20 +39,31 @@ export const StatusPill = memo(function StatusPill() {
   );
 });
 
-const pad = (n: number) => String(n).padStart(2, '0');
-
-/** UTC clock, so viewers (and the video) can see the data is happening now. */
-export function UtcClock() {
-  const [now, setNow] = useState(() => new Date());
+/**
+ * The clock, so viewers (and the video) can see the data is happening now.
+ * Your own time zone by default; click it for UTC (the internet's time) and back.
+ */
+export function Clock() {
+  const [now, setNow] = useState(() => Date.now());
+  const local = useClockZone((s) => s.local);
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
   return (
-    <span className="font-mono text-xs tracking-[0.12em] text-mid tabular-nums">
-      {pad(now.getUTCHours())}:{pad(now.getUTCMinutes())}:{pad(now.getUTCSeconds())}
-      <span className="ml-1 text-low">UTC</span>
-    </span>
+    <button
+      type="button"
+      onClick={toggleZone}
+      title={
+        local
+          ? `Your local time (${localZoneName}). Click to show UTC.`
+          : 'UTC. Click to show your local time.'
+      }
+      className="font-mono text-[0.86rem] tracking-[0.08em] text-mid tabular-nums transition hover:text-hi"
+    >
+      {formatTime(now, true)}
+      <span className="ml-1.5 text-low">{zoneLabel()}</span>
+    </button>
   );
 }
 
@@ -70,7 +82,7 @@ export function Header() {
       </button>
       <div className="pointer-events-auto flex shrink-0 items-center gap-2 sm:gap-4">
         <span className="hidden sm:inline">
-          <UtcClock />
+          <Clock />
         </span>
         <StatusPill />
         <Account />

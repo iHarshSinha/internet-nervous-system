@@ -34,10 +34,23 @@ export function SeverityTag({ incident }: { incident: Incident }) {
   );
 }
 
-export function SimTag() {
-  return (
+/**
+ * Where an incident comes from, said as plainly for real ones as for
+ * simulations: "Real" (detected in live internet data) or "Simulated"
+ * (injected by an admin for a demonstration).
+ */
+export function SourceTag({ simulated }: { simulated: boolean }) {
+  return simulated ? (
     <span className="rounded-full bg-white/[0.06] px-2 py-0.5 font-mono text-[0.72rem] tracking-[0.12em] text-mid uppercase ring-1 ring-white/10">
       simulated
+    </span>
+  ) : (
+    <span
+      className="flex items-center gap-1.5 rounded-full bg-signal/[0.08] px-2 py-0.5 font-mono text-[0.72rem] tracking-[0.12em] text-signal uppercase ring-1 ring-signal/25"
+      title="Detected in live internet data"
+    >
+      <span className="size-1.5 rounded-full bg-signal" />
+      real
     </span>
   );
 }
@@ -142,7 +155,7 @@ function IncidentRows({ rows, mine }: { rows: Incident[]; mine: Record<string, n
                 <span className="text-mid">
                   {i.signals.map((s) => SIGNAL_LABELS[s.type]).join(' + ')}
                 </span>
-                {i.simulated && <SimTag />}
+                <SourceTag simulated={i.simulated} />
                 {mine[i.id] && <span className="text-signal">★ on your watchlist</span>}
               </div>
             </button>
@@ -217,7 +230,9 @@ function AlertCard({ incident, personal }: { incident: Incident; personal: boole
             <span style={{ color }}>
               {incident.state === 'resolved' ? 'Recovered' : critical ? 'Critical' : 'New incident'}
             </span>
-            {incident.simulated && <span className="text-low">· simulated</span>}
+            <span className={incident.simulated ? 'text-low' : 'text-signal'}>
+              · {incident.simulated ? 'simulated' : 'real'}
+            </span>
             {personal && <span className="text-signal">· watchlist</span>}
           </div>
           <button

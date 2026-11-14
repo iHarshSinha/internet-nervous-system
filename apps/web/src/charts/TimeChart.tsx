@@ -3,6 +3,7 @@ import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import { getSeries, useSeries, type RoomSeries } from '../store/series.ts';
 import { colors } from '../theme.ts';
+import { useClockZone, zone } from '../time.ts';
 
 export interface ChartSeries {
   label: string;
@@ -38,6 +39,8 @@ const axis = (unit?: string): uPlot.Axis => ({
  */
 export function TimeChart({ room, build, series, height = 200, unit, band }: Props) {
   const box = useRef<HTMLDivElement>(null);
+  // The chart is rebuilt when the viewer switches between local time and UTC.
+  const local = useClockZone((s) => s.local);
   const buildRef = useRef(build);
   buildRef.current = build;
   const bandRef = useRef(band);
@@ -53,8 +56,8 @@ export function TimeChart({ room, build, series, height = 200, unit, band }: Pro
         width: el.clientWidth,
         height,
         legend: { show: false },
-        // Times in UTC, matching the clock in the header and the data sources.
-        tzDate: (ts) => uPlot.tzDate(new Date(ts * 1000), 'Etc/UTC'),
+        // Times in the zone the header clock shows (local, or UTC if chosen).
+        tzDate: (ts) => uPlot.tzDate(new Date(ts * 1000), zone()),
         cursor: { y: false, points: { size: 6 } },
         scales: {
           x: { time: true },
@@ -117,7 +120,7 @@ export function TimeChart({ room, build, series, height = 200, unit, band }: Pro
     };
     // The chart's shape is fixed for its lifetime; data flows through the store.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room, height]);
+  }, [room, height, local]);
 
   return <div ref={box} className="w-full" />;
 }

@@ -509,11 +509,11 @@ function HelpPanel() {
           )}
           {row(
             <span className="size-4 rounded-full border-2 border-critical" />,
-            'Red or amber land, a fast ripple and a label: an open incident. Click the label to read it.',
+            'An icon is an open incident (red: critical, amber: warning, green: recovering); near the edge of the globe it is a pulsing dot. Hover for its name, click to read it. Each is marked real or simulated.',
           )}
           {row(
             <span className="h-0.5 w-12 rounded-full bg-gradient-to-r from-critical/10 to-[#ff8c6e]" />,
-            'Arcs are attack traffic between countries, as seen by Cloudflare over the last day.',
+            'Arcs are real attack traffic between countries, as seen by Cloudflare over the last day. Cloudflare reports countries, not cities, so each arc ends at the country’s main internet hub (Ashburn for the US, Frankfurt for Germany).',
           )}
         </ul>
         <p className="mt-4 border-t border-line pt-3 text-[0.9rem] text-low">

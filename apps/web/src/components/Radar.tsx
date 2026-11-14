@@ -101,7 +101,9 @@ export const RadarPanel = memo(function RadarPanel() {
             ))}
           </ul>
           <p className="mt-2 text-[0.74rem] text-low">
-            Share of layer 7 attack traffic by origin and target, last 24 h. Arcs on the globe.
+            Real attack traffic seen by Cloudflare: share of all layer 7 attacks by origin and
+            target, last 24 h. Shown as arcs on the globe, between each country&apos;s main internet
+            hub.
           </p>
         </>
       ) : (

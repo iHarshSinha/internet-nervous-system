@@ -6,6 +6,7 @@ import { navigate } from '../router.ts';
 import { useGlobe } from '../store/globe.ts';
 import { useWire, wire, type WireTone } from '../store/wire.ts';
 import { flag } from '../theme.ts';
+import { formatTime, useClockZone } from '../time.ts';
 import { Panel } from './ui.tsx';
 
 const TONE: Record<WireTone, string> = {
@@ -15,8 +16,7 @@ const TONE: Record<WireTone, string> = {
   radar: '#ff8c6e',
 };
 
-const clock = (ms: number) =>
-  new Date(ms).toLocaleTimeString('en-GB', { timeZone: 'UTC', hour12: false }).slice(0, 5);
+const clock = (ms: number) => formatTime(ms);
 
 /** Puts a new busiest country on the wire when the leader changes (checked every few seconds). */
 function useLeaderWatch() {
@@ -50,6 +50,7 @@ export const Activity = memo(function Activity() {
   useLeaderWatch();
   const items = useWire((s) => s.items);
   useTick(10_000);
+  useClockZone((s) => s.local); // redraw the times when the clock zone is switched
   const list = useFlip<HTMLOListElement>([items.map((i) => i.id).join()]);
   const newest = items[0];
 
