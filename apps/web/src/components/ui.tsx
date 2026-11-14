@@ -31,7 +31,9 @@ export const StatusPill = memo(function StatusPill() {
       className="glass flex items-center gap-2 rounded-full px-2.5 py-1.5 sm:gap-2.5 sm:px-3.5"
     >
       <span className={`size-2 rounded-full ${dot}`} />
-      <span className={`font-mono text-xs tracking-[0.1em] uppercase ${text}`}>{label}</span>
+      <span className={`font-mono text-xs tracking-[0.1em] uppercase max-sm:sr-only ${text}`}>
+        {label}
+      </span>
     </div>
   );
 });
@@ -59,7 +61,7 @@ export function Header() {
       <button
         type="button"
         onClick={() => navigate('/')}
-        className="pointer-events-auto flex items-center gap-3 text-left"
+        className="pointer-events-auto flex min-w-0 items-center gap-2.5 text-left sm:gap-3"
       >
         <span className="relative grid size-8 place-items-center">
           <span className="absolute inset-0 rounded-full border border-signal/40 animate-[ring_3s_ease-out_infinite]" />
@@ -67,7 +69,7 @@ export function Header() {
           <span className="size-2 rounded-full bg-signal shadow-[0_0_14px_var(--color-signal)]" />
         </span>
         <span className="leading-tight">
-          <span className="block font-display text-[1.45rem] leading-none whitespace-nowrap text-hi max-sm:text-[1.2rem]">
+          <span className="block font-display text-[0.82rem] leading-none tracking-[0.12em] whitespace-nowrap text-hi uppercase max-sm:text-[0.6rem] max-sm:tracking-[0.08em]">
             <span className="max-sm:hidden">Internet Nervous System</span>
             <span className="sm:hidden">Nervous System</span>
           </span>
@@ -87,26 +89,89 @@ export function Header() {
   );
 }
 
+/** Read and remember a section's open state (per viewer, in this browser only). */
+function useOpen(id: string | undefined, initial: boolean): [boolean, () => void] {
+  const [open, setOpen] = useState(() => {
+    if (!id) return initial;
+    try {
+      const saved = localStorage.getItem(`ins:open:${id}`);
+      return saved === null ? initial : saved === '1';
+    } catch {
+      return initial;
+    }
+  });
+  const toggle = () =>
+    setOpen((o) => {
+      try {
+        if (id) localStorage.setItem(`ins:open:${id}`, o ? '0' : '1');
+      } catch {
+        // Storage can be unavailable (private windows); the section still works.
+      }
+      return !o;
+    });
+  return [open, toggle];
+}
+
+/**
+ * A panel. With `collapsible`, its title is a button that folds the body
+ * away, so the screen shows only what the viewer has chosen to see. `id`
+ * remembers the choice; `summary` is a one-line glance shown while closed.
+ */
 export function Panel({
   title,
   aside,
   children,
   className = '',
+  collapsible = false,
+  defaultOpen = true,
+  id,
+  summary,
 }: {
   title?: string;
   aside?: ReactNode;
   children: ReactNode;
   className?: string;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+  id?: string;
+  summary?: ReactNode;
 }) {
+  const [open, toggle] = useOpen(id, defaultOpen);
+  const isOpen = !collapsible || open;
   return (
-    <section className={`glass rounded-lg p-4 ${className}`}>
-      {title && (
-        <header className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="title">{title}</h2>
-          {aside}
-        </header>
-      )}
-      {children}
+    <section className={`glass rounded-lg ${className}`}>
+      {title &&
+        (collapsible ? (
+          <button
+            type="button"
+            onClick={toggle}
+            aria-expanded={open}
+            className="group flex w-full items-center gap-3 px-4 py-3 text-left"
+          >
+            <span
+              aria-hidden="true"
+              className={`text-xs text-low transition-transform duration-300 group-hover:text-hi ${open ? 'rotate-90' : ''}`}
+            >
+              ▸
+            </span>
+            <h2 className="title flex-1">{title}</h2>
+            <span className="text-[0.86rem] text-mid">{open ? aside : (summary ?? aside)}</span>
+          </button>
+        ) : (
+          <header className="flex items-baseline justify-between gap-3 px-4 pt-3.5 pb-1">
+            <h2 className="title">{title}</h2>
+            {aside}
+          </header>
+        ))}
+      {/* Rows 0fr -> 1fr animates the height without measuring it. */}
+      <div
+        className="grid transition-[grid-template-rows] duration-300 ease-out"
+        style={{ gridTemplateRows: isOpen ? '1fr' : '0fr' }}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className={`px-4 pb-4 ${title ? 'pt-2' : 'pt-4'}`}>{children}</div>
+        </div>
+      </div>
     </section>
   );
 }

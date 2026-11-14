@@ -43,7 +43,7 @@ function SignInPrompt() {
       <div className="mx-auto grid size-14 place-items-center rounded-full bg-signal/10 text-2xl ring-1 ring-signal/30">
         ◎
       </div>
-      <h1 className="mt-5 font-display text-4xl text-hi">Make the internet yours</h1>
+      <h1 className="mt-5 font-display text-2xl leading-snug text-hi">Make the internet yours</h1>
       <p className="mt-3 text-sm leading-relaxed text-mid">
         Everything on this site is open without an account. Sign in to pick the countries and
         networks you care about, and get an alert the moment something on your list breaks: on
@@ -279,7 +279,7 @@ export function MePage() {
 
   return (
     <main className="relative min-h-dvh">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(90%_60%_at_80%_0%,#1a3558_0%,#0a1321_55%)]" />
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(90%_60%_at_80%_0%,#1c1e22_0%,#0d0e10_55%)]" />
       <div className="mx-auto w-full max-w-[1400px] px-4 pt-24 pb-12 sm:px-8 xl:px-12">
         <button
           type="button"
@@ -294,7 +294,7 @@ export function MePage() {
         {status === 'signed-in' && user && (
           <div className="animate-[rise_.6s_both]">
             <div className="label">Your account</div>
-            <h1 className="mt-1 font-display text-5xl leading-none text-hi sm:text-6xl">
+            <h1 className="mt-2 font-display text-3xl leading-tight text-hi sm:text-4xl">
               Your watchlist
             </h1>
             <p className="mt-2 mb-6 max-w-2xl text-sm text-mid">

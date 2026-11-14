@@ -5,7 +5,8 @@
 #   bash apps/web/scripts/fetch-fonts.sh
 #
 # Fonts, all under the SIL Open Font License 1.1, from the Fontsource CDN:
-#   Instrument Serif (Rodrigo Fuenzalida), IBM Plex Sans and IBM Plex Mono (IBM).
+#   Michroma (Vernon Adams) for headings, Rajdhani (Indian Type Foundry) for
+#   body text, Share Tech Mono (Carrois Apostrophe) for live numbers.
 set -euo pipefail
 cd "$(dirname "$0")/../public/fonts"
 
@@ -14,10 +15,9 @@ fetch() {
   echo "$1-$2.woff2 $(wc -c <"$1-$2.woff2") bytes"
 }
 
-fetch instrument-serif latin-400-normal
-fetch instrument-serif latin-400-italic
-fetch ibm-plex-sans latin-400-normal
-fetch ibm-plex-sans latin-500-normal
-fetch ibm-plex-sans latin-600-normal
-fetch ibm-plex-mono latin-400-normal
-fetch ibm-plex-mono latin-500-normal
+fetch michroma latin-400-normal
+fetch rajdhani latin-400-normal
+fetch rajdhani latin-500-normal
+fetch rajdhani latin-600-normal
+fetch rajdhani latin-700-normal
+fetch share-tech-mono latin-400-normal

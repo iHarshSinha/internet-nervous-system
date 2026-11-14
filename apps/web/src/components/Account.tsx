@@ -60,7 +60,7 @@ export function Account() {
       <button
         type="button"
         onClick={() => navigate('/login')}
-        className="rounded-full border border-white/10 bg-[#12203a] px-3 py-1.5 text-xs font-medium whitespace-nowrap text-hi sm:px-4 transition hover:border-signal/50 hover:text-signal"
+        className="rounded-full border border-white/10 bg-[#1a1c20] px-3 py-1.5 text-xs font-medium whitespace-nowrap text-hi sm:px-4 transition hover:border-signal/50 hover:text-signal"
       >
         Sign in
       </button>

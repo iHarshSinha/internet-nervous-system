@@ -126,7 +126,7 @@ export function CountryMap({ cc, health }: { cc: string; health: number | undefi
           </feMerge>
         </filter>
         <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
-          <path d="M32 0H0V32" fill="none" stroke="rgba(94,230,255,0.05)" strokeWidth="1" />
+          <path d="M32 0H0V32" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
         </pattern>
       </defs>
       <rect width={W} height={H} fill="url(#grid)" />

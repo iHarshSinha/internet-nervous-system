@@ -184,7 +184,7 @@ export function CountryPage({ cc }: { cc: string }) {
 
   return (
     <main className="relative min-h-dvh">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(90%_60%_at_20%_0%,#1a3558_0%,#0a1321_55%)]" />
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(90%_60%_at_20%_0%,#1c1e22_0%,#0d0e10_55%)]" />
       <div className="mx-auto w-full max-w-[1760px] px-4 pt-24 pb-12 sm:px-8 xl:px-12">
         <button
           type="button"
@@ -199,7 +199,7 @@ export function CountryPage({ cc }: { cc: string }) {
           <section className="glass relative overflow-hidden rounded-lg lg:col-span-7">
             <div className="absolute top-5 left-5 z-10">
               <div className="label">Country · {cc}</div>
-              <h1 className="mt-1 flex items-baseline gap-3 font-display text-5xl leading-none text-hi sm:text-6xl 2xl:text-7xl">
+              <h1 className="mt-2 flex items-baseline gap-3 font-display text-3xl leading-none text-hi sm:text-4xl 2xl:text-5xl">
                 <span className="text-[0.6em]">{flag(cc)}</span>
                 {/* The name settles in letter by letter. */}
                 <span
@@ -354,9 +354,12 @@ export function CountryPage({ cc }: { cc: string }) {
             />
           </Panel>
 
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid items-start gap-5 lg:grid-cols-2">
             <Panel
               title="Route changes per minute · 24 h"
+              collapsible
+              defaultOpen={false}
+              id="country-24h"
               aside={
                 <SeriesKey
                   items={[
@@ -377,7 +380,10 @@ export function CountryPage({ cc }: { cc: string }) {
               />
             </Panel>
             <Panel
-              title="Latency to root DNS · per minute"
+              title="Latency · per minute"
+              collapsible
+              defaultOpen={false}
+              id="country-latency"
               aside={
                 <SeriesKey
                   items={[
@@ -401,32 +407,42 @@ export function CountryPage({ cc }: { cc: string }) {
           </div>
         </div>
 
-        <section className="mt-5 flex animate-[rise_.7s_.3s_both] flex-col gap-3 rounded-lg border border-signal/10 bg-signal/[0.03] p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-[0.78rem] font-medium tracking-[0.1em] text-signal uppercase">
-              Data integrity
+        <Panel
+          title="Data integrity"
+          collapsible
+          defaultOpen={false}
+          id="country-integrity"
+          className="mt-5"
+          aside={
+            <span className="font-mono text-[0.82rem] text-low">
+              {gaps} gaps · {snap?.dropped ?? 0} dropped
+            </span>
+          }
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="max-w-xl text-[0.95rem] text-mid">
+                History from MongoDB and live frames from Socket.IO join here. Every point is keyed
+                by its time, frames already in the history snapshot are dropped, and a missing frame
+                is fetched again.
+              </p>
             </div>
-            <p className="mt-1 max-w-xl text-xs text-mid">
-              History from MongoDB and live frames from Socket.IO join here. Every point is keyed by
-              its time, frames already in the history snapshot are dropped, and a missing frame is
-              fetched again.
-            </p>
+            <dl className="grid grid-cols-3 gap-x-5 gap-y-1 font-mono text-[0.9rem] sm:grid-cols-5">
+              {[
+                ['snapshot', `#${snap?.snapshotSeq ?? '—'}`],
+                ['live frame', `#${snap?.lastSeq ?? '—'}`],
+                ['dropped', String(snap?.dropped ?? 0)],
+                ['gaps', String(gaps)],
+                ['points', `${snap?.seconds ?? 0}s · ${snap?.minutes ?? 0}m`],
+              ].map(([k, v]) => (
+                <div key={k}>
+                  <dt className="label">{k}</dt>
+                  <dd className="text-hi tabular-nums">{v}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
-          <dl className="grid grid-cols-3 gap-x-5 gap-y-1 font-mono text-xs sm:grid-cols-5">
-            {[
-              ['snapshot', `#${snap?.snapshotSeq ?? '—'}`],
-              ['live frame', `#${snap?.lastSeq ?? '—'}`],
-              ['dropped', String(snap?.dropped ?? 0)],
-              ['gaps', String(gaps)],
-              ['points', `${snap?.seconds ?? 0}s · ${snap?.minutes ?? 0}m`],
-            ].map(([k, v]) => (
-              <div key={k}>
-                <dt className="text-[0.72rem] tracking-[0.14em] text-low uppercase">{k}</dt>
-                <dd className="text-hi tabular-nums">{v}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
+        </Panel>
       </div>
     </main>
   );

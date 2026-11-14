@@ -1,20 +1,22 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useState, type ReactNode } from 'react';
 import { AnimatedNumber } from '../components/AnimatedNumber.tsx';
-import { Sparkline } from '../components/Sparkline.tsx';
-import { Starfield } from '../components/Starfield.tsx';
-import { Welcome } from '../components/Welcome.tsx';
-import { Wire } from '../components/Wire.tsx';
+import { IncidentFeed } from '../components/Incidents.tsx';
+import { Popover } from '../components/Popover.tsx';
+import { RadarPanel } from '../components/Radar.tsx';
 import { ReplayBadge } from '../components/Replay.tsx';
 import { ScenarioBadge, ScenarioControls } from '../components/Scenario.tsx';
-import { IncidentFeed } from '../components/Incidents.tsx';
-import { RadarPanel } from '../components/Radar.tsx';
+import { Sparkline } from '../components/Sparkline.tsx';
+import { Starfield } from '../components/Starfield.tsx';
 import { Panel, Stat } from '../components/ui.tsx';
+import { Welcome } from '../components/Welcome.tsx';
+import { Activity } from '../components/Wire.tsx';
 import { countryName } from '../geo.ts';
 import { GLOBE_HOME, GlobeView } from '../globe/GlobeView.tsx';
 import { useFlip } from '../hooks/flip.ts';
 import { useGlobeSnapshots, useStatus } from '../hooks/snapshots.ts';
 import { navigate } from '../router.ts';
 import { useGlobe } from '../store/globe.ts';
+import { activeIncidents, useIncidents } from '../store/incidents.ts';
 import { useLive } from '../store/live.ts';
 import { flyTo, selectCountry, useUi } from '../store/ui.ts';
 import {
@@ -36,43 +38,48 @@ function useGlobeTick(ms = 1000) {
   return useGlobe.getState();
 }
 
-const LivePulse = memo(function LivePulse() {
+/** The key numbers, always visible: the one card nobody has to open. */
+const RightNow = memo(function RightNow() {
   const ann = useLive((s) => s.world.ann);
   const wd = useLive((s) => s.world.wd);
   const p50 = useLive((s) => s.world.p50);
   const countries = useLive((s) => s.world.countries);
+  const open = useIncidents((s) => activeIncidents(s.byId).length);
   const changes = ann === undefined ? undefined : ann + (wd ?? 0);
 
   return (
-    <Panel
-      title="Pulse of the internet"
-      aside={<span className="font-mono text-[0.78rem] text-low">last 2 min</span>}
-    >
+    <Panel title="Right now" aside={<span className="text-[0.86rem] text-low">last 2 min</span>}>
       <div className="flex items-end gap-2">
-        <span className="font-mono text-[2.6rem] leading-none font-medium text-hi tabular-nums [text-shadow:0_0_28px_rgba(94,230,255,0.25)]">
+        <span className="font-mono text-[2.9rem] leading-none text-hi tabular-nums">
           <AnimatedNumber value={changes} />
         </span>
-        <span className="mb-1 text-xs text-mid">route changes / s</span>
+        <span className="mb-1 text-[0.95rem] text-mid">route changes a second</span>
       </div>
-      <div className="mt-2 flex gap-3 text-[0.8rem]">
+      <div className="mt-1.5 flex gap-4 text-[0.9rem]">
         <span className="text-signal">
-          ● announced <AnimatedNumber value={ann} />
+          announced <AnimatedNumber value={ann} />
         </span>
         <span className="text-caution">
-          ● withdrawn <AnimatedNumber value={wd} />
+          withdrawn <AnimatedNumber value={wd} />
         </span>
       </div>
       <div className="-mx-1 mt-3">
-        <Sparkline />
+        <Sparkline height={48} />
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-line pt-3">
+      <div className="mt-3 grid grid-cols-3 gap-3 border-t border-line pt-3">
         <Stat
-          label="Median latency"
-          value={typeof p50 === 'number' ? p50.toFixed(1) : '—'}
+          label="Latency"
+          value={typeof p50 === 'number' ? p50.toFixed(0) : '—'}
           unit="ms"
-          hint="Median round trip from Atlas probes to the root DNS servers, latest minute"
+          hint="Median round trip from RIPE Atlas probes to the root DNS servers, latest minute"
         />
-        <Stat label="Countries active" value={countries === undefined ? '—' : String(countries)} />
+        <Stat label="Countries" value={countries === undefined ? '—' : String(countries)} />
+        <Stat
+          label="Incidents"
+          value={String(open)}
+          tone={open > 0 ? '#ffb454' : undefined}
+          hint="Open incidents, all over the world"
+        />
       </div>
     </Panel>
   );
@@ -91,9 +98,12 @@ const Sources = memo(function Sources() {
   return (
     <Panel
       title="Data sources"
+      collapsible
+      defaultOpen={false}
+      id="sources"
       aside={
-        <span className="font-mono text-[0.78rem] text-low">
-          {upstreams.filter((u) => u.connected).length}/{upstreams.length || '—'} up
+        <span className="font-mono text-[0.82rem] text-low">
+          {upstreams.filter((u) => u.connected).length}/{upstreams.length || '—'} connected
         </span>
       }
     >
@@ -152,8 +162,16 @@ const LatencyMix = memo(function LatencyMix() {
 
   return (
     <Panel
-      title="Probe latency mix"
-      aside={<span className="font-mono text-[0.78rem] text-low">{formatInt(total)} probes</span>}
+      title="Probe latency"
+      collapsible
+      defaultOpen={false}
+      id="latency"
+      aside={<span className="font-mono text-[0.82rem] text-low">{formatInt(total)} probes</span>}
+      summary={
+        <span className="font-mono text-[0.82rem] text-low">
+          {total ? `${Math.round(((counts[0]! + counts[1]!) / total) * 100)}% under 50 ms` : '—'}
+        </span>
+      }
     >
       <div className="flex h-2.5 overflow-hidden rounded-full bg-white/[0.04]">
         {counts.map((n, i) => (
@@ -187,15 +205,22 @@ const Busiest = memo(function Busiest() {
   const rows = [...countries]
     .filter(([, c]) => (c.act ?? 0) > 0)
     .sort((a, b) => (b[1].act ?? 0) - (a[1].act ?? 0))
-    .slice(0, 8);
+    .slice(0, 6);
   const max = Math.max(1, ...rows.map(([, c]) => c.act ?? 0));
   // Rows glide when the ranking changes.
   const list = useFlip<HTMLOListElement>([rows.map(([cc]) => cc).join()]);
 
   return (
     <Panel
-      title="Busiest right now"
-      aside={<span className="font-mono text-[0.78rem] text-low">changes / s</span>}
+      title="Busiest countries"
+      collapsible
+      id="busiest"
+      aside={<span className="text-[0.86rem] text-low">per second</span>}
+      summary={
+        <span className="text-[0.86rem] text-low">
+          {rows[0] ? `${flag(rows[0][0])} ${countryName(rows[0][0])} leads` : '—'}
+        </span>
+      }
     >
       <ol ref={list} className="relative space-y-0.5">
         {rows.length === 0 && (
@@ -209,7 +234,7 @@ const Busiest = memo(function Busiest() {
               className="group relative flex w-full items-center gap-2.5 overflow-hidden rounded-lg px-2 py-1.5 text-left transition hover:bg-white/[0.05]"
             >
               <span
-                className="absolute inset-y-1 left-0 rounded-r-md bg-gradient-to-r from-signal/[0.02] to-signal/[0.12] transition-[width] duration-700"
+                className="absolute inset-y-1 left-0 rounded-r-md bg-white/[0.06] transition-[width] duration-700"
                 style={{ width: `${((c.act ?? 0) / max) * 100}%` }}
               />
               <span className="relative w-3 font-mono text-[0.74rem] text-low">{i + 1}</span>
@@ -243,13 +268,18 @@ const TroubleSpots = memo(function TroubleSpots() {
   return (
     <Panel
       title="Trouble spots"
-      aside={<span className="font-mono text-[0.78rem] text-low">health below 90</span>}
+      collapsible
+      defaultOpen={false}
+      id="trouble"
+      aside={<span className="text-[0.86rem] text-low">below 90</span>}
+      summary={
+        <span className={`text-[0.86rem] ${rows.length ? 'text-caution' : 'text-low'}`}>
+          {rows.length ? `${rows.length} countr${rows.length === 1 ? 'y' : 'ies'}` : 'all clear'}
+        </span>
+      }
     >
       {rows.length === 0 ? (
-        <div className="flex items-center gap-2.5 rounded-lg bg-signal/[0.05] px-3 py-2 text-[0.86rem] text-mid">
-          <span className="size-1.5 rounded-full bg-signal shadow-[0_0_10px_var(--color-signal)]" />
-          All clear: every country is above 90
-        </div>
+        <p className="text-[0.92rem] text-mid">All clear: every country is above 90.</p>
       ) : (
         <ul className="space-y-0.5">
           {rows.map(([cc, c]) => (
@@ -291,7 +321,7 @@ function CountryCard() {
   for (const [, , pcc] of probePos.values()) if (pcc === cc) probes += 1;
 
   return (
-    <div className="glass pointer-events-auto w-full animate-[rise_.45s_both] rounded-lg p-4 lg:w-[360px]">
+    <div className="glass pointer-events-auto w-full animate-[rise_.45s_both] rounded-lg p-4 lg:w-[380px]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="text-3xl leading-none">{flag(cc)}</span>
@@ -328,7 +358,7 @@ function CountryCard() {
       <button
         type="button"
         onClick={() => navigate(`/c/${cc}`)}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-md bg-signal/10 py-2.5 text-sm font-medium text-signal ring-1 ring-signal/30 transition hover:bg-signal/20"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-md bg-hi py-2.5 text-[0.95rem] font-semibold text-void transition hover:bg-white"
       >
         Open live history <span aria-hidden="true">→</span>
       </button>
@@ -344,35 +374,53 @@ const REGIONS: [string, number, number][] = [
   ['Oceania', -25, 140],
 ];
 
-function RegionDock() {
+/** Pick a region to fly to: a small menu instead of a row of buttons. */
+function RegionMenu() {
+  const [open, setOpen] = useState(false);
   const go = (lat: number, lng: number, altitude?: number) => {
     selectCountry(null);
     flyTo(lat, lng, altitude);
+    setOpen(false);
   };
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {REGIONS.map(([name, lat, lng]) => (
-        <button
-          key={name}
-          type="button"
-          onClick={() => go(lat, lng)}
-          className="rounded-full px-3 py-1 text-[0.82rem] text-mid ring-1 ring-white/[0.08] transition hover:bg-white/[0.06] hover:text-hi"
-        >
-          {name}
-        </button>
-      ))}
-      <button
-        type="button"
-        onClick={() => go(GLOBE_HOME.lat, GLOBE_HOME.lng, GLOBE_HOME.altitude)}
-        className="rounded-full px-3 py-1 text-[0.82rem] text-signal ring-1 ring-signal/25 transition hover:bg-signal/10"
-      >
-        ◎ Whole world
-      </button>
-    </div>
+    <Popover
+      open={open}
+      onOpenChange={setOpen}
+      label="Fly to a region"
+      button={
+        <span className="flex items-center gap-2 px-3 text-[0.95rem] text-hi">
+          Regions <span className="text-[0.7rem] text-low">▾</span>
+        </span>
+      }
+    >
+      <ul className="w-48 py-1">
+        {REGIONS.map(([name, lat, lng]) => (
+          <li key={name}>
+            <button
+              type="button"
+              onClick={() => go(lat, lng)}
+              className="w-full px-3 py-1.5 text-left text-[0.95rem] text-mid transition hover:bg-white/[0.06] hover:text-hi"
+            >
+              {name}
+            </button>
+          </li>
+        ))}
+        <li className="mt-1 border-t border-line pt-1">
+          <button
+            type="button"
+            onClick={() => go(GLOBE_HOME.lat, GLOBE_HOME.lng, GLOBE_HOME.altitude)}
+            className="w-full px-3 py-1.5 text-left text-[0.95rem] text-hi transition hover:bg-white/[0.06]"
+          >
+            Whole world
+          </button>
+        </li>
+      </ul>
+    </Popover>
   );
 }
 
-const PipelineStrip = memo(function PipelineStrip() {
+/** Pipeline numbers: interesting to engineers and judges, folded away for everyone else. */
+const PipelineStats = memo(function PipelineStats() {
   const seq = useLive((s) => s.seq);
   const delayMs = useLive((s) => s.delayMs);
   const dup = useLive((s) => s.pipe.dup);
@@ -381,55 +429,100 @@ const PipelineStrip = memo(function PipelineStrip() {
   const prefixes = useLive((s) => s.pipe.prefixes);
   const gaps = useLive((s) => s.stats.gaps);
   const n = (v: number | undefined) => (v === undefined ? '—' : formatInt(v));
-  const item = (k: string, v: string, hint: string) => (
-    <span className="whitespace-nowrap" title={hint}>
-      <span className="text-low">{k}</span> <span className="text-mid tabular-nums">{v}</span>
-    </span>
-  );
+  const rows: [string, string, string][] = [
+    ['Latest frame', seq === 0 ? '—' : `#${seq}`, 'Sequence number of the latest world frame'],
+    [
+      'Delivery',
+      delayMs === null ? '—' : `${delayMs} ms`,
+      'From the server stamping a frame to this page',
+    ],
+    ['Gaps', String(gaps), 'Missing frames, recovered with resync'],
+    ['Duplicates dropped', n(dup), 'Events seen twice and dropped'],
+    ['Late events', n(late), 'Events that arrived after their minute closed'],
+    ['Future-dated', n(future), 'Events stamped ahead of our clock, set aside'],
+    ['Prefixes known', n(prefixes), 'Address blocks whose owner we know'],
+  ];
   return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[0.76rem]">
-      {item('frame', seq === 0 ? '—' : `#${seq}`, 'Sequence number of the latest world frame')}
-      {item('delivery', delayMs === null ? '—' : `${delayMs} ms`, 'Server stamp to this page')}
-      {item('gaps', String(gaps), 'Missing frames (recovered with resync)')}
-      {item('dupes dropped', n(dup), 'Events seen twice and dropped')}
-      {item('late', n(late), 'Events that arrived after their minute closed')}
-      {item('future-dated', n(future), 'Events stamped ahead of our clock, set aside')}
-      {item('prefixes', n(prefixes), 'Address blocks whose owner we know')}
-    </div>
+    <Panel
+      title="Pipeline"
+      collapsible
+      defaultOpen={false}
+      id="pipeline"
+      aside={
+        <span className="font-mono text-[0.82rem] text-low">
+          {delayMs === null ? '—' : `${delayMs} ms`}
+        </span>
+      }
+    >
+      <dl className="divide-y divide-line/70">
+        {rows.map(([k, v, hint]) => (
+          <div key={k} className="flex justify-between gap-3 py-1.5 text-[0.92rem]" title={hint}>
+            <dt className="text-mid">{k}</dt>
+            <dd className="font-mono text-hi tabular-nums">{v}</dd>
+          </div>
+        ))}
+      </dl>
+    </Panel>
   );
 });
 
-function Legend() {
+/** "How to read the map", behind the ? button. */
+function HelpPanel() {
+  const [open, setOpen] = useState(false);
+  const row = (key: ReactNode, text: string) => (
+    <li className="flex gap-3">
+      <span className="flex w-16 shrink-0 items-center justify-center pt-1">{key}</span>
+      <span className="text-[0.95rem] leading-snug text-mid">{text}</span>
+    </li>
+  );
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.78rem] text-mid">
-      <span className="flex items-center gap-2">
-        <span className="tracking-[0.1em] text-low uppercase">Land</span>
-        <span
-          className="h-1.5 w-20 rounded-full"
-          style={{
-            background: `linear-gradient(90deg, ${healthColor(10)}, ${healthColor(40)}, ${healthColor(75)}, ${healthColor(100)})`,
-          }}
-        />
-        <span>health</span>
-      </span>
-      <span className="flex items-center gap-2">
-        <span className="tracking-[0.1em] text-low uppercase">Dots</span>
-        <span className="flex gap-0.5">
-          {BUCKET_COLORS.map((c) => (
-            <span key={c} className="size-1.5 rounded-full" style={{ background: c }} />
-          ))}
-        </span>
-        <span>probe latency</span>
-      </span>
-      <span className="flex items-center gap-2">
-        <span className="size-3 rounded-full border border-signal/70" />
-        <span>busy routing</span>
-      </span>
-      <span className="flex items-center gap-2">
-        <span className="h-0.5 w-5 rounded-full bg-gradient-to-r from-critical/10 to-[#ff8c6e]" />
-        <span>attack corridors</span>
-      </span>
-    </div>
+    <Popover
+      open={open}
+      onOpenChange={setOpen}
+      label="How to read the map"
+      button={<span className="grid size-9 place-items-center text-lg text-hi">?</span>}
+    >
+      <div className="w-[min(380px,86vw)] p-4">
+        <h3 className="title">How to read the map</h3>
+        <ul className="mt-3 space-y-3">
+          {row(
+            <span
+              className="h-2 w-14 rounded-full"
+              style={{
+                background: `linear-gradient(90deg, ${healthColor(10)}, ${healthColor(45)}, ${healthColor(75)}, ${healthColor(100)})`,
+              }}
+            />,
+            'Land is coloured by each country’s network health, from disrupted to healthy.',
+          )}
+          {row(
+            <span className="flex gap-0.5">
+              {BUCKET_COLORS.map((c) => (
+                <span key={c} className="size-1.5 rounded-full" style={{ background: c }} />
+              ))}
+            </span>,
+            `Dots are RIPE Atlas probes, coloured by latency: ${BUCKET_LABELS.join(', ')}.`,
+          )}
+          {row(
+            <span className="size-4 rounded-full border border-signal/80" />,
+            'Ripples mark the countries where routes are changing most right now.',
+          )}
+          {row(
+            <span className="size-4 rounded-full border-2 border-critical" />,
+            'Red or amber land, a fast ripple and a label: an open incident. Click the label to read it.',
+          )}
+          {row(
+            <span className="h-0.5 w-12 rounded-full bg-gradient-to-r from-critical/10 to-[#ff8c6e]" />,
+            'Arcs are attack traffic between countries, as seen by Cloudflare over the last day.',
+          )}
+        </ul>
+        <p className="mt-4 border-t border-line pt-3 text-[0.9rem] text-low">
+          Drag to turn the globe, scroll to zoom, click a country for its numbers.
+        </p>
+        <p className="mt-2 text-[0.82rem] text-low">
+          Data: RIPE NCC (RIS, Atlas), Cloudflare Radar (CC BY-NC 4.0). Shapes: Natural Earth.
+        </p>
+      </div>
+    </Popover>
   );
 }
 
@@ -439,82 +532,56 @@ export function GlobePage() {
   useEffect(() => () => selectCountry(null), []);
 
   return (
-    <main className="relative min-h-dvh overflow-hidden">
-      <div className="fixed inset-0 bg-[radial-gradient(110%_75%_at_50%_45%,#1a3558_0%,#0d1a2d_45%,#0a1321_70%)]" />
-      <div className="fixed inset-0 opacity-70">
+    <main className="relative min-h-dvh [--side:400px] lg:h-dvh lg:overflow-hidden 2xl:[--side:440px]">
+      <div className="fixed inset-0 bg-[radial-gradient(90%_80%_at_65%_50%,#1a1b1f_0%,#111214_50%,#0d0e10_80%)]" />
+      <div className="fixed inset-0 opacity-50">
         <Starfield />
       </div>
-      <div className="fixed inset-0 max-lg:relative max-lg:h-[62vh]">
-        <GlobeView />
-      </div>
-      {/* Edge vignette, so the panels sit on darkness rather than on the globe. */}
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(75%_70%_at_50%_50%,transparent_55%,rgba(10,19,33,0.78)_100%)] max-lg:hidden" />
 
-      {/* Greeting (signed in) or an invitation to sign in, top centre. */}
-      <div className="pointer-events-none relative z-20 flex justify-center px-4 pt-3 lg:fixed lg:inset-x-0 lg:top-20 lg:pt-0">
-        <div className="flex flex-col items-center gap-2">
+      {/* The globe takes the right of the screen (the top, on phones). */}
+      <div className="relative h-[min(58vh,110vw)] lg:fixed lg:inset-y-0 lg:right-0 lg:left-[var(--side)] lg:h-auto">
+        <GlobeView />
+
+        {/* A simulation running: everyone sees it, over the globe. */}
+        <div className="pointer-events-none absolute inset-x-0 top-20 z-20 flex flex-col items-center gap-2 px-4">
           <ScenarioBadge />
           <ReplayBadge />
-          <Welcome />
-        </div>
-      </div>
-
-      {/* On large screens everything fits one screen: two scrolling rails and the legend dock. */}
-      <div className="pointer-events-none relative z-10 flex flex-col gap-4 px-4 pb-4 sm:px-7 sm:pb-5 lg:h-dvh lg:pt-20">
-        <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row lg:items-stretch lg:justify-between">
-          <div className="pointer-events-auto flex w-full flex-col gap-3 lg:rail lg:w-[300px] 2xl:w-[340px]">
-            <div className="animate-[rise_.9s_.15s_both]">
-              <LivePulse />
-            </div>
-            <div className="animate-[rise_.9s_.3s_both]">
-              <Sources />
-            </div>
-            <div className="animate-[rise_.9s_.45s_both]">
-              <RadarPanel />
-            </div>
-            <ScenarioControls />
-          </div>
-
-          <div className="lg:hidden">
-            <CountryCard />
-          </div>
-
-          <div className="pointer-events-auto flex w-full flex-col gap-3 lg:rail lg:w-[300px] 2xl:w-[340px]">
-            <div className="animate-[rise_.9s_.2s_both]">
-              <IncidentFeed />
-            </div>
-            <div className="animate-[rise_.9s_.25s_both]">
-              <Busiest />
-            </div>
-            <div className="animate-[rise_.9s_.4s_both]">
-              <TroubleSpots />
-            </div>
-            <div className="animate-[rise_.9s_.55s_both]">
-              <LatencyMix />
-            </div>
-          </div>
         </div>
 
-        <div className="pointer-events-none fixed inset-x-0 bottom-32 z-20 hidden justify-center lg:flex">
+        {/* The picked country, at the bottom of the globe. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 hidden justify-center px-4 lg:flex">
           <CountryCard />
         </div>
 
-        <div className="glass pointer-events-auto shrink-0 animate-[rise_.9s_.6s_both] rounded-lg px-4 py-3">
-          <div className="mb-2.5 border-b border-line pb-2.5">
-            <Wire />
-          </div>
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <Legend />
-            <RegionDock />
-          </div>
-          <div className="mt-2.5 flex flex-col gap-1 border-t border-line pt-2.5 lg:flex-row lg:items-center lg:justify-between">
-            <PipelineStrip />
-            <span className="text-[0.74rem] text-low">
-              Data: RIPE NCC (RIS, Atlas) · Cloudflare Radar (CC BY-NC 4.0) · Shapes: Natural Earth
-            </span>
-          </div>
+        {/* Map tools: few, quiet, in one corner. */}
+        <div className="absolute right-4 bottom-4 z-30 flex items-center gap-2 sm:right-6 sm:bottom-6">
+          <RegionMenu />
+          <HelpPanel />
         </div>
       </div>
+
+      {/* Everything to read, in one column on the left. */}
+      <aside className="relative z-10 flex flex-col gap-3 px-4 pb-6 lg:rail lg:fixed lg:top-[4.6rem] lg:bottom-0 lg:left-0 lg:w-[var(--side)] lg:pt-1 lg:pr-0 lg:pl-5">
+        <div className="lg:hidden">
+          <CountryCard />
+        </div>
+        <Welcome />
+        <RightNow />
+        <IncidentFeed />
+        <Busiest />
+        <TroubleSpots />
+
+        <div className="mt-2 flex items-center gap-3 px-1">
+          <span className="title text-low">More detail</span>
+          <span className="h-px flex-1 bg-line" />
+        </div>
+        <Activity />
+        <RadarPanel />
+        <LatencyMix />
+        <Sources />
+        <PipelineStats />
+        <ScenarioControls />
+      </aside>
     </main>
   );
 }

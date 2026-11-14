@@ -6,6 +6,7 @@ import { navigate } from '../router.ts';
 import { useGlobe } from '../store/globe.ts';
 import { useWire, wire, type WireTone } from '../store/wire.ts';
 import { flag } from '../theme.ts';
+import { Panel } from './ui.tsx';
 
 const TONE: Record<WireTone, string> = {
   critical: '#ff4d5e',
@@ -15,7 +16,7 @@ const TONE: Record<WireTone, string> = {
 };
 
 const clock = (ms: number) =>
-  new Date(ms).toLocaleTimeString('en-GB', { timeZone: 'UTC', hour12: false });
+  new Date(ms).toLocaleTimeString('en-GB', { timeZone: 'UTC', hour12: false }).slice(0, 5);
 
 /** Puts a new busiest country on the wire when the leader changes (checked every few seconds). */
 function useLeaderWatch() {
@@ -41,45 +42,59 @@ function useLeaderWatch() {
 }
 
 /**
- * The wire: the latest happenings in a line, newest on the left. New items
- * push in and the older ones glide along; the line fades out at the right.
+ * Activity: the latest happenings, newest first (incidents opening, turning
+ * critical and recovering, new Cloudflare reports, a new busiest country).
+ * Folded by default; its summary shows the newest line.
  */
-export const Wire = memo(function Wire() {
+export const Activity = memo(function Activity() {
   useLeaderWatch();
   const items = useWire((s) => s.items);
   useTick(10_000);
   const list = useFlip<HTMLOListElement>([items.map((i) => i.id).join()]);
+  const newest = items[0];
 
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <span className="flex shrink-0 items-center gap-2 text-[0.78rem] text-low">
-        <span className="size-1.5 animate-[blink_1.4s_ease-in-out_infinite] rounded-full bg-signal" />
-        Wire
-      </span>
-      <ol
-        ref={list}
-        className="relative flex min-w-0 flex-1 items-center gap-6 overflow-hidden [mask-image:linear-gradient(90deg,#000_75%,transparent)]"
-      >
-        {items.length === 0 && (
-          <li className="text-[0.82rem] whitespace-nowrap text-low">
-            Quiet so far. New incidents, recoveries and Cloudflare reports appear here.
-          </li>
-        )}
-        {items.map((item) => (
-          <li key={item.id} data-flip={item.id} className="shrink-0">
-            <button
-              type="button"
-              disabled={!item.href}
-              onClick={() => item.href && navigate(item.href)}
-              className="flex items-center gap-2 text-[0.84rem] whitespace-nowrap text-mid transition enabled:hover:text-hi"
-            >
-              <span className="size-1.5 rounded-full" style={{ background: TONE[item.tone] }} />
-              <span className="font-mono text-[0.72rem] text-low">{clock(item.at)}</span>
-              {item.text.length > 90 ? `${item.text.slice(0, 88)}…` : item.text}
-            </button>
-          </li>
-        ))}
-      </ol>
-    </div>
+    <Panel
+      title="Activity"
+      collapsible
+      defaultOpen={false}
+      id="activity"
+      aside={<span className="text-[0.86rem] text-low">newest first</span>}
+      summary={
+        <span className="block max-w-[11rem] truncate text-[0.86rem] text-low">
+          {newest ? newest.text : 'quiet so far'}
+        </span>
+      }
+    >
+      {items.length === 0 ? (
+        <p className="text-[0.92rem] text-mid">
+          Quiet so far. New incidents, recoveries and Cloudflare reports appear here.
+        </p>
+      ) : (
+        <ol ref={list} className="relative space-y-0.5">
+          {items.map((item) => (
+            <li key={item.id} data-flip={item.id}>
+              <button
+                type="button"
+                disabled={!item.href}
+                onClick={() => item.href && navigate(item.href)}
+                className="flex w-full items-start gap-2.5 rounded-md px-1.5 py-1.5 text-left transition enabled:hover:bg-white/[0.05]"
+              >
+                <span
+                  className="mt-[0.45rem] size-1.5 shrink-0 rounded-full"
+                  style={{ background: TONE[item.tone] }}
+                />
+                <span className="min-w-0 flex-1 text-[0.95rem] leading-snug text-mid">
+                  {item.text}
+                </span>
+                <span className="shrink-0 pt-0.5 font-mono text-[0.74rem] text-low">
+                  {clock(item.at)}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
+    </Panel>
   );
 });

@@ -99,7 +99,7 @@ export function WorldDots() {
       const b = base.getContext('2d');
       if (!b) return;
       b.scale(dpr, dpr);
-      b.fillStyle = 'rgba(169, 185, 203, 0.3)';
+      b.fillStyle = 'rgba(170, 172, 178, 0.3)';
       const r = Math.max(1, mapW / 1500);
       for (const d of dots) {
         b.beginPath();

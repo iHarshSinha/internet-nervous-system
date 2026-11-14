@@ -31,7 +31,7 @@ export function WatchButton({ cc }: { cc: string }) {
       <button
         type="button"
         onClick={() => navigate('/login')}
-        className="rounded-full border border-white/10 bg-[#12203a] px-3.5 py-1.5 text-xs text-mid transition hover:border-signal/40 hover:text-hi"
+        className="rounded-full border border-white/10 bg-[#1a1c20] px-3.5 py-1.5 text-xs text-mid transition hover:border-signal/40 hover:text-hi"
       >
         ☆ Sign in to watch
       </button>

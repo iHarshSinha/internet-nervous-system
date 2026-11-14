@@ -72,6 +72,8 @@ export const IncidentFeed = memo(function IncidentFeed() {
   return (
     <Panel
       title="Incidents"
+      collapsible
+      id="incidents"
       aside={
         <span
           className={`font-mono text-[0.78rem] ${active.length ? 'text-critical' : 'text-low'}`}
@@ -81,8 +83,8 @@ export const IncidentFeed = memo(function IncidentFeed() {
       }
     >
       {rows.length === 0 ? (
-        <div className="flex items-center gap-3 rounded-md bg-signal/[0.05] px-3 py-3 text-sm text-mid">
-          <span className="size-2 rounded-full bg-signal shadow-[0_0_10px_var(--color-signal)]" />
+        <div className="flex items-center gap-3 text-[0.95rem] text-mid">
+          <span className="size-1.5 rounded-full bg-signal" />
           Watching every network for outages and hijacks.
         </div>
       ) : (
@@ -128,7 +130,7 @@ function IncidentRows({ rows, mine }: { rows: Incident[]; mine: Record<string, n
                   </span>
                 )}
                 <span className="text-base leading-none">{i.cc ? flag(i.cc) : '◌'}</span>
-                <span className="min-w-0 flex-1 truncate font-display text-[1.12rem] leading-tight text-hi">
+                <span className="min-w-0 flex-1 truncate text-[1.05rem] leading-tight font-semibold text-hi">
                   {incidentTitle(i, countryName)}
                 </span>
                 <span className="shrink-0 font-mono text-[0.72rem] text-low">
@@ -203,7 +205,7 @@ function AlertCard({ incident, personal }: { incident: Incident; personal: boole
 
   return (
     <div
-      className="pointer-events-auto relative w-[min(560px,92vw)] animate-[pop_.5s_both] overflow-hidden rounded-lg border bg-[#1c1119]/95 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9)] backdrop-blur"
+      className="pointer-events-auto relative w-[min(560px,92vw)] animate-[pop_.5s_both] overflow-hidden rounded-lg border bg-[#1d1416]/95 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9)] backdrop-blur"
       style={{ borderColor: `${color}80`, boxShadow: `0 0 60px -10px ${color}66` }}
       role="alert"
     >

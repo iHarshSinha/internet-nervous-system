@@ -7,16 +7,16 @@
  */
 
 export const colors = {
-  void: '#0a1321',
-  line: '#1a2432',
-  hi: '#e8f1f8',
-  mid: '#8ea3b5',
-  low: '#55677a',
+  void: '#0d0e10',
+  line: '#2b2e34',
+  hi: '#ededee',
+  mid: '#a6a9af',
+  low: '#70747b',
   signal: '#5ee6ff',
   caution: '#ffb454',
   critical: '#ff4d5e',
   /** A country we have no data for yet. */
-  unknown: '#1d2a3a',
+  unknown: '#2a2c31',
   announce: '#5ee6ff',
   withdraw: '#ffb454',
 } as const;

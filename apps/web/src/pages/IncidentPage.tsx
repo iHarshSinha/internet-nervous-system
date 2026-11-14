@@ -240,7 +240,7 @@ export function IncidentPage({ id }: { id: string }) {
           {incident.simulated && <SimTag />}
           {personal && <span className="text-xs text-signal">★ on your watchlist</span>}
         </div>
-        <h1 className="mt-3 font-display text-5xl leading-[1.02] text-hi sm:text-7xl">
+        <h1 className="mt-3 font-display text-3xl leading-tight text-hi sm:text-[2.6rem]">
           {incident.cc ? `${flag(incident.cc)} ` : ''}
           {incidentTitle(incident, countryName)}
           {incident.asn !== null && (
@@ -274,7 +274,7 @@ export function IncidentPage({ id }: { id: string }) {
           <Panel title="What happened">
             <p className="text-[0.95rem] leading-relaxed text-hi">{incident.summary}</p>
             <div className="mt-5 flex items-center gap-4">
-              <span className="text-[0.76rem] tracking-[0.1em] text-low uppercase">Score</span>
+              <span className="label">Score</span>
               <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
                 <div
                   className="h-full rounded-full transition-[width] duration-700"
@@ -333,7 +333,7 @@ export function IncidentPage({ id }: { id: string }) {
             </Panel>
           )}
 
-          <Panel title="Evidence">
+          <Panel title="Evidence" collapsible id="incident-evidence">
             <div className="grid gap-3 sm:grid-cols-2">
               {incident.signals.map((s) => (
                 <Evidence key={s.type} signal={s} now={now} />

@@ -260,14 +260,16 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
   alone. Web: `store/radar.ts`, attack arcs on the globe, `components/Radar.tsx` panel. Attribution
   CC BY-NC 4.0 shown in the panel and footer.
 - Phase 2 is complete.
-- UI redesign (14 Nov 2026, user asked for it before Phase 3): "night chart" design system in
-  `apps/web/src/index.css` (ink-navy, not black; self-hosted Instrument Serif for names and titles,
-  IBM Plex Sans for UI, IBM Plex Mono for numbers, fetched by `apps/web/scripts/fetch-fonts.sh`;
-  root font 17px; `glass`, `label`, `title` utilities). Login page uses `components/WorldDots.tsx`
-  (drifting dot map lit by live data) instead of a sphere. Motion: `hooks/flip.ts` (rows glide when
-  rankings change), `components/Wire.tsx` + `store/wire.ts` (ticker of recent happenings), page
-  fade-in. Only "major" incidents (`isMajor`: countries, simulations, big networks) turn the screen
-  red, show big alert cards, paint land or move the camera.
+- UI (user's direction, 14 Nov 2026): clean and calm, progressive disclosure like Figma. "Graphite"
+  design system in `apps/web/src/index.css`: near-black grey ground, grey surfaces, one accent
+  (signal cyan); fonts Michroma (headings, `title` utility), Rajdhani (body), Share Tech Mono
+  (numbers), self-hosted via `apps/web/scripts/fetch-fonts.sh`. Home: globe on the right, one left
+  sidebar (welcome or sign-in on top, "Right now" key numbers, Incidents, Busiest; everything else
+  folded under "More detail": Trouble spots, Activity, Cloudflare, Probe latency, Data sources,
+  Pipeline, Control room). `Panel` has `collapsible`/`defaultOpen`/`id`/`summary` (open state
+  remembered per viewer). No legend bar: a ? popover explains the map; regions are a menu.
+  Login uses `components/WorldDots.tsx`. Motion: `hooks/flip.ts`, page fade-in. Only "major"
+  incidents (`isMajor`) turn the screen red, show alert cards, paint land or move the camera.
 - India's outline follows the Government of India's boundary (Natural Earth India point-of-view
   edition, in `prepare-countries.mjs`, with a check that Aksai Chin, Gilgit, Tawang are inside).
 - Next: Phase 3 (performance, load tests).

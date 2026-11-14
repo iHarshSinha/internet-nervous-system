@@ -78,14 +78,14 @@ export function LoginPage() {
           Sign in · optional
         </div>
 
-        <h1 className="mt-[clamp(1rem,2.5vh,1.75rem)] max-w-[13ch] font-display text-[clamp(3rem,min(5.4vw,10.5vh),7rem)] leading-[0.95] tracking-[-0.01em] text-hi">
+        <h1 className="mt-[clamp(1rem,2.5vh,1.75rem)] max-w-[16ch] font-display text-[clamp(1.9rem,min(3.3vw,6.6vh),3.9rem)] leading-[1.18] tracking-[-0.01em] text-hi">
           {HEADLINE.map((word, i) => (
             <span
               key={i}
               className="inline-block overflow-hidden pr-[0.22em] pb-[0.08em] align-bottom"
             >
               <span
-                className={`inline-block ${ACCENT.has(word) ? 'text-signal italic' : ''}`}
+                className={`inline-block ${ACCENT.has(word) ? 'text-signal' : ''}`}
                 style={{ animation: `word 1s cubic-bezier(.2,.8,.2,1) ${0.3 + i * 0.08}s both` }}
               >
                 {word}
@@ -156,7 +156,7 @@ export function LoginPage() {
         <ul className="mt-[clamp(1.25rem,4.5vh,3rem)] grid max-w-[34rem] gap-4 border-t border-line pt-[clamp(1rem,3vh,1.75rem)] sm:grid-cols-2">
           {PERKS.map(([head, rest], i) => (
             <li key={head} style={enter(headlineEnd + 0.4 + i * 0.12)}>
-              <div className="font-display text-2xl text-hi">{head}</div>
+              <div className="title">{head}</div>
               <div className="mt-1 text-[0.95rem] leading-snug text-mid">{rest}</div>
             </li>
           ))}

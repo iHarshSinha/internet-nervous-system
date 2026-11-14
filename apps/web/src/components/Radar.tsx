@@ -50,22 +50,32 @@ export const RadarPanel = memo(function RadarPanel() {
 
   return (
     <Panel
-      title="Cloudflare"
-      aside={
-        <div className="flex gap-1 text-[0.74rem]">
-          {(['attacks', 'events'] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={`rounded-full px-2 py-0.5 transition ${tab === t ? 'bg-white/10 text-hi' : 'text-low hover:text-hi'}`}
-            >
-              {t === 'attacks' ? 'Attacks' : 'Reports'}
-            </button>
-          ))}
-        </div>
+      title="Cloudflare Radar"
+      collapsible
+      defaultOpen={false}
+      id="radar"
+      aside={<span className="text-[0.86rem] text-low">last 24 h</span>}
+      summary={
+        <span className="text-[0.86rem] text-low">
+          {corridors[0]
+            ? `${flag(corridors[0].from)} → ${flag(corridors[0].to)} ${corridors[0].value.toFixed(1)}%`
+            : '—'}
+        </span>
       }
     >
+      {/* A segmented switch between the two views. */}
+      <div className="mb-3 grid grid-cols-2 rounded-md bg-white/[0.04] p-0.5 text-[0.9rem]">
+        {(['attacks', 'events'] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            className={`rounded-[5px] py-1 transition ${tab === t ? 'bg-raised text-hi' : 'text-low hover:text-hi'}`}
+          >
+            {t === 'attacks' ? 'Attack corridors' : 'Reports'}
+          </button>
+        ))}
+      </div>
       {tab === 'attacks' ? (
         <>
           <ul className="space-y-1.5">

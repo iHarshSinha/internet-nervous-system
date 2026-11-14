@@ -37,16 +37,20 @@ export function Welcome() {
 
   if (status === 'anon' || !user) {
     return (
-      <button
-        type="button"
-        onClick={() => navigate('/login')}
-        className="pointer-events-auto flex animate-[rise_.6s_both] items-center gap-3 rounded-full border border-white/10 bg-[#12203a]/95 py-1.5 pr-4 pl-1.5 text-left text-xs text-mid transition hover:border-signal/40 hover:text-hi"
-      >
-        <span className="shrink-0 rounded-full bg-signal px-2.5 py-1 text-[0.78rem] font-semibold whitespace-nowrap text-void">
+      <section className="glass animate-[rise_.6s_both] rounded-lg p-4">
+        <h2 className="title">Make it yours</h2>
+        <p className="mt-2 text-[0.98rem] leading-snug text-mid">
+          Sign in to watch the countries and networks you care about, and get an alert when one of
+          them breaks.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/login')}
+          className="mt-3 w-full rounded-md bg-hi py-2 text-[0.98rem] font-semibold text-void transition hover:bg-white"
+        >
           Sign in
-        </span>
-        Watch your own countries and get alerts when they break →
-      </button>
+        </button>
+      </section>
     );
   }
 
@@ -55,8 +59,8 @@ export function Welcome() {
   const { countries } = useGlobe.getState();
 
   return (
-    <div className="pointer-events-auto animate-[rise_.6s_both] rounded-lg border border-white/[0.08] bg-[#12203a]/95 px-4 py-3 text-center">
-      <div className="text-[0.95rem] text-hi">
+    <section className="glass animate-[rise_.6s_both] rounded-lg p-4">
+      <div className="text-[1.15rem] text-hi">
         {partOfDay()}, <span className="font-semibold">{first}</span>.
         {user.role === 'admin' && (
           <span className="ml-2 rounded border border-caution/40 px-1.5 py-px align-middle font-mono text-[0.72rem] tracking-wider text-caution uppercase">
@@ -68,13 +72,13 @@ export function Welcome() {
         <button
           type="button"
           onClick={() => navigate('/me')}
-          className="mt-1 text-xs text-signal hover:underline"
+          className="mt-1.5 text-left text-[0.92rem] text-signal hover:underline"
         >
           Your watchlist is empty. Pick the countries you care about →
         </button>
       )}
       {watched.length > 0 && (
-        <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
           {watched.slice(0, 5).map((cc) => {
             const h = countries.get(cc)?.h;
             return (
@@ -82,7 +86,7 @@ export function Welcome() {
                 key={cc}
                 type="button"
                 onClick={() => navigate(`/c/${cc}`)}
-                className="flex items-center gap-1.5 rounded-full border border-white/[0.08] px-2.5 py-1 text-xs text-hi transition hover:border-white/20"
+                className="flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-[0.9rem] text-hi transition hover:border-white/25"
                 title={`${countryName(cc)}: health ${h ?? 'unknown'}`}
               >
                 {flag(cc)} {countryName(cc)}
@@ -93,10 +97,10 @@ export function Welcome() {
             );
           })}
           {watched.length > 5 && (
-            <span className="text-xs text-low">+{watched.length - 5} more</span>
+            <span className="text-[0.9rem] text-low">+{watched.length - 5} more</span>
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }

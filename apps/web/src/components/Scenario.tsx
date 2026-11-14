@@ -47,7 +47,7 @@ export function ScenarioBadge() {
   if (!running || !scenario.id) return null;
   const info = SCENARIOS[scenario.id];
   return (
-    <div className="pointer-events-auto flex max-w-[92vw] animate-[rise_.4s_both] flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-critical/40 bg-[#24121a]/95 px-3 py-2 text-xs text-hi">
+    <div className="pointer-events-auto flex max-w-[92vw] animate-[rise_.4s_both] flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-critical/40 bg-[#24151a]/95 px-3 py-2 text-xs text-hi">
       <span className="rounded-full bg-critical px-2 py-0.5 font-mono text-[0.74rem] font-semibold tracking-[0.12em] text-void uppercase">
         Simulation
       </span>
@@ -119,6 +119,9 @@ export function ScenarioControls() {
   return (
     <Panel
       title="Control room"
+      collapsible
+      defaultOpen={false}
+      id="control"
       aside={
         <span className="rounded border border-caution/40 px-1.5 font-mono text-[0.72rem] tracking-wider text-caution uppercase">
           admin
