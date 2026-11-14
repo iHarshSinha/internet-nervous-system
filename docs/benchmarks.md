@@ -326,8 +326,9 @@ stands in for the backlog reading (`server.test.ts`, "slow clients"); they matte
 links, where the client's TCP window stays closed.
 
 A 90 s stall (conflation off) ended differently: after resuming, the client received frames at the
-normal rate (525 in 4 s) rather than a 90 s backlog, still with no sequence gap. The likely cause
-(not confirmed from logs) is Socket.IO's heartbeat: a client that does not answer pings for about
+normal rate (525 in 4 s) rather than a 90 s backlog, still with no sequence gap. The cause, confirmed later
+from the client's disconnect reason ("ping timeout" after 43.0 s, then reconnected and recovered),
+is Socket.IO's heartbeat: a client that does not answer pings for about
 45 s (25 s interval + 20 s timeout) is disconnected and its buffers freed; on resume it reconnects
 and connection-state recovery restores its rooms.
 
