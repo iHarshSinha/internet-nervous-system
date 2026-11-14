@@ -12,6 +12,7 @@ import {
 } from '@ins/shared';
 import jwt from 'jsonwebtoken';
 import { io as connect, type Socket } from 'socket.io-client';
+import msgpackParser from 'socket.io-msgpack-parser';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadConfig } from '../config.ts';
 import type { Mongo } from '../db/client.ts';
@@ -159,6 +160,8 @@ const cookieOf = (res: Response) => res.headers.get('set-cookie')?.split(';')[0]
 
 function socketTo(url: string, ns: string, token?: string): Promise<Client> {
   const client: Client = connect(url + ns, {
+    // The server speaks MessagePack (SOCKET_PARSER default), so the client must too.
+    parser: msgpackParser,
     transports: ['websocket'],
     forceNew: true,
     reconnection: false,

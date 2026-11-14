@@ -58,6 +58,8 @@ export const LIMITS = {
   slowClientSummaryMs: 2000,
   /** The raw feed sends at most this many events per second to one client. */
   feedEventsPerSecond: 20,
+  /** A socket may watch one feed room at a time (so it gets at most 20 events per second). */
+  maxFeedRoomsPerSocket: 1,
   /** Upper bound on changes inside one frame. */
   maxDeltasPerFrame: 5000,
 } as const;

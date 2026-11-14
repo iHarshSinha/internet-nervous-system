@@ -3,6 +3,7 @@ import type { Config } from '../config.ts';
 import type { Logger } from '../logger.ts';
 import { RefData } from '../refdata/index.ts';
 import type { ProbeInfo } from '../refdata/probes.ts';
+import { FEED_EVERY_MS, FeedSampler } from './feed.ts';
 import { startIngest } from './index.ts';
 import type { Lookup } from './pipeline/pipeline.ts';
 import type { Call, FromIngest, IngestState, Port, ToIngest } from './protocol.ts';
@@ -69,6 +70,16 @@ export function serveIngest(
     isMasked: (asn) => masked?.has(asn) ?? false,
   });
 
+  // Firehose: a fair sample of raw events for the feed rooms people are watching.
+  const feed = new FeedSampler();
+  ingest.onEvent((event, ctx) => {
+    if (feed.active) feed.offer(event, ctx, () => ingest.queue.sample());
+  });
+  const feedTimer = setInterval(() => {
+    const batches = feed.take();
+    if (batches.length > 0) send({ t: 'feed', batches });
+  }, FEED_EVERY_MS);
+
   ingest.onSecond((window) => send({ t: 'second', window }));
   ingest.onMinute((window) => send({ t: 'minute', window }));
   // The manager keeps changing the same object; the message is a copy of this moment.
@@ -98,6 +109,7 @@ export function serveIngest(
       pipeline: pipeline.snapshot(),
       replay: ingest.replay.snapshot(),
       queue: ingest.queue.snapshot(),
+      feedSampledOut: feed.sampledOut,
       probes,
       thread: {
         rssMb: Math.round(mem.rss / 1048576),
@@ -150,6 +162,9 @@ export function serveIngest(
       case 'radar':
         ingest.detectors.observeRadar(message.events);
         break;
+      case 'feedRooms':
+        feed.watch(message.rooms);
+        break;
       case 'name':
         names.set(message.asn, message.name);
         break;
@@ -168,6 +183,7 @@ export function serveIngest(
     if (stopped) return;
     stopped = true;
     clearInterval(stateTimer);
+    clearInterval(feedTimer);
     loop.disable();
     ingest.stop();
   }

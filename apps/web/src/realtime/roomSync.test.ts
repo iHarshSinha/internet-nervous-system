@@ -20,6 +20,15 @@ describe('RoomSync', () => {
     expect(seqs(sync.start(4).apply)).toEqual([5]);
   });
 
+  it('accepts a slow-client summary covering several frames as the next step', () => {
+    const sync = new RoomSync();
+    sync.start(10);
+    const summary: Frame = { ...f(14), f: 11 };
+    expect(seqs(sync.receive(summary).apply)).toEqual([14]);
+    expect(seqs(sync.receive(f(15)).apply)).toEqual([15]);
+    expect(sync.stats.gaps).toBe(0);
+  });
+
   it('drops duplicates', () => {
     const sync = new RoomSync();
     sync.start(0);

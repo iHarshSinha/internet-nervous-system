@@ -2,11 +2,14 @@ import {
   EV,
   NAMESPACES,
   type ClientToServerEvents,
+  type FeedBatch,
   type Frame,
+  type RealtimeConfig,
   type ServerToClientEvents,
 } from '@ins/shared';
 import { expose } from 'comlink';
-import { io, type Socket } from 'socket.io-client';
+import { io, type ManagerOptions, type Socket, type SocketOptions } from 'socket.io-client';
+import msgpackParser from 'socket.io-msgpack-parser';
 import { RoomSync } from '../realtime/roomSync.ts';
 
 /*
@@ -39,6 +42,8 @@ export interface WorkerUpdate {
   user: UserChannel;
   /** Frames accepted since the previous update, in order. */
   frames: Frame[];
+  /** Firehose samples received since the previous update (feed rooms only). */
+  feed: FeedBatch[];
   stats: LinkStats;
 }
 
@@ -52,6 +57,19 @@ let status: LinkStatus = 'connecting';
 let userSocket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
 let userChannel: UserChannel = 'off';
 let pending: Frame[] = [];
+let pendingFeed: FeedBatch[] = [];
+
+/*
+ * The server says which wire format it speaks (MessagePack unless switched
+ * off for a measurement). Both sockets wait for the answer before connecting.
+ */
+const options: Promise<Partial<ManagerOptions & SocketOptions>> = fetch('/api/realtime')
+  .then((res) => (res.ok ? (res.json() as Promise<RealtimeConfig>) : null))
+  .catch(() => null)
+  .then((config) => ({
+    transports: ['websocket'],
+    ...(config?.parser !== 'json' && { parser: msgpackParser }),
+  }));
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
 const wanted = new Set<string>(); // rooms the page asked for
@@ -72,8 +90,10 @@ function totals(): LinkStats {
 function flush(): void {
   flushTimer = null;
   const frames = pending;
+  const feed = pendingFeed;
   pending = [];
-  listener?.({ status, user: userChannel, frames, stats: totals() });
+  pendingFeed = [];
+  listener?.({ status, user: userChannel, frames, feed, stats: totals() });
 }
 
 function scheduleFlush(): void {
@@ -116,10 +136,17 @@ function join(roomNames: string[]): Promise<Record<string, number>> {
     s.emit(EV.sub, { rooms: roomNames }, (ack) => {
       if (!ack.ok) return resolve({});
       // The server's current sequence number is our starting point: the next
-      // frame for each room must be exactly one more.
+      // frame for each room must be exactly one more. The room's current values
+      // at that number come with the acknowledgement, as one frame.
       for (const [room, seq] of Object.entries(ack.seqs)) {
         const sync = syncs.get(room);
-        if (sync) handle(room, sync.start(seq));
+        if (!sync) continue;
+        const state = ack.state?.[room];
+        if (state && state.length > 0) {
+          pending.push({ r: room, s: seq, t: ack.t, d: state });
+          scheduleFlush();
+        }
+        handle(room, sync.start(seq));
       }
       resolve(ack.seqs);
     }),
@@ -128,12 +155,12 @@ function join(roomNames: string[]): Promise<Record<string, number>> {
 
 const api = {
   /** Open the connection. `onUpdate` is called with batched updates. */
-  start(onUpdate: Listener): void {
-    if (socket) return;
+  async start(onUpdate: Listener): Promise<void> {
+    if (socket || listener) return;
     listener = onUpdate;
 
     // A relative URL: the page, the API and the socket share one origin.
-    socket = io(NAMESPACES.live, { transports: ['websocket'] });
+    socket = io(NAMESPACES.live, await options);
 
     socket.on('connect', () => {
       setStatus('live');
@@ -143,6 +170,12 @@ const api = {
     });
     socket.on('disconnect', () => setStatus('reconnecting'));
     socket.on(EV.frame, onFrame);
+    // Firehose samples are not numbered (they are a sample, sent volatile): pass them on.
+    socket.on(EV.feed, (batch) => {
+      if (!wanted.has(batch.r)) return;
+      pendingFeed.push(batch);
+      scheduleFlush();
+    });
   },
 
   /**
@@ -150,7 +183,8 @@ const api = {
    * server checks the access token in the handshake; when the token is
    * renewed, the next reconnect uses the new one.
    */
-  connectUser(token: string | null): void {
+  async connectUser(token: string | null): Promise<void> {
+    const opts = await options;
     if (!token) {
       userSocket?.close();
       userSocket = null;
@@ -163,7 +197,7 @@ const api = {
       return;
     }
     userChannel = 'connecting';
-    userSocket = io(NAMESPACES.user, { transports: ['websocket'], auth: { token } });
+    userSocket = io(NAMESPACES.user, { ...opts, auth: { token } });
     userSocket.on('connect', () => {
       userChannel = 'live';
       scheduleFlush();

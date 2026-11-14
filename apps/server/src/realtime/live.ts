@@ -86,16 +86,26 @@ export function handleLive(
       if (joined + added > LIMITS.maxRoomsPerSocket) {
         return reply(fail('too_many_rooms', `At most ${LIMITS.maxRoomsPerSocket} rooms`));
       }
+      // One raw feed per socket keeps each client at 20 feed events a second at most.
+      const feeds = new Set([...socket.rooms, ...wanted].filter((r) => r.startsWith('feed:')));
+      if (feeds.size > LIMITS.maxFeedRoomsPerSocket) {
+        return reply(
+          fail('too_many_rooms', `At most ${LIMITS.maxFeedRoomsPerSocket} feed room at a time`),
+        );
+      }
 
       // Read the sequence numbers and join in the same tick, with no `await`
       // in between: no frame can be emitted between the two, so the first
       // frame this socket receives for a room is exactly seq + 1.
       const seqs: Record<string, number> = {};
+      const state: Record<string, ReturnType<Broadcaster['state']>> = {};
       for (const name of wanted) {
         seqs[name] = seq.current(name);
+        const current = broadcaster.state(name);
+        if (current.length > 0) state[name] = current;
         void socket.join(name);
       }
-      reply({ ok: true, seqs, t: Date.now() });
+      reply({ ok: true, seqs, t: Date.now(), state });
     });
 
     socket.on(EV.unsub, (raw: unknown, ack: unknown) => {

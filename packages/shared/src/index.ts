@@ -13,3 +13,4 @@ export * from './replay.ts';
 export * from './scenarios.ts';
 export * from './incidents.ts';
 export * from './radar.ts';
+export * from './feed.ts';

@@ -1,6 +1,7 @@
 import { MessageChannel, Worker } from 'node:worker_threads';
 import type {
   EventEnvelope,
+  FeedBatch,
   Incident,
   RadarEvent,
   ReplayScenario,
@@ -72,6 +73,7 @@ const emptyState = (): IngestState => ({
     pauses: 0,
     maxDepth: 0,
   },
+  feedSampledOut: 0,
   probes: [],
   thread: { rssMb: 0, heapMb: 0, loopDelayMs: 0 },
 });
@@ -107,13 +109,17 @@ export class IngestLink {
   private readonly secondListeners: ((w: WindowResult) => void)[] = [];
   private readonly minuteListeners: ((w: WindowResult) => void)[] = [];
   private readonly incidentListeners: ((i: Incident) => void)[] = [];
+  private readonly feedListeners: ((batches: FeedBatch[]) => void)[] = [];
   private readonly incidentMirror = new Map<string, Incident>();
   private readonly nameTimers = new Set<NodeJS.Timeout>();
 
   /** What to send a restarted thread so it picks up where the last one was. */
-  private sent: { ranges?: AsnRange[]; probes?: ProbeInfo[]; masked: number[] | null } = {
-    masked: null,
-  };
+  private sent: {
+    ranges?: AsnRange[];
+    probes?: ProbeInfo[];
+    masked: number[] | null;
+    feedRooms: string[];
+  } = { masked: null, feedRooms: [] };
 
   /** Latest latency per Atlas probe, and which changed since the publisher last looked. */
   readonly probeLatest = new Map<number, { ts: number; rtt: number | null }>();
@@ -194,10 +200,11 @@ export class IngestLink {
   }
 
   private resend(): void {
-    const { ranges, probes, masked } = this.sent;
+    const { ranges, probes, masked, feedRooms } = this.sent;
     if (ranges || probes)
       this.post({ t: 'refdata', ...(ranges && { ranges }), ...(probes && { probes }) });
     if (masked) this.post({ t: 'masked', asns: masked });
+    if (feedRooms.length > 0) this.post({ t: 'feedRooms', rooms: feedRooms });
   }
 
   private post(message: ToIngest): void {
@@ -234,6 +241,9 @@ export class IngestLink {
         for (const l of this.incidentListeners) l(m.incident);
         break;
       }
+      case 'feed':
+        for (const l of this.feedListeners) l(m.batches);
+        break;
       case 'needName':
         this.lookUpName(m.asn);
         break;
@@ -333,6 +343,15 @@ export class IngestLink {
     this.incidentListeners.push(listener);
   }
 
+  /** Firehose samples, four times a second, for the watched feed rooms. */
+  onFeed(listener: (batches: FeedBatch[]) => void): void {
+    this.feedListeners.push(listener);
+  }
+
+  feedSampledOut(): number {
+    return this.state.feedSampledOut;
+  }
+
   // ---- commands
 
   /** Push events through the pipeline (scenario runs). */
@@ -353,6 +372,12 @@ export class IngestLink {
 
   warmStart(covered: number[], wd: Map<string, Map<number, number>>): void {
     this.post({ t: 'warmStart', covered, wd });
+  }
+
+  /** Which feed rooms have members; the ingest side samples only for those. */
+  setFeedRooms(rooms: string[]): void {
+    this.sent.feedRooms = rooms;
+    this.post({ t: 'feedRooms', rooms });
   }
 
   observeRadar(events: RadarEvent[]): void {

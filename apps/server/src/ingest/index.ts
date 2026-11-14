@@ -1,10 +1,15 @@
-import type { Incident } from '@ins/shared';
+import type { EventEnvelope, Incident } from '@ins/shared';
 import type { Config } from '../config.ts';
 import type { Logger } from '../logger.ts';
 import { Detectors } from './detect/detectors.ts';
 import { IncidentManager } from './detect/incidents.ts';
 import type { Totals } from './pipeline/aggregate.ts';
-import { Pipeline, type Lookup, type WindowResult } from './pipeline/pipeline.ts';
+import {
+  Pipeline,
+  type EventContext,
+  type Lookup,
+  type WindowResult,
+} from './pipeline/pipeline.ts';
 import { IngestQueue } from './pipeline/queue.ts';
 import { createAtlasSource } from './sources/atlas.ts';
 import { ReplayPlayer } from './sources/replay.ts';
@@ -32,6 +37,8 @@ export interface Ingest {
   /** Live and recent incidents, raised by the detectors. */
   incidents: IncidentManager;
   detectors: Detectors;
+  /** Register a listener for every deduplicated event, with its country and network. */
+  onEvent(listener: (event: EventEnvelope, ctx: EventContext) => void): void;
   /** Register a listener for every incident that opens or changes. */
   onIncident(listener: (incident: Incident) => void): void;
   /** One entry per upstream connection, for the status endpoint. */
@@ -69,12 +76,16 @@ export function startIngest(
   const minuteListeners: ((window: WindowResult) => void)[] = [];
   const secondListeners: ((window: WindowResult) => void)[] = [];
   const incidentListeners: ((incident: Incident) => void)[] = [];
+  const eventListeners: ((event: EventEnvelope, ctx: EventContext) => void)[] = [];
   // Assigned right after the pipeline exists (the detectors read its origin table).
   let detectors: Detectors | null = null;
 
   const pipeline = new Pipeline({
     ...(lookup && { lookup }),
-    onEvent: (event, ctx) => detectors?.observe(event, ctx, Date.now()),
+    onEvent: (event, ctx) => {
+      detectors?.observe(event, ctx, Date.now());
+      for (const listener of eventListeners) listener(event, ctx);
+    },
     isMasked: (asn) => detection.isMasked?.(asn) ?? false,
     onSecond: (window) => {
       const world = window.scopes.get('world');
@@ -174,6 +185,7 @@ export function startIngest(
     incidents,
     detectors,
     onIncident: (listener) => incidentListeners.push(listener),
+    onEvent: (listener) => eventListeners.push(listener),
     connections: () =>
       sockets.map((s) => ({
         name: s.name,

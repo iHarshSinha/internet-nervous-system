@@ -94,7 +94,8 @@ export class RoomSync {
     const apply: Frame[] = [];
     while (this.held.length > 0) {
       const frame = this.held[0]!;
-      const verdict = checkSeq(this.last, frame.s);
+      // `f` is set on a slow-client summary: it merges frames f..s.
+      const verdict = checkSeq(this.last, frame.s, frame.f);
       if (verdict === 'gap') {
         this.stats.gaps += 1;
         this.waiting = true;

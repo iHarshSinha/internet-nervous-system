@@ -1,5 +1,6 @@
 import type {
   EventEnvelope,
+  FeedBatch,
   Incident,
   RadarEvent,
   ReplayScenario,
@@ -47,6 +48,8 @@ export interface IngestState {
   replay: ReplayStatus;
   /** The bounded queue in front of the pipeline: depth, pressure, what was shed. */
   queue: QueueSnapshot;
+  /** Firehose: events left out of the feed by the 1-in-k pressure sampling. */
+  feedSampledOut: number;
   /** Probes whose latest latency changed since the last state: [id, ts, rtt]. */
   probes: [number, number, number | null][];
   /** Ingest thread health. RSS is the whole process; the heap is this thread's own. */
@@ -81,6 +84,8 @@ export type ToIngest =
   /** Detector baselines from MongoDB, so a restart does not forget what "normal" was. */
   | { t: 'warmStart'; covered: number[]; wd: Map<string, Map<number, number>> }
   | { t: 'radar'; events: RadarEvent[] }
+  /** The feed rooms that currently have members (only those are sampled). */
+  | { t: 'feedRooms'; rooms: string[] }
   /** A network name the ingest thread asked for (null: still unknown). */
   | { t: 'name'; asn: number; name: string }
   | { t: 'call'; id: number; call: Call };
@@ -92,6 +97,8 @@ export type FromIngest =
   | { t: 'second'; window: WindowResult }
   | { t: 'minute'; window: WindowResult }
   | { t: 'incident'; incident: Incident }
+  /** Firehose samples of the last quarter second, one batch per watched feed room. */
+  | { t: 'feed'; batches: FeedBatch[] }
   /** The incident text needs a network's name. */
   | { t: 'needName'; asn: number }
   | { t: 'reply'; id: number; ok: true; value: unknown }

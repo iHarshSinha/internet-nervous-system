@@ -39,6 +39,18 @@ const envSchema = z.object({
    * 100,000 is a fraction of a second of work but half a minute of live traffic.
    */
   INGEST_QUEUE_MAX: z.coerce.number().int().min(100).max(5_000_000).default(100_000),
+  // ---- Delivery optimisations. Each can be switched off to measure what it saves (load test T5).
+  /** Socket.IO wire format: MessagePack (binary, smaller) or JSON (Socket.IO's default). */
+  SOCKET_PARSER: z.enum(['msgpack', 'json']).default('msgpack'),
+  /** Changes per room are merged and sent every this many ms; 0 sends every change at once. */
+  CONFLATE_MS: z.coerce.number().int().min(0).max(10_000).default(500),
+  /** "rooms": a frame goes only to its room. "all": to every client (the naive baseline). */
+  BROADCAST: z.enum(['rooms', 'all']).default('rooms'),
+  /** Clients whose send buffer keeps growing get a merged frame every 2 s instead. */
+  SLOW_CLIENTS: z
+    .enum(['on', 'off'])
+    .default('on')
+    .transform((v) => v === 'on'),
   /** Set to "off" to skip downloading network and probe reference data. */
   REFDATA: z
     .enum(['on', 'off'])

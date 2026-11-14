@@ -157,6 +157,13 @@ describe('frames', () => {
     expect(checkSeq(10, 13)).toBe('gap');
     expect(checkSeq(0, 1)).toBe('next');
   });
+
+  it('accepts a slow-client summary that covers frames f..s as the next step', () => {
+    expect(checkSeq(10, 14, 11)).toBe('next'); // covers 11..14 exactly
+    expect(checkSeq(10, 14, 9)).toBe('next'); // overlaps what we have: harmless
+    expect(checkSeq(10, 14, 12)).toBe('gap'); // 11 is missing
+    expect(checkSeq(14, 14, 11)).toBe('duplicate');
+  });
 });
 
 describe('socket payloads', () => {

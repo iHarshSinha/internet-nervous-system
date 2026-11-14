@@ -1,12 +1,15 @@
 import { z } from 'zod';
 import { LIMITS, SEVERITIES } from './constants.ts';
-import { frameSchema, type Frame } from './frame.ts';
+import type { FeedBatch } from './feed.ts';
+import { deltaSchema, frameSchema, type Frame } from './frame.ts';
 import { epochMsSchema, seqSchema } from './primitives.ts';
 import { roomSchema } from './rooms.ts';
 
 /** Socket.IO event names. `f` is one letter because it is sent with every frame. */
 export const EV = {
   frame: 'f',
+  /** A sample of raw events for a feed room (volatile, see feed.ts). */
+  feed: 'e',
   sub: 'sub',
   unsub: 'unsub',
   resync: 'resync',
@@ -61,6 +64,12 @@ export const subAckSchema = z.union([
     ok: z.literal(true),
     seqs: z.record(z.string(), seqSchema),
     t: epochMsSchema,
+    /**
+     * Each room's current values at that sequence number (rooms with none are
+     * left out). A joiner starts from these instead of the server re-sending
+     * everything to everyone in the room.
+     */
+    state: z.record(z.string(), z.array(deltaSchema)).optional(),
   }),
   ackErrorSchema,
 ]);
@@ -79,6 +88,7 @@ export type ResyncAck = z.infer<typeof resyncAckSchema>;
 /** Typed event maps, passed to Socket.IO's `Server` and `Socket` generics on both sides. */
 export interface ServerToClientEvents {
   f: (frame: Frame) => void;
+  e: (batch: FeedBatch) => void;
 }
 
 export interface ClientToServerEvents {

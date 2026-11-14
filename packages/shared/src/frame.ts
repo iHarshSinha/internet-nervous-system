@@ -32,6 +32,11 @@ export const frameSchema = z.object({
   s: seqSchema,
   t: epochMsSchema,
   d: z.array(deltaSchema).max(LIMITS.maxDeltasPerFrame),
+  /**
+   * Only on a summary for a slow client: the frame merges frames `f` to `s`
+   * (later values of the same key and field win). A normal frame covers just `s`.
+   */
+  f: seqSchema.optional(),
 });
 export type Frame = z.infer<typeof frameSchema>;
 
@@ -44,7 +49,9 @@ export type SeqCheck = 'next' | 'duplicate' | 'gap';
  * - `duplicate`: already seen (or covered by a snapshot), so drop it.
  * - `gap`: at least one frame is missing, so ask the server to `resync`.
  */
-export function checkSeq(lastApplied: number, incoming: number): SeqCheck {
+export function checkSeq(lastApplied: number, incoming: number, from = incoming): SeqCheck {
   if (incoming <= lastApplied) return 'duplicate';
-  return incoming === lastApplied + 1 ? 'next' : 'gap';
+  // A summary covering f..s continues the stream if it starts at or before the next number.
+  // Any overlap is harmless: values are set again, records have unique keys.
+  return from <= lastApplied + 1 ? 'next' : 'gap';
 }

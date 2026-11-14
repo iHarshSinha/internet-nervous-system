@@ -1,6 +1,8 @@
 import { createServer, type Server as HttpServer } from 'node:http';
 import { rooms } from '@ins/shared';
+import { Router } from 'express';
 import { Server } from 'socket.io';
+import msgpackParser from 'socket.io-msgpack-parser';
 import { createApp } from './api/app.ts';
 import { adminRouter } from './api/admin.ts';
 import { authRouter } from './api/auth.ts';
@@ -29,10 +31,19 @@ import { attachLive, handleLive, type IoServer, type LiveNamespace } from './rea
 import { attachPrivate } from './realtime/private.ts';
 import { startPublishing } from './realtime/publish.ts';
 import { RoomSequencer } from './realtime/sequencer.ts';
+import { SlowClients, type backlogOf } from './realtime/slow.ts';
 import { fetchAnnouncedPrefixes } from './scenarios/prefixes.ts';
 import { ScenarioRunner } from './scenarios/runner.ts';
 import type { RunsStore } from './scenarios/runs.ts';
-import { incidentKey, PAIRS_KEY, type AttackPair, type Incident } from '@ins/shared';
+import {
+  EV,
+  incidentKey,
+  LIMITS,
+  PAIRS_KEY,
+  type AttackPair,
+  type Incident,
+  type RealtimeConfig,
+} from '@ins/shared';
 
 export interface ServerDeps {
   config: Config;
@@ -63,12 +74,17 @@ export interface ServerDeps {
   heartbeatMs?: number;
   conflateMs?: number;
   ringSize?: number;
+  slowSummaryMs?: number;
+  slowCheckMs?: number;
+  /** Tests stand in for a real socket's send backlog. */
+  backlog?: typeof backlogOf;
 }
 
 export interface RunningServer {
   http: HttpServer;
   io: IoServer;
   broadcaster: Broadcaster;
+  slow: SlowClients;
   /** The ingest side (worker thread or in-thread), for tests and tools. */
   ingest: IngestLink;
   /** Stop timers, disconnect sockets, close the HTTP server and the database. */
@@ -88,6 +104,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
     publisher?: ReturnType<typeof startPublishing>;
     broadcaster?: Broadcaster;
     userBroadcaster?: Broadcaster;
+    slow?: SlowClients;
   } = {};
 
   /*
@@ -145,6 +162,14 @@ export function buildServer(deps: ServerDeps): RunningServer {
     if (incident.asn !== null) b.set(rooms.asn(incident.asn), key, 'v', snapshot);
     if (incident.cc) b.set(rooms.country(incident.cc), key, 'v', snapshot);
     alertWatchers(incident, snapshot);
+    // Joiners are sent each room's current values; a long-resolved incident need not be one.
+    if (incident.state === 'resolved') {
+      setTimeout(() => {
+        b.forget(rooms.incidents, key, 'v');
+        if (incident.asn !== null) b.forget(rooms.asn(incident.asn), key, 'v');
+        if (incident.cc) b.forget(rooms.country(incident.cc), key, 'v');
+      }, 30 * 60_000).unref();
+    }
     if (incident.state === 'open' && incident.updatedAt === incident.openedAt) {
       log.info(
         { incident: incident.id, scope: incident.scope, severity: incident.severity },
@@ -246,6 +271,19 @@ export function buildServer(deps: ServerDeps): RunningServer {
     },
   });
 
+  // Everything Engine.IO writes to clients, across namespaces: the bytes the optimisations save.
+  const delivery = { packets: 0, bytes: 0, feedBatches: 0 };
+  const realtimeConfig: RealtimeConfig = {
+    parser: config.SOCKET_PARSER,
+    conflateMs: deps.conflateMs ?? config.CONFLATE_MS,
+    slowSummaryMs: deps.slowSummaryMs ?? LIMITS.slowClientSummaryMs,
+    feedEventsPerSecond: LIMITS.feedEventsPerSecond,
+  };
+  // The browser asks which wire format to use before it connects.
+  const realtimeRouter = Router().get('/api/realtime', (_req, res) => {
+    res.json(realtimeConfig);
+  });
+
   const opsStats = () => ({
     pipeline: ingest.pipelineSnapshot(),
     queue: ingest.queue(),
@@ -256,6 +294,11 @@ export function buildServer(deps: ServerDeps): RunningServer {
       Object.entries(late.namespaces ?? {}).map(([name, ns]) => [name, ns.sockets.size]),
     ),
     broadcast: late.broadcaster?.stats,
+    delivery: {
+      ...delivery,
+      slow: late.slow?.stats ?? null,
+      feedSampledOut: ingest.feedSampledOut(),
+    },
     metrics: store.stats,
     memoryMb: Math.round(process.memoryUsage().rss / 1048576),
     radar: radar?.stats ?? null,
@@ -268,6 +311,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
     ingest,
     liveSockets: () => late.live?.sockets.size ?? 0,
     routes: [
+      realtimeRouter,
       authRouter({ config, log, store: deps.authStore, verifyGoogle: deps.verifyGoogle }),
       meRouter({ secret: config.JWT_SECRET, store: deps.authStore, adminStats: opsStats }),
       adminRouter({
@@ -302,6 +346,12 @@ export function buildServer(deps: ServerDeps): RunningServer {
       ...deps.extraStatus?.(),
       metrics: store.stats,
       broadcast: late.broadcaster?.stats,
+      delivery: {
+        ...delivery,
+        parser: config.SOCKET_PARSER,
+        slow: late.slow?.stats ?? null,
+        feedSampledOut: ingest.feedSampledOut(),
+      },
       recentScopes: recent.scopes,
       ingestThread: ingest.thread(),
     }),
@@ -315,7 +365,21 @@ export function buildServer(deps: ServerDeps): RunningServer {
     // After a short network drop, Socket.IO restores the client's rooms and
     // re-sends the packets it missed. Our sequence numbers then verify it.
     connectionStateRecovery: { maxDisconnectionDuration: 2 * 60 * 1000 },
+    // MessagePack: binary frames, smaller than JSON and with no field-name quoting.
+    ...(config.SOCKET_PARSER === 'msgpack' && { parser: msgpackParser }),
   });
+  // Count what Engine.IO writes to clients (all namespaces share one connection per client).
+  io.engine.on(
+    'connection',
+    (conn: { on(e: string, l: (p: { data?: unknown }) => void): void }) => {
+      conn.on('packetCreate', (packet) => {
+        const data = packet.data;
+        delivery.packets += 1;
+        if (typeof data === 'string') delivery.bytes += Buffer.byteLength(data);
+        else if (data instanceof Uint8Array) delivery.bytes += data.byteLength;
+      });
+    },
+  );
 
   const live = attachLive(io);
   const { user, admin } = attachPrivate(io, config.JWT_SECRET, log);
@@ -335,11 +399,45 @@ export function buildServer(deps: ServerDeps): RunningServer {
 
   // Closed windows -> staged deltas -> one numbered frame per room every 500 ms.
   const opts = {
-    ...(deps.conflateMs !== undefined && { conflateMs: deps.conflateMs }),
+    conflateMs: realtimeConfig.conflateMs,
     ...(deps.ringSize !== undefined && { ringSize: deps.ringSize }),
   };
-  const broadcaster = new Broadcaster(live, seq, opts);
+  const broadcaster = new Broadcaster(live, seq, { ...opts, target: config.BROADCAST });
   late.broadcaster = broadcaster;
+
+  // Slow clients get a merged frame every 2 s instead of every 500 ms (realtime/slow.ts).
+  const slow = new SlowClients(live, broadcaster, seq, {
+    log,
+    summaryMs: realtimeConfig.slowSummaryMs,
+    ...(deps.slowCheckMs !== undefined && { checkMs: deps.slowCheckMs }),
+    ...(deps.backlog && { backlog: deps.backlog }),
+  });
+  late.slow = slow;
+  if (config.SLOW_CLIENTS) slow.start();
+
+  /*
+   * Firehose. The ingest thread samples only for feed rooms that have
+   * members, so it is told whenever one appears or empties. Batches go out
+   * volatile: a client that is not ready to receive simply misses one.
+   */
+  const feedRooms = new Set<string>();
+  const syncFeedRooms = () => ingest.setFeedRooms([...feedRooms]);
+  live.adapter.on('create-room', (room: string) => {
+    if (room.startsWith('feed:')) {
+      feedRooms.add(room);
+      syncFeedRooms();
+    }
+  });
+  live.adapter.on('delete-room', (room: string) => {
+    if (feedRooms.delete(room)) syncFeedRooms();
+  });
+  ingest.onFeed((batches) => {
+    for (const batch of batches) {
+      if (!feedRooms.has(batch.r)) continue;
+      live.to(batch.r).volatile.emit(EV.feed, batch);
+      delivery.feedBatches += 1;
+    }
+  });
   handleLive(live, seq, broadcaster, log, config.SOCKET_MESSAGES_PER_SEC);
   const publisher = startPublishing(ingest, broadcaster);
   late.publisher = publisher;
@@ -372,14 +470,19 @@ export function buildServer(deps: ServerDeps): RunningServer {
     put('queue', 'overflow', s.queue.overflow);
     put('broadcast', 'frames', broadcaster.stats.frames);
     put('broadcast', 'deltas', broadcaster.stats.deltas);
+    put('delivery', 'packets', delivery.packets);
+    put('delivery', 'bytes', delivery.bytes);
+    put('delivery', 'slowNow', slow.stats.slowNow);
   }, heartbeatMs ?? 1000);
 
   return {
     http,
     io,
     broadcaster,
+    slow,
     ingest,
     async close() {
+      slow.stop();
       clearInterval(opsTimer);
       opsBroadcaster.stop();
       userBroadcaster.stop();

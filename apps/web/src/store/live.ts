@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { applyWorldFrame } from './globe.ts';
 import { onIncidentFrame } from './incidents.ts';
 import { onArcsFrame } from './radar.ts';
+import { useFeed } from './feed.ts';
 import { onRoomFrame } from './series.ts';
 import { onUserFrame } from './alerts.ts';
 import type { LinkStats, LinkStatus, UserChannel, WorkerUpdate } from '../workers/socket.worker.ts';
@@ -76,6 +77,7 @@ export const useLive = create<LiveState>((set) => ({
 
   apply: (update) =>
     set((state) => {
+      if (update.feed.length > 0) useFeed.getState().apply(update.feed);
       const next: Partial<LiveState> = {
         status: update.status,
         userChannel: update.user,

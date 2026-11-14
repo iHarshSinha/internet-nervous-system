@@ -1,7 +1,9 @@
 import type { AddressInfo } from 'node:net';
 import { createMemoryIncidentStore } from './db/incidents.ts';
 import {
+  checkSeq,
   EV,
+  type FeedBatch,
   frameSchema,
   historyResponseSchema,
   LIMITS,
@@ -13,6 +15,7 @@ import {
   type SubAck,
 } from '@ins/shared';
 import { io as connect, type Socket } from 'socket.io-client';
+import msgpackParser from 'socket.io-msgpack-parser';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { loadConfig } from './config.ts';
 import type { Mongo } from './db/client.ts';
@@ -49,6 +52,8 @@ const store: MetricsStore = {
 };
 
 let server: RunningServer;
+// Sockets the test declares slow (a real socket cannot be made slow on demand).
+const slowIds = new Set<string>();
 let baseUrl: string;
 const clients: Client[] = [];
 
@@ -74,6 +79,10 @@ beforeAll(async () => {
     heartbeatMs: 20,
     conflateMs: 20,
     ringSize: 5,
+    slowCheckMs: 20,
+    slowSummaryMs: 100,
+    backlog: (socket) =>
+      slowIds.has(socket.id) ? { packets: 1000, bytes: 0 } : { packets: 0, bytes: 0 },
   });
   await new Promise<void>((resolve) => server.http.listen(0, resolve));
   baseUrl = `http://127.0.0.1:${(server.http.address() as AddressInfo).port}`;
@@ -87,6 +96,8 @@ afterAll(() => server.close());
 
 function openClient(): Promise<Client> {
   const client: Client = connect(baseUrl + NAMESPACES.live, {
+    // The server speaks MessagePack (SOCKET_PARSER default), so the client must too.
+    parser: msgpackParser,
     transports: ['websocket'],
     forceNew: true,
   });
@@ -172,6 +183,24 @@ describe('/live namespace', () => {
     await sub(late, { rooms: ['world'] });
     const deltas = (await framesPromise).flatMap((frame) => frame.d);
     expect(deltas).toContainEqual(['sys', 'sockets', 2]);
+  });
+
+  it('gives a joiner the current values in its acknowledgement, and re-sends nothing to others', async () => {
+    const first = await openClient();
+    await sub(first, { rooms: ['country:KR'] });
+    server.broadcaster.set('country:KR', 'now', 'health', 55);
+    server.broadcaster.append('country:KR', 's:1', 'bgp', { ann: 1, wd: 0, pfx: 0 });
+    server.broadcaster.flush();
+    await new Promise((r) => setTimeout(r, 50));
+
+    let firstGot = 0;
+    first.on(EV.frame, (f) => f.r === 'country:KR' && (firstGot += 1));
+    const late = await openClient();
+    const ack = await sub(late, { rooms: ['country:KR'] });
+    // Current values only: the record (a closed second) is history, not state.
+    expect(ack).toMatchObject({ ok: true, state: { 'country:KR': [['now', 'health', 55]] } });
+    await new Promise((r) => setTimeout(r, 80));
+    expect(firstGot).toBe(0);
   });
 
   it('stops delivering after unsub', async () => {
@@ -394,5 +423,111 @@ describe('rooms, conflation and resync', () => {
         error: { code: 'bad_request' },
       });
     }
+  });
+});
+
+describe('slow clients', () => {
+  const until = async (cond: () => boolean, ms = 2000) => {
+    const end = Date.now() + ms;
+    while (!cond() && Date.now() < end) await new Promise((r) => setTimeout(r, 10));
+    expect(cond()).toBe(true);
+  };
+
+  it('get one merged frame per interval instead of every frame, then return to normal', async () => {
+    const client = await openClient();
+    const ack = await sub(client, { rooms: ['country:JP'] });
+    if (!ack.ok) throw new Error('sub failed');
+    let last = ack.seqs['country:JP']!;
+    const frames: Frame[] = [];
+    client.on(EV.frame, (f) => {
+      if (f.r !== 'country:JP') return;
+      // Every frame must continue the stream with no gap.
+      expect(checkSeq(last, f.s, f.f)).toBe('next');
+      last = f.s;
+      frames.push(f);
+    });
+
+    slowIds.add(client.id!);
+    await until(() => server.slow.isSlow(client.id!));
+
+    // Three normal frames' worth of changes (conflation is 20 ms in this test).
+    const b = server.broadcaster;
+    b.set('country:JP', 'now', 'health', 90);
+    b.append('country:JP', 's:1', 'bgp', { ann: 1, wd: 0, pfx: 0 });
+    b.flush();
+    b.set('country:JP', 'now', 'health', 80);
+    b.append('country:JP', 's:2', 'bgp', { ann: 2, wd: 0, pfx: 0 });
+    b.flush();
+    b.set('country:JP', 'now', 'health', 70);
+    b.flush();
+    expect(frames).toHaveLength(0); // normal frames skip a slow client
+
+    await until(() => frames.length === 1, 1000);
+    const summary = frames[0]!;
+    expect(summary.f).toBe(summary.s - 2); // covers the three frames
+    expect(summary.d).toEqual([
+      ['s:1', 'bgp', { ann: 1, wd: 0, pfx: 0 }],
+      ['s:2', 'bgp', { ann: 2, wd: 0, pfx: 0 }],
+      ['now', 'health', 70], // only the latest value
+    ]);
+
+    slowIds.delete(client.id!);
+    await until(() => !server.slow.isSlow(client.id!));
+    b.set('country:JP', 'now', 'health', 60);
+    b.flush();
+    await until(() => frames.length === 2);
+    expect(frames[1]).toMatchObject({ s: summary.s + 1, d: [['now', 'health', 60]] });
+    expect(frames[1]!.f).toBeUndefined();
+    expect(server.slow.stats).toMatchObject({ downgrades: 1, recoveries: 1 });
+  });
+});
+
+describe('firehose', () => {
+  it('sends a sample of raw events to a feed room, volatile, one feed per socket', async () => {
+    const client = await openClient();
+    expect((await sub(client, { rooms: ['feed:*:*'] })).ok).toBe(true);
+    expect(await sub(client, { rooms: ['feed:bgp.withdraw:*'] })).toMatchObject({
+      ok: false,
+      error: { code: 'too_many_rooms' },
+    });
+
+    const batches: FeedBatch[] = [];
+    client.on(EV.feed, (b) => batches.push(b));
+    // Give the ingest thread a moment to hear that the room has a member.
+    await new Promise((r) => setTimeout(r, 100));
+    const now = Date.now();
+    for (let i = 0; i < 30; i++) {
+      server.ingest.ingest(
+        'replay',
+        [
+          {
+            v: 1,
+            src: 'replay',
+            eid: `replay:feed-${now}-${i}`,
+            kind: 'bgp.withdraw',
+            ts: now,
+            its: now,
+            entity: { prefix: `10.${i}.0.0/16`, collector: 'rrc00' },
+            data: { peerAsn: 3356 },
+          },
+        ],
+        now,
+      );
+    }
+    const end = Date.now() + 2000;
+    while (batches.reduce((n, b) => n + b.n, 0) < 30 && Date.now() < end)
+      await new Promise((r) => setTimeout(r, 20));
+    // Every matching event is counted, but at most 20 a second are sent (5 per quarter second).
+    expect(batches.reduce((n, b) => n + b.n, 0)).toBe(30);
+    for (const b of batches) {
+      expect(b.r).toBe('feed:*:*');
+      expect(b.e.length).toBe(Math.min(5, b.n));
+    }
+    expect(batches[0]!.e[0]).toMatchObject({
+      k: 'bgp.withdraw',
+      src: 'replay',
+      col: 'rrc00',
+      peer: 3356,
+    });
   });
 });

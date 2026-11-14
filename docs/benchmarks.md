@@ -288,3 +288,43 @@ What this shows:
 - No event was late in any run (`lateMinute` stayed 0).
 - On the live feeds (four RIS collectors and Atlas) the queue's deepest point in the first minutes
   was 846 events, with nothing shed.
+
+## Phase 3, step 3: delivery (MessagePack, firehose, slow clients, joiner state)
+
+**MessagePack vs JSON.** A separate server on the live feeds (four RIS collectors and Atlas), 50
+clients each in `world`, `incidents`, `arcs`, `country:US` and `country:DE`, 30 s per run after a
+60 s warm-up, bytes counted where Engine.IO writes them (`/api/status` `delivery`). Runs
+alternated, two each:
+
+| Parser | Bytes per client per second | Frames per client per second | Bytes per frame |
+|---|---|---|---|
+| JSON | 3,808 / 3,505 (mean 3,657) | 2.97 / 3.30 | 1,282 / 1,062 |
+| MessagePack | 2,228 / 2,176 (mean 2,202) | 2.37 / 2.77 | 940 / 786 |
+
+MessagePack sent 40% fewer bytes per client per second and about 26% fewer per frame. The frame
+counts differ between runs because the live traffic did. Conflation (500 ms) was on in all runs; at
+these settings one client costs about 2.2 KB/s.
+
+**Joiner state instead of a room-wide re-send.** Before this step, a client joining a room made the
+broadcaster forget what it had sent there, so the next frame re-sent every current value to every
+member. On the live server the `world` room holds 14,775 current values (277,933 bytes as JSON,
+mostly per-probe latency buckets), so every page load cost every other viewer about 278 KB, which
+grows with the square of the number of clients. Now the joiner gets those values once in its `sub`
+acknowledgement and nobody else gets anything.
+
+**Firehose.** On the live feeds, `feed:*:*` matched 1,395 events/s and sent exactly 20/s;
+`feed:atlas.ping:DE` matched 27/s and sent 17.8/s (some quarter seconds had fewer than five).
+
+**Slow clients.** A client in 20 busy rooms stopped reading its socket for 40 s and then resumed:
+it received all 383 buffered frames with no gaps, and was not downgraded, because at about 2 KB/s
+the operating system's socket buffers on localhost absorbed the stall (the server's own backlog,
+which the detector reads, never grew). With conflation switched off (about 200 frames/s) a 25 s
+stall was also absorbed. Downgrade, summaries and recovery are covered by an integration test that
+stands in for the backlog reading (`server.test.ts`, "slow clients"); they matter on genuinely slow
+links, where the client's TCP window stays closed.
+
+A 90 s stall (conflation off) ended differently: after resuming, the client received frames at the
+normal rate (525 in 4 s) rather than a 90 s backlog, still with no sequence gap. The likely cause
+(not confirmed from logs) is Socket.IO's heartbeat: a client that does not answer pings for about
+45 s (25 s interval + 20 s timeout) is disconnected and its buffers freed; on resume it reconnects
+and connection-state recovery restores its rooms.

@@ -293,3 +293,14 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
   for load tests). Queue numbers: `/api/status` `queue`, world room key `queue`, ops room, and the
   Pipeline panel (badge when sampling or shedding). Measured: >910k events/s processed, queue
   <=14% with the default size; forced overload with a 5,000 queue sheds or pauses as designed.
+- [x] Step 3, delivery. MessagePack (`socket.io-msgpack-parser`) on every namespace; the web worker
+  reads `GET /api/realtime` to pick the parser. Firehose: `ingest/feed.ts` `FeedSampler` samples
+  only watched `feed:<kind>:<cc>` rooms (reservoir, 5 per 250 ms = 20/s, thinned by the queue's
+  1-in-k; `n` counts all), sent volatile as `EV.feed` (`e`) batches; one feed room per socket.
+  Web: `store/feed.ts` (no UI yet; the list comes with step 4). Slow clients
+  (`realtime/slow.ts`): backlog checked each second, slow sockets join `~slow`, normal frames
+  skip them, every 2 s one merged frame per room with `f` = first seq covered (`checkSeq(last,
+  s, f)`). Joiners get each room's current values in the `sub` ack (`state`); the broadcaster no
+  longer re-sends everything to a room when someone joins (that was O(clients^2)), and appended
+  records are no longer kept as state. Switches: `SOCKET_PARSER`, `CONFLATE_MS` (0 = off),
+  `BROADCAST=rooms|all`, `SLOW_CLIENTS`. Bytes written are counted (`/api/status` `delivery`).
