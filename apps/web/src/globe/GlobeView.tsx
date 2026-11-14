@@ -425,7 +425,7 @@ export function GlobeView() {
           arcDashGap={0.6}
           arcDashInitialGap={(d: object) => ((d as Arc).value * 7) % 1}
           arcDashAnimateTime={2600}
-          arcAltitudeAutoScale={0.42}
+          arcAltitudeAutoScale={0.2}
           arcLabel={(d: object) =>
             `<div style="background:rgba(8,13,22,.92);border:1px solid rgba(255,77,94,.35);border-radius:10px;padding:6px 10px;color:#e8f1f8;font:12px system-ui">${(d as Arc).label}</div>`
           }

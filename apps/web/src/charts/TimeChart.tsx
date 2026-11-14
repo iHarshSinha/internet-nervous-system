@@ -19,6 +19,8 @@ interface Props {
   series: ChartSeries[];
   height?: number;
   unit?: string;
+  /** A stretch of time to shade (ms), for example while an incident was open; end null = now. */
+  band?: { from: number; to: number | null; color: string };
 }
 
 const axis = (unit?: string): uPlot.Axis => ({
@@ -34,10 +36,12 @@ const axis = (unit?: string): uPlot.Axis => ({
  * built for streaming data; the chart redraws at most once per animation
  * frame however many frames arrive, and React never re-renders it.
  */
-export function TimeChart({ room, build, series, height = 200, unit }: Props) {
+export function TimeChart({ room, build, series, height = 200, unit, band }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const buildRef = useRef(build);
   buildRef.current = build;
+  const bandRef = useRef(band);
+  bandRef.current = band;
 
   useEffect(() => {
     const el = box.current;
@@ -57,6 +61,24 @@ export function TimeChart({ room, build, series, height = 200, unit }: Props) {
           y: { range: (_u, _min, max) => [0, max > 0 ? max * 1.1 : 1] },
         },
         axes: [axis(), { ...axis(unit), size: 52 }],
+        hooks: {
+          // Shade the band behind the lines, clipped to the plotted area.
+          drawClear: [
+            (u) => {
+              const b = bandRef.current;
+              if (!b) return;
+              const x0 = u.valToPos(b.from / 1000, 'x', true);
+              const x1 = u.valToPos((b.to ?? Date.now()) / 1000, 'x', true);
+              const left = Math.max(u.bbox.left, Math.min(x0, x1));
+              const right = Math.min(u.bbox.left + u.bbox.width, Math.max(x0, x1));
+              if (right <= left) return;
+              u.ctx.save();
+              u.ctx.fillStyle = b.color;
+              u.ctx.fillRect(left, u.bbox.top, Math.max(2, right - left), u.bbox.height);
+              u.ctx.restore();
+            },
+          ],
+        },
         series: [
           {},
           ...series.map((s) => ({

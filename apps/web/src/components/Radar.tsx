@@ -50,7 +50,7 @@ export const RadarPanel = memo(function RadarPanel() {
 
   return (
     <Panel
-      title="Cloudflare Radar"
+      title="Cloudflare"
       aside={
         <div className="flex gap-1 text-[0.62rem]">
           {(['attacks', 'events'] as const).map((t) => (

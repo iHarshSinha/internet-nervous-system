@@ -127,6 +127,8 @@ const DETAIL_LABELS: Record<string, string> = {
   gone: 'blocks withdrawn',
   known: 'blocks known',
   share: '% gone',
+  normalPerMinute: 'normal per minute',
+  connected: 'probes connected',
   reachable: 'still reachable',
   hijacker: 'announced by AS',
   collectors: 'collectors',
@@ -310,10 +312,22 @@ export function IncidentPage({ id }: { id: string }) {
                   { label: 'announced', stroke: colors.announce, fill: 'rgba(94,230,255,0.10)' },
                   { label: 'withdrawn', stroke: colors.critical, fill: 'rgba(255,77,94,0.18)' },
                 ]}
-                build={(s) => columns(s.minutes, [(p) => p.ann, (p) => p.wd], 90_000)}
+                band={{
+                  from: incident.openedAt,
+                  to: incident.resolvedAt,
+                  color: `${color}24`,
+                }}
+                build={(s) => {
+                  // Only around the incident: 30 min before to 15 min after it ended.
+                  const lo = incident.openedAt - 30 * 60_000;
+                  const hi = (incident.resolvedAt ?? Infinity) + 15 * 60_000;
+                  const around = new Map([...s.minutes].filter(([t]) => t >= lo && t <= hi));
+                  return columns(around, [(p) => p.ann, (p) => p.wd], 90_000);
+                }}
               />
               <p className="mt-2 text-[0.68rem] text-low">
-                From 30 minutes before the incident; MongoDB history merged with the live room.
+                From 30 minutes before the incident (shaded while it was open); MongoDB history
+                merged with the live room.
               </p>
             </Panel>
           )}

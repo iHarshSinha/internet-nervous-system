@@ -5,6 +5,7 @@ import { HealthStrip } from '../charts/HealthStrip.tsx';
 import { columns, TimeChart } from '../charts/TimeChart.tsx';
 import { CountryMap } from '../components/CountryMap.tsx';
 import { HealthGauge } from '../components/HealthGauge.tsx';
+import { CountryIncidents } from '../components/Incidents.tsx';
 import { MiniSpark } from '../components/MiniSpark.tsx';
 import { WatchButton } from '../components/WatchButton.tsx';
 import { Panel } from '../components/ui.tsx';
@@ -274,7 +275,7 @@ export function CountryPage({ cc }: { cc: string }) {
               <Kpi
                 tall={wide}
                 delay={0.57}
-                label="Probes reporting"
+                label="Probes reporting / min"
                 value={n(snap?.probes)}
                 spark={snap?.spark.probes ?? []}
                 color={colors.signal}
@@ -306,6 +307,10 @@ export function CountryPage({ cc }: { cc: string }) {
             <span>now</span>
           </div>
         </section>
+
+        <div className="mt-5 animate-[rise_.7s_.15s_both]">
+          <CountryIncidents cc={cc} />
+        </div>
 
         {error && (
           <p className="mt-6 text-sm text-caution">Could not load history: {String(error)}</p>

@@ -40,6 +40,16 @@ export const useGlobe = create<GlobeState>(() => ({
 
 const bump = () => useGlobe.setState((s) => ({ version: s.version + 1 }));
 
+/** Fill the pulse chart from history at load, so it does not start empty. Merged by time. */
+export function seedWorldSeconds(points: { t: number; ann: number; wd: number }[]): void {
+  const { worldSeconds } = useGlobe.getState();
+  const known = new Set(worldSeconds.map((p) => p.t));
+  for (const p of points) if (!known.has(p.t)) worldSeconds.push({ t: p.t, ann: p.ann, wd: p.wd });
+  worldSeconds.sort((a, b) => a.t - b.t);
+  worldSeconds.splice(0, Math.max(0, worldSeconds.length - 120));
+  bump();
+}
+
 /** Take the globe's share of a `world` frame: `cc:<CC>` and `p:<id>` deltas. */
 export function applyWorldFrame(frame: Frame): void {
   const { countries, probeBucket, probeSeq, worldSeconds } = useGlobe.getState();

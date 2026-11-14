@@ -235,9 +235,9 @@ const TroubleSpots = memo(function TroubleSpots() {
       aside={<span className="font-mono text-[0.68rem] text-low">health below 90</span>}
     >
       {rows.length === 0 ? (
-        <div className="flex items-center gap-3 rounded-xl bg-signal/[0.05] px-3 py-3 text-sm text-mid">
-          <span className="size-2 rounded-full bg-signal shadow-[0_0_10px_var(--color-signal)]" />
-          All clear: every country is above 90.
+        <div className="flex items-center gap-2.5 rounded-lg bg-signal/[0.05] px-3 py-2 text-[0.78rem] text-mid">
+          <span className="size-1.5 rounded-full bg-signal shadow-[0_0_10px_var(--color-signal)]" />
+          All clear: every country is above 90
         </div>
       ) : (
         <ul className="space-y-0.5">
@@ -448,9 +448,10 @@ export function GlobePage() {
         </div>
       </div>
 
-      <div className="pointer-events-none relative z-10 flex flex-col gap-4 px-4 pb-4 sm:px-7 sm:pb-5 lg:min-h-dvh lg:pt-24">
-        <div className="flex flex-1 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="pointer-events-auto flex w-full flex-col gap-3 lg:w-[300px]">
+      {/* On large screens everything fits one screen: two scrolling rails and the legend dock. */}
+      <div className="pointer-events-none relative z-10 flex flex-col gap-4 px-4 pb-4 sm:px-7 sm:pb-5 lg:h-dvh lg:pt-20">
+        <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row lg:items-stretch lg:justify-between">
+          <div className="pointer-events-auto flex w-full flex-col gap-3 lg:rail lg:w-[300px] 2xl:w-[340px]">
             <div className="animate-[rise_.9s_.15s_both]">
               <LivePulse />
             </div>
@@ -467,7 +468,7 @@ export function GlobePage() {
             <CountryCard />
           </div>
 
-          <div className="pointer-events-auto flex w-full flex-col gap-3 lg:w-[300px]">
+          <div className="pointer-events-auto flex w-full flex-col gap-3 lg:rail lg:w-[300px] 2xl:w-[340px]">
             <div className="animate-[rise_.9s_.2s_both]">
               <IncidentFeed />
             </div>
@@ -487,7 +488,7 @@ export function GlobePage() {
           <CountryCard />
         </div>
 
-        <div className="glass pointer-events-auto animate-[rise_.9s_.6s_both] rounded-2xl px-4 py-3">
+        <div className="glass pointer-events-auto shrink-0 animate-[rise_.9s_.6s_both] rounded-2xl px-4 py-3">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <Legend />
             <RegionDock />

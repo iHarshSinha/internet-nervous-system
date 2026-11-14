@@ -26,7 +26,10 @@ export const StatusPill = memo(function StatusPill() {
   const status = useLive((s) => s.status);
   const { label, dot, text } = STATUS[status];
   return (
-    <div role="status" className="glass flex items-center gap-2.5 rounded-full px-3.5 py-1.5">
+    <div
+      role="status"
+      className="glass flex items-center gap-2 rounded-full px-2.5 py-1.5 sm:gap-2.5 sm:px-3.5"
+    >
       <span className={`size-2 rounded-full ${dot}`} />
       <span className={`font-mono text-xs tracking-[0.18em] uppercase ${text}`}>{label}</span>
     </div>
@@ -64,15 +67,16 @@ export function Header() {
           <span className="size-2 rounded-full bg-signal shadow-[0_0_14px_var(--color-signal)]" />
         </span>
         <span className="leading-tight">
-          <span className="block text-[0.8rem] font-semibold tracking-[0.24em] text-hi uppercase">
-            Internet Nervous System
+          <span className="block text-[0.8rem] font-semibold tracking-[0.24em] whitespace-nowrap text-hi uppercase max-sm:text-[0.7rem] max-sm:tracking-[0.16em]">
+            <span className="max-sm:hidden">Internet Nervous System</span>
+            <span className="sm:hidden">Nervous System</span>
           </span>
           <span className="hidden text-[0.7rem] tracking-[0.08em] text-low sm:block">
             The internet&apos;s routing and latency, live
           </span>
         </span>
       </button>
-      <div className="pointer-events-auto flex items-center gap-4">
+      <div className="pointer-events-auto flex shrink-0 items-center gap-2 sm:gap-4">
         <span className="hidden sm:inline">
           <UtcClock />
         </span>

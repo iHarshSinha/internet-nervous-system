@@ -70,58 +70,99 @@ export const IncidentFeed = memo(function IncidentFeed() {
           Watching every network for outages and hijacks.
         </div>
       ) : (
-        <ul className="space-y-1">
-          {rows.map((i) => {
-            const color = SEVERITY_COLOR[i.severity];
-            const live = i.state !== 'resolved';
-            return (
-              <li key={i.id}>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/incident/${i.id}`)}
-                  className={`group relative w-full overflow-hidden rounded-xl px-3 py-2 text-left transition hover:bg-white/[0.05] ${live ? 'bg-white/[0.03]' : 'opacity-60'}`}
-                >
-                  {live && (
-                    <span
-                      className="absolute inset-y-0 left-0 w-0.5"
-                      style={{ background: color, boxShadow: `0 0 12px ${color}` }}
-                    />
-                  )}
-                  <div className="flex items-center gap-2">
-                    {live && i.state === 'open' && (
-                      <span className="relative flex size-2">
-                        <span
-                          className="absolute inline-flex size-full animate-[halo_1.4s_ease-out_infinite] rounded-full"
-                          style={{ background: color }}
-                        />
-                        <span
-                          className="relative inline-flex size-2 rounded-full"
-                          style={{ background: color }}
-                        />
-                      </span>
-                    )}
-                    <span className="text-sm leading-none">{i.cc ? flag(i.cc) : '◌'}</span>
-                    <span className="min-w-0 flex-1 truncate text-[0.82rem] font-medium text-hi">
-                      {incidentTitle(i, countryName)}
-                    </span>
-                    <SeverityTag incident={i} />
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-0.5 text-[0.66rem] text-low">
-                    <span>{i.signals.map((s) => SIGNAL_LABELS[s.type]).join(' + ')}</span>
-                    <span>·</span>
-                    <span>{ago(Date.now() - i.openedAt)}</span>
-                    {i.simulated && <SimTag />}
-                    {mine[i.id] && <span className="text-signal">★ on your watchlist</span>}
-                  </div>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <IncidentRows rows={rows} mine={mine} />
       )}
     </Panel>
   );
 });
+
+/** Incident rows: severity, place, evidence, age; click for the incident page. */
+function IncidentRows({ rows, mine }: { rows: Incident[]; mine: Record<string, number> }) {
+  return (
+    <ul className="space-y-1">
+      {rows.map((i) => {
+        const color = SEVERITY_COLOR[i.severity];
+        const live = i.state !== 'resolved';
+        return (
+          <li key={i.id}>
+            <button
+              type="button"
+              onClick={() => navigate(`/incident/${i.id}`)}
+              className={`group relative w-full overflow-hidden rounded-xl px-3 py-2 text-left transition hover:bg-white/[0.05] ${live ? 'bg-white/[0.03]' : 'opacity-60'}`}
+            >
+              {live && (
+                <span
+                  className="absolute inset-y-0 left-0 w-0.5"
+                  style={{ background: color, boxShadow: `0 0 12px ${color}` }}
+                />
+              )}
+              <div className="flex items-center gap-2">
+                {live && i.state === 'open' && (
+                  <span className="relative flex size-2">
+                    <span
+                      className="absolute inline-flex size-full animate-[halo_1.4s_ease-out_infinite] rounded-full"
+                      style={{ background: color }}
+                    />
+                    <span
+                      className="relative inline-flex size-2 rounded-full"
+                      style={{ background: color }}
+                    />
+                  </span>
+                )}
+                <span className="text-sm leading-none">{i.cc ? flag(i.cc) : '◌'}</span>
+                <span className="min-w-0 flex-1 truncate text-[0.82rem] font-medium text-hi">
+                  {incidentTitle(i, countryName)}
+                </span>
+                <SeverityTag incident={i} />
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-0.5 text-[0.66rem] text-low">
+                <span>{i.signals.map((s) => SIGNAL_LABELS[s.type]).join(' + ')}</span>
+                <span>·</span>
+                <span>{ago(Date.now() - i.openedAt)}</span>
+                {i.simulated && <SimTag />}
+                {mine[i.id] && <span className="text-signal">★ on your watchlist</span>}
+              </div>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** Incidents in one country (its own and its networks'), for the country page. */
+export function CountryIncidents({ cc }: { cc: string }) {
+  const byId = useIncidents((s) => s.byId);
+  const mine = useAlerts((s) => s.mine);
+  useTick(5000);
+  const rows = Object.values(byId)
+    .filter((i) => i.cc === cc)
+    .sort(
+      (a, b) =>
+        Number(b.state !== 'resolved') - Number(a.state !== 'resolved') || b.openedAt - a.openedAt,
+    )
+    .slice(0, 6);
+  const active = rows.filter((i) => i.state !== 'resolved').length;
+  return (
+    <Panel
+      title={`Incidents in ${countryName(cc)}`}
+      aside={
+        <span className={`font-mono text-[0.68rem] ${active ? 'text-critical' : 'text-low'}`}>
+          {active ? `${active} active` : 'last 24 h'}
+        </span>
+      }
+    >
+      {rows.length === 0 ? (
+        <div className="flex items-center gap-2.5 rounded-lg bg-signal/[0.05] px-3 py-2 text-[0.78rem] text-mid">
+          <span className="size-1.5 rounded-full bg-signal shadow-[0_0_10px_var(--color-signal)]" />
+          No incidents here in the last 24 hours
+        </div>
+      ) : (
+        <IncidentRows rows={rows} mine={mine} />
+      )}
+    </Panel>
+  );
+}
 
 /** The big alert that slides in when an incident opens while you watch. */
 function AlertCard({ incident, personal }: { incident: Incident; personal: boolean }) {

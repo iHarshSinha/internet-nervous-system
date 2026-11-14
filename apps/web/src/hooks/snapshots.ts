@@ -1,7 +1,7 @@
-import type { CountriesResponse, ProbesResponse } from '@ins/shared';
+import type { CountriesResponse, HistoryResponse, ProbesResponse } from '@ins/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { loadCountryHealth, loadProbes } from '../store/globe.ts';
+import { loadCountryHealth, loadProbes, seedWorldSeconds } from '../store/globe.ts';
 
 export async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -31,6 +31,16 @@ export function useGlobeSnapshots(): void {
   useEffect(() => {
     if (countries.data) loadCountryHealth(countries.data);
   }, [countries.data]);
+  // The last two minutes of 1-second points for the pulse chart (once).
+  const seconds = useQuery({
+    queryKey: ['world-seconds'],
+    queryFn: () =>
+      getJson<HistoryResponse>(`/api/history?scope=world&from=${Date.now() - 125_000}`),
+    staleTime: Infinity,
+  });
+  useEffect(() => {
+    if (seconds.data) seedWorldSeconds(seconds.data.seconds);
+  }, [seconds.data]);
 }
 
 export interface StatusResponse {

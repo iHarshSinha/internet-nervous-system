@@ -42,7 +42,7 @@ export function Welcome() {
         onClick={() => navigate('/login')}
         className="pointer-events-auto flex animate-[rise_.6s_both] items-center gap-3 rounded-full border border-white/10 bg-[#0a0f17]/95 py-1.5 pr-4 pl-1.5 text-left text-xs text-mid transition hover:border-signal/40 hover:text-hi"
       >
-        <span className="rounded-full bg-signal px-2.5 py-1 text-[0.68rem] font-semibold text-void">
+        <span className="shrink-0 rounded-full bg-signal px-2.5 py-1 text-[0.68rem] font-semibold whitespace-nowrap text-void">
           Sign in
         </span>
         Watch your own countries and get alerts when they break →
