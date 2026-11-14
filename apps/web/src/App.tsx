@@ -21,6 +21,8 @@ const CountryPage = lazy(() =>
   import('./pages/CountryPage.tsx').then((m) => ({ default: m.CountryPage })),
 );
 
+const FeedPage = lazy(() => import('./pages/FeedPage.tsx').then((m) => ({ default: m.FeedPage })));
+
 const IncidentPage = lazy(() =>
   import('./pages/IncidentPage.tsx').then((m) => ({ default: m.IncidentPage })),
 );
@@ -54,6 +56,8 @@ export function App() {
             <MePage />
           ) : route.page === 'incident' ? (
             <IncidentPage key={route.id} id={route.id} />
+          ) : route.page === 'feed' ? (
+            <FeedPage />
           ) : route.page === 'login' ? (
             <LoginPage />
           ) : (

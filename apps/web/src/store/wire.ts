@@ -18,7 +18,8 @@ export interface WireItem {
   href?: string;
 }
 
-const KEEP = 14;
+/** Kept for scrolling back; the list only draws the rows in view (VirtualList). */
+const KEEP = 200;
 
 export const useWire = create<{ items: WireItem[] }>(() => ({ items: [] }));
 

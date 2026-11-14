@@ -228,6 +228,8 @@ export function GlobeView() {
   useEffect(() => {
     let seen = -1;
     const timer = setInterval(() => {
+      // Nobody can see a hidden tab: skip rebuilding the layers until it is shown again.
+      if (document.hidden) return;
       const v = useGlobe.getState().version;
       if (v !== seen) {
         seen = v;

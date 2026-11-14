@@ -328,3 +328,24 @@ normal rate (525 in 4 s) rather than a 90 s backlog, still with no sequence gap.
 (not confirmed from logs) is Socket.IO's heartbeat: a client that does not answer pings for about
 45 s (25 s interval + 20 s timeout) is disconnected and its buffers freed; on resume it reconnects
 and connection-state recovery restores its rooms.
+
+## Phase 3, step 4: client render budget
+
+The page applies live updates at most once per animation frame, merged into one store update (one
+React render), and once a second while the tab is hidden; the globe skips rebuilding its layers
+while hidden. Long lists are virtualised (TanStack Virtual): the raw feed (`/feed`, 500 rows kept)
+and Activity (200 kept). `window.__perf()` reports painted frames, updates applied, apply time and
+long tasks; the HUD (step 6) will show the same numbers.
+
+Measured in the Claude browser pane (Chrome 156) on live data:
+
+- Raw feed, withdrawals only, after 20 s: 500 rows in the list (20,034 px tall), 20 rows in the
+  DOM. Applying an update took 0.1 ms at the median and at most 0.2 ms; no long tasks; 117 frames
+  painted per second (the pane was not throttling at that moment).
+- Globe page, 10 s: the pane throttled animation frames to about 1 per second, so the 2-3 server
+  frames arriving each second were applied together as one update; apply time at most 1.9 ms. One
+  long task (87 ms) since page load, most likely the globe building its layers.
+- On a 375 px wide phone viewport the feed page has no horizontal scroll (page width 375 px).
+
+Frame rate on a normal laptop during a 50x replay is load test T4 and must be measured in a real
+Chrome window (the pane throttles animation frames).

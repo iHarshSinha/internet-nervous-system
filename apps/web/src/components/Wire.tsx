@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef } from 'react';
+import { VirtualList } from './VirtualList.tsx';
 import { countryName } from '../geo.ts';
-import { useFlip } from '../hooks/flip.ts';
 import { useTick } from '../hooks/tick.ts';
 import { navigate } from '../router.ts';
 import { useGlobe } from '../store/globe.ts';
@@ -51,7 +51,6 @@ export const Activity = memo(function Activity() {
   const items = useWire((s) => s.items);
   useTick(10_000);
   useClockZone((s) => s.local); // redraw the times when the clock zone is switched
-  const list = useFlip<HTMLOListElement>([items.map((i) => i.id).join()]);
   const newest = items[0];
 
   return (
@@ -72,9 +71,14 @@ export const Activity = memo(function Activity() {
           Quiet so far. New incidents, recoveries and Cloudflare reports appear here.
         </p>
       ) : (
-        <ol ref={list} className="relative space-y-0.5">
-          {items.map((item) => (
-            <li key={item.id} data-flip={item.id}>
+        <VirtualList
+          items={items}
+          getKey={(item) => item.id}
+          estimate={38}
+          label="Activity, newest first"
+          className="-mx-1 max-h-80 px-1"
+          renderRow={(item) => (
+            <div className="animate-[fade_.4s_ease-out_both] pb-0.5">
               <button
                 type="button"
                 disabled={!item.href}
@@ -92,10 +96,17 @@ export const Activity = memo(function Activity() {
                   {clock(item.at)}
                 </span>
               </button>
-            </li>
-          ))}
-        </ol>
+            </div>
+          )}
+        />
       )}
+      <button
+        type="button"
+        onClick={() => navigate('/feed')}
+        className="mt-3 text-[0.9rem] text-signal hover:underline"
+      >
+        Watch the raw feed →
+      </button>
     </Panel>
   );
 });

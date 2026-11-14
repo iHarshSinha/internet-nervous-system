@@ -10,6 +10,7 @@ export type Route =
   | { page: 'country'; cc: string }
   | { page: 'incident'; id: string }
   | { page: 'me' }
+  | { page: 'feed' }
   | { page: 'login' };
 
 export function parseRoute(path: string): Route {
@@ -18,6 +19,7 @@ export function parseRoute(path: string): Route {
   const incident = /^\/incident\/([0-9a-f-]{36})\/?$/.exec(path);
   if (incident) return { page: 'incident', id: incident[1]! };
   if (/^\/me\/?$/.test(path)) return { page: 'me' };
+  if (/^\/feed\/?$/.test(path)) return { page: 'feed' };
   if (/^\/login\/?$/.test(path)) return { page: 'login' };
   return { page: 'globe' };
 }

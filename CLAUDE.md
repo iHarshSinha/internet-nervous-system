@@ -304,3 +304,10 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
   longer re-sends everything to a room when someone joins (that was O(clients^2)), and appended
   records are no longer kept as state. Switches: `SOCKET_PARSER`, `CONFLATE_MS` (0 = off),
   `BROADCAST=rooms|all`, `SLOW_CLIENTS`. Bytes written are counted (`/api/status` `delivery`).
+- [x] Step 4, client render budget. `realtime/client.ts` queues worker updates and applies them
+  merged (`realtime/merge.ts`) once per animation frame, or once a second while the tab is hidden;
+  the globe skips layer rebuilds while hidden. `components/VirtualList.tsx` (TanStack Virtual,
+  measured rows) used by the `/feed` page (`pages/FeedPage.tsx`: type and country filters, one
+  feed room at a time, pause on scroll, resume to top, rate and "showing x%" badges) and by
+  Activity (200 items kept). `perf.ts` measures paints, applies, apply time and long tasks
+  (`window.__perf()`), for the HUD in step 6.
