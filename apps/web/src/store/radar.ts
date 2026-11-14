@@ -6,6 +6,7 @@ import {
   type RadarResponse,
 } from '@ins/shared';
 import { create } from 'zustand';
+import { wire } from './wire.ts';
 
 /*
  * Cloudflare Radar, live. The `arcs` room carries new Radar events
@@ -32,6 +33,9 @@ export function onArcsFrame(frame: Frame): void {
     else if (key.startsWith('radar:') && value && typeof value === 'object') {
       events ??= { ...useRadar.getState().events };
       const e = value as unknown as RadarEvent;
+      if (!events[e.id]) {
+        wire({ id: e.id, text: `Cloudflare: ${e.title}`, tone: 'radar', at: Date.now() });
+      }
       events[e.id] = e;
     }
   }

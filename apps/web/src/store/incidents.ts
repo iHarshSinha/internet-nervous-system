@@ -1,5 +1,26 @@
 import type { Frame, Incident, IncidentsResponse } from '@ins/shared';
 import { create } from 'zustand';
+import { countryName } from '../geo.ts';
+import { wire } from './wire.ts';
+
+/** Opening, worsening and recovery go on the wire, in a few words. */
+function toWire(i: Incident, before: Incident | undefined): void {
+  const who = incidentTitle(i, countryName);
+  const href = `/incident/${i.id}`;
+  const sim = i.simulated ? ' (simulated)' : '';
+  if (!before && i.state !== 'resolved') {
+    wire({
+      id: `${i.id}:open`,
+      text: `${who}: ${i.severity} incident opened${sim}`,
+      tone: i.severity === 'critical' ? 'critical' : 'warning',
+      href,
+    });
+  } else if (before && before.severity !== 'critical' && i.severity === 'critical') {
+    wire({ id: `${i.id}:critical`, text: `${who} is now critical${sim}`, tone: 'critical', href });
+  } else if (before && before.state !== 'resolved' && i.state === 'resolved') {
+    wire({ id: `${i.id}:resolved`, text: `${who} recovered`, tone: 'calm', href });
+  }
+}
 
 /*
  * Incidents, live. The `incidents` room carries one delta per change:
@@ -32,6 +53,7 @@ export function merge(list: Incident[], live: boolean): void {
       if (!known && live && state.loaded && incident.state !== 'resolved') {
         fresh = [incident.id, ...fresh.filter((id) => id !== incident.id)].slice(0, 5);
       }
+      if (live && state.loaded) toWire(incident, known);
     }
     // Keep the last 24 hours at most.
     const cutoff = Date.now() - 24 * 3600_000;
@@ -57,12 +79,38 @@ export function onIncidentFrame(frame: Frame): void {
 }
 
 /** Load open and recent incidents once the room is joined. */
+/** The last hour's openings and recoveries, so the wire is not empty when the page opens. */
+function seedWire(list: Incident[]): void {
+  const since = Date.now() - 3600_000;
+  const events: { at: number; i: Incident; kind: 'open' | 'resolved' }[] = [];
+  for (const i of list) {
+    if (i.openedAt >= since) events.push({ at: i.openedAt, i, kind: 'open' });
+    if (i.resolvedAt !== null && i.resolvedAt >= since)
+      events.push({ at: i.resolvedAt, i, kind: 'resolved' });
+  }
+  // Oldest first: each one is put in front, so the newest ends up first.
+  for (const { at, i, kind } of events.sort((a, b) => a.at - b.at)) {
+    const who = incidentTitle(i, countryName);
+    wire({
+      id: `${i.id}:${kind}`,
+      at,
+      text:
+        kind === 'open'
+          ? `${who}: ${i.severity} incident opened${i.simulated ? ' (simulated)' : ''}`
+          : `${who} recovered`,
+      tone: kind === 'resolved' ? 'calm' : i.severity === 'critical' ? 'critical' : 'warning',
+      href: `/incident/${i.id}`,
+    });
+  }
+}
+
 export async function loadIncidents(): Promise<void> {
   try {
     const res = await fetch('/api/incidents');
     if (!res.ok) return;
     const body = (await res.json()) as IncidentsResponse;
     merge(body.incidents, false);
+    seedWire(body.incidents);
   } finally {
     useIncidents.setState({ loaded: true });
   }

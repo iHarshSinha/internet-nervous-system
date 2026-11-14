@@ -137,7 +137,7 @@ function Kpi({
       title={hint}
       style={{ animation: `rise .7s cubic-bezier(.2,.8,.2,1) ${delay}s both` }}
     >
-      <div className="text-[0.74rem] tracking-[0.1em] text-low uppercase">{label}</div>
+      <div className="label">{label}</div>
       <div className="mt-1 font-mono text-xl text-hi tabular-nums">
         {value}
         {unit && <span className="ml-1 text-xs text-mid">{unit}</span>}
@@ -189,20 +189,38 @@ export function CountryPage({ cc }: { cc: string }) {
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="mb-5 text-xs tracking-[0.1em] text-mid uppercase transition hover:text-hi"
+          className="group mb-5 flex items-center gap-2 text-sm text-mid transition hover:text-hi"
         >
-          ← Back to the globe
+          <span className="transition-transform duration-300 group-hover:-translate-x-1">←</span>
+          Back to the globe
         </button>
 
         <div className="grid animate-[rise_.7s_both] gap-5 lg:grid-cols-12">
           <section className="glass relative overflow-hidden rounded-lg lg:col-span-7">
             <div className="absolute top-5 left-5 z-10">
-              <div className="text-[0.78rem] tracking-[0.1em] text-low uppercase">
-                Country · {cc}
-              </div>
-              <h1 className="mt-1 flex items-center gap-3 text-3xl font-semibold tracking-tight text-hi sm:text-4xl 2xl:text-5xl">
-                <span>{flag(cc)}</span>
-                {countryName(cc)}
+              <div className="label">Country · {cc}</div>
+              <h1 className="mt-1 flex items-baseline gap-3 font-display text-5xl leading-none text-hi sm:text-6xl 2xl:text-7xl">
+                <span className="text-[0.6em]">{flag(cc)}</span>
+                {/* The name settles in letter by letter. */}
+                <span
+                  className="inline-block overflow-hidden pb-[0.1em]"
+                  aria-label={countryName(cc)}
+                >
+                  {countryName(cc)
+                    .split('')
+                    .map((ch, i) => (
+                      <span
+                        key={i}
+                        aria-hidden="true"
+                        className="inline-block"
+                        style={{
+                          animation: `word .7s cubic-bezier(.2,.8,.2,1) ${0.15 + i * 0.03}s both`,
+                        }}
+                      >
+                        {ch === ' ' ? '\u00a0' : ch}
+                      </span>
+                    ))}
+                </span>
               </h1>
               <div className="mt-3">
                 <WatchButton cc={cc} />
@@ -231,10 +249,8 @@ export function CountryPage({ cc }: { cc: string }) {
             <div className="flex items-center gap-5">
               <HealthGauge value={health} />
               <div className="min-w-0 flex-1">
-                <div className="text-[0.78rem] tracking-[0.1em] text-low uppercase">
-                  Network health
-                </div>
-                <p className="mt-2 text-sm leading-relaxed text-mid">
+                <div className="title">Network health</div>
+                <p className="mt-2 text-[0.92rem] leading-relaxed text-mid">
                   How {countryName(cc)}&apos;s networks look in the latest minute: what share of
                   route changes were <span className="text-caution">withdrawals</span>, and how many
                   probe pings got <span className="text-hi">no reply</span>.

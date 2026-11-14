@@ -43,7 +43,7 @@ function SignInPrompt() {
       <div className="mx-auto grid size-14 place-items-center rounded-full bg-signal/10 text-2xl ring-1 ring-signal/30">
         ◎
       </div>
-      <h1 className="mt-5 text-2xl font-semibold text-hi">Make the internet yours</h1>
+      <h1 className="mt-5 font-display text-4xl text-hi">Make the internet yours</h1>
       <p className="mt-3 text-sm leading-relaxed text-mid">
         Everything on this site is open without an account. Sign in to pick the countries and
         networks you care about, and get an alert the moment something on your list breaks: on
@@ -284,7 +284,7 @@ export function MePage() {
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="mb-5 text-xs tracking-[0.1em] text-mid uppercase transition hover:text-hi"
+          className="mb-5 text-sm text-mid transition hover:text-hi"
         >
           ← Back to the globe
         </button>
@@ -293,8 +293,8 @@ export function MePage() {
         {status === 'anon' && <SignInPrompt />}
         {status === 'signed-in' && user && (
           <div className="animate-[rise_.6s_both]">
-            <div className="text-[0.78rem] tracking-[0.1em] text-low uppercase">Your account</div>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-hi sm:text-4xl">
+            <div className="label">Your account</div>
+            <h1 className="mt-1 font-display text-5xl leading-none text-hi sm:text-6xl">
               Your watchlist
             </h1>
             <p className="mt-2 mb-6 max-w-2xl text-sm text-mid">

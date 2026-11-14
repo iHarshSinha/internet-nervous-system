@@ -221,9 +221,10 @@ export function IncidentPage({ id }: { id: string }) {
       <button
         type="button"
         onClick={() => navigate('/')}
-        className="relative text-xs text-low transition hover:text-hi"
+        className="group relative flex items-center gap-2 text-sm text-mid transition hover:text-hi"
       >
-        ← Globe
+        <span className="transition-transform duration-300 group-hover:-translate-x-1">←</span>
+        Globe
       </button>
 
       <header className="relative mt-3 animate-[rise_.6s_both]">
@@ -239,11 +240,11 @@ export function IncidentPage({ id }: { id: string }) {
           {incident.simulated && <SimTag />}
           {personal && <span className="text-xs text-signal">★ on your watchlist</span>}
         </div>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-hi sm:text-5xl">
+        <h1 className="mt-3 font-display text-5xl leading-[1.02] text-hi sm:text-7xl">
           {incident.cc ? `${flag(incident.cc)} ` : ''}
           {incidentTitle(incident, countryName)}
           {incident.asn !== null && (
-            <span className="ml-3 font-mono text-xl font-normal text-mid sm:text-2xl">
+            <span className="ml-3 align-middle font-mono text-xl text-mid sm:text-2xl">
               AS{incident.asn}
             </span>
           )}

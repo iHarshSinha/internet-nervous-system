@@ -6,6 +6,7 @@ import { useGlobe } from '../store/globe.ts';
 import { useLive } from '../store/live.ts';
 import { useRadar } from '../store/radar.ts';
 import { activeIncidents, incidentTitle, useIncidents } from '../store/incidents.ts';
+import { isMajor } from '../components/Incidents.tsx';
 import { navigate } from '../router.ts';
 import { selectCountry, useUi } from '../store/ui.ts';
 import { BUCKET_COLORS, formatInt, healthColor } from '../theme.ts';
@@ -123,6 +124,8 @@ export function GlobeView() {
         const incident = state.byId[id];
         // During a simulation, stay with it rather than chasing real incidents elsewhere.
         if (useLive.getState().scenario.state === 'running' && !incident?.simulated) return;
+        // Only big ones move the camera; small networks flapping would make it seasick.
+        if (!incident || !isMajor(incident)) return;
         const cc = incident?.cc;
         const info = cc ? countryInfo(cc) : undefined;
         const globe = globeRef.current;
@@ -267,7 +270,7 @@ export function GlobeView() {
       const severity = i.state === 'open' ? i.severity : 'watch';
       // One network's warning should not paint its whole country: land is
       // coloured for country incidents and critical ones; others get a ripple and a label.
-      if (i.asn === null || severity === 'critical') incidentCc.set(i.cc, severity);
+      if (i.asn === null || (severity === 'critical' && isMajor(i))) incidentCc.set(i.cc, severity);
       const critical = severity === 'critical';
       incidentRings.push({
         lat: info.lat,

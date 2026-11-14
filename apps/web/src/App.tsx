@@ -4,7 +4,10 @@ import { IncidentAlerts, RedAlert } from './components/Incidents.tsx';
 import { Header } from './components/ui.tsx';
 import { startRealtime } from './realtime/client.ts';
 import { initAuth } from './store/auth.ts';
-import { useRoute } from './router.ts';
+import { useRoute, type Route } from './router.ts';
+
+const routeKey = (r: Route) =>
+  r.page === 'country' ? `c:${r.cc}` : r.page === 'incident' ? `i:${r.id}` : r.page;
 
 // Each page is its own download: the globe brings three.js, the country page uPlot.
 const GlobePage = lazy(() =>
@@ -43,17 +46,20 @@ export function App() {
         <Header />
       </div>
       <Suspense fallback={<div className="min-h-dvh" />}>
-        {route.page === 'country' ? (
-          <CountryPage key={route.cc} cc={route.cc} />
-        ) : route.page === 'me' ? (
-          <MePage />
-        ) : route.page === 'incident' ? (
-          <IncidentPage key={route.id} id={route.id} />
-        ) : route.page === 'login' ? (
-          <LoginPage />
-        ) : (
-          <GlobePage />
-        )}
+        {/* Each page fades in. Opacity only: a transform here would break the pages' fixed layers. */}
+        <div key={routeKey(route)} className="animate-[fade_.5s_ease-out_both]">
+          {route.page === 'country' ? (
+            <CountryPage key={route.cc} cc={route.cc} />
+          ) : route.page === 'me' ? (
+            <MePage />
+          ) : route.page === 'incident' ? (
+            <IncidentPage key={route.id} id={route.id} />
+          ) : route.page === 'login' ? (
+            <LoginPage />
+          ) : (
+            <GlobePage />
+          )}
+        </div>
       </Suspense>
       {/* Incident alerts follow you on every page except sign-in. */}
       {route.page !== 'login' && (

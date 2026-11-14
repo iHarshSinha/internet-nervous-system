@@ -67,11 +67,11 @@ export function Header() {
           <span className="size-2 rounded-full bg-signal shadow-[0_0_14px_var(--color-signal)]" />
         </span>
         <span className="leading-tight">
-          <span className="block text-[0.88rem] font-semibold tracking-[0.1em] whitespace-nowrap text-hi uppercase max-sm:text-[0.8rem] max-sm:tracking-[0.1em]">
+          <span className="block font-display text-[1.45rem] leading-none whitespace-nowrap text-hi max-sm:text-[1.2rem]">
             <span className="max-sm:hidden">Internet Nervous System</span>
             <span className="sm:hidden">Nervous System</span>
           </span>
-          <span className="hidden text-[0.8rem] tracking-[0.08em] text-low sm:block">
+          <span className="mt-1 hidden text-[0.78rem] text-low sm:block">
             The internet&apos;s routing and latency, live
           </span>
         </span>
@@ -126,7 +126,7 @@ export function Stat({
 }) {
   return (
     <div className="min-w-0" title={hint}>
-      <div className="text-[0.76rem] tracking-[0.1em] text-low uppercase">{label}</div>
+      <div className="label">{label}</div>
       <div
         className="mt-1 truncate font-mono text-lg text-hi tabular-nums"
         style={tone ? { color: tone } : undefined}

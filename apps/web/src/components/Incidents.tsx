@@ -1,6 +1,7 @@
 import { SIGNAL_LABELS, type Incident, type Severity } from '@ins/shared';
 import { memo, useEffect } from 'react';
 import { countryName } from '../geo.ts';
+import { useFlip } from '../hooks/flip.ts';
 import { useTick } from '../hooks/tick.ts';
 import { navigate, useRoute } from '../router.ts';
 import { useAlerts } from '../store/alerts.ts';
@@ -41,6 +42,21 @@ export function SimTag() {
   );
 }
 
+/**
+ * Big enough to take over the screen: a whole country, a simulation being
+ * demonstrated, or a network with a large footprint. A small network that
+ * flaps (a couple of dozen address blocks) stays in the feed instead.
+ */
+export function isMajor(i: Incident): boolean {
+  if (i.simulated || i.asn === null) return true;
+  return i.signals.some(
+    (s) =>
+      (s.type === 'network_vanished' && Number(s.detail.known) >= 50) ||
+      (s.type === 'withdrawal_storm' && Number(s.detail.prefixes) >= 100) ||
+      (s.type === 'origin_change' && Number(s.detail.prefixes) >= 10),
+  );
+}
+
 /** Live list of incidents, worst first. Everyone sees it. */
 export const IncidentFeed = memo(function IncidentFeed() {
   const byId = useIncidents((s) => s.byId);
@@ -78,13 +94,15 @@ export const IncidentFeed = memo(function IncidentFeed() {
 
 /** Incident rows: severity, place, evidence, age; click for the incident page. */
 function IncidentRows({ rows, mine }: { rows: Incident[]; mine: Record<string, number> }) {
+  // New incidents slide in; reordered ones glide to their place.
+  const list = useFlip<HTMLUListElement>([rows.map((i) => i.id).join()]);
   return (
-    <ul className="space-y-1">
+    <ul ref={list} className="relative space-y-1">
       {rows.map((i) => {
         const color = SEVERITY_COLOR[i.severity];
         const live = i.state !== 'resolved';
         return (
-          <li key={i.id}>
+          <li key={i.id} data-flip={i.id}>
             <button
               type="button"
               onClick={() => navigate(`/incident/${i.id}`)}
@@ -109,16 +127,19 @@ function IncidentRows({ rows, mine }: { rows: Incident[]; mine: Record<string, n
                     />
                   </span>
                 )}
-                <span className="text-sm leading-none">{i.cc ? flag(i.cc) : '◌'}</span>
-                <span className="min-w-0 flex-1 truncate text-[0.92rem] font-medium text-hi">
+                <span className="text-base leading-none">{i.cc ? flag(i.cc) : '◌'}</span>
+                <span className="min-w-0 flex-1 truncate font-display text-[1.12rem] leading-tight text-hi">
                   {incidentTitle(i, countryName)}
                 </span>
-                <SeverityTag incident={i} />
+                <span className="shrink-0 font-mono text-[0.72rem] text-low">
+                  {ago(Date.now() - i.openedAt)}
+                </span>
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-0.5 text-[0.76rem] text-low">
-                <span>{i.signals.map((s) => SIGNAL_LABELS[s.type]).join(' + ')}</span>
-                <span>·</span>
-                <span>{ago(Date.now() - i.openedAt)}</span>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.78rem] text-low">
+                <SeverityTag incident={i} />
+                <span className="text-mid">
+                  {i.signals.map((s) => SIGNAL_LABELS[s.type]).join(' + ')}
+                </span>
                 {i.simulated && <SimTag />}
                 {mine[i.id] && <span className="text-signal">★ on your watchlist</span>}
               </div>
@@ -269,7 +290,8 @@ export function IncidentAlerts() {
     .map((id) => byId[id])
     .filter(
       (i): i is Incident =>
-        i !== undefined && (i.severity === 'critical' || i.simulated || mine[i.id] !== undefined),
+        i !== undefined &&
+        ((i.severity === 'critical' && isMajor(i)) || i.simulated || mine[i.id] !== undefined),
     )
     .slice(0, 2);
   if (shown.length === 0) return null;
@@ -295,7 +317,7 @@ export function IncidentAlerts() {
 export function RedAlert() {
   const byId = useIncidents((s) => s.byId);
   const critical = activeIncidents(byId).find(
-    (i) => i.severity === 'critical' && i.state === 'open',
+    (i) => i.severity === 'critical' && i.state === 'open' && isMajor(i),
   );
   if (!critical) return null;
   return (

@@ -113,6 +113,10 @@ body {
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  transition: border-color 0.35s ease;
+  &:hover {
+    border-color: rgba(94, 230, 255, 0.24);
+  }
 }
 
 /* A small label above a value: sans, slightly spaced, never smaller than this. */

@@ -3,6 +3,7 @@ import { AnimatedNumber } from '../components/AnimatedNumber.tsx';
 import { Sparkline } from '../components/Sparkline.tsx';
 import { Starfield } from '../components/Starfield.tsx';
 import { Welcome } from '../components/Welcome.tsx';
+import { Wire } from '../components/Wire.tsx';
 import { ReplayBadge } from '../components/Replay.tsx';
 import { ScenarioBadge, ScenarioControls } from '../components/Scenario.tsx';
 import { IncidentFeed } from '../components/Incidents.tsx';
@@ -10,6 +11,7 @@ import { RadarPanel } from '../components/Radar.tsx';
 import { Panel, Stat } from '../components/ui.tsx';
 import { countryName } from '../geo.ts';
 import { GLOBE_HOME, GlobeView } from '../globe/GlobeView.tsx';
+import { useFlip } from '../hooks/flip.ts';
 import { useGlobeSnapshots, useStatus } from '../hooks/snapshots.ts';
 import { navigate } from '../router.ts';
 import { useGlobe } from '../store/globe.ts';
@@ -95,24 +97,31 @@ const Sources = memo(function Sources() {
         </span>
       }
     >
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-md bg-white/[0.025] px-3 py-2">
-          <div className="text-[0.72rem] tracking-[0.1em] text-low uppercase">Routing · RIS</div>
-          <div className="mt-0.5 font-mono text-sm text-hi tabular-nums">
-            <AnimatedNumber value={risEps} /> <span className="text-[0.76rem] text-mid">ev/s</span>
+      <div className="divide-y divide-line/70">
+        {(
+          [
+            [
+              'Routing',
+              'RIPE RIS',
+              risEps,
+              typeof risLag === 'number' ? `${risLag.toFixed(1)} s behind` : '—',
+            ],
+            ['Latency', 'RIPE Atlas', atlasEps, 'arrives 1–4 min late'],
+          ] as const
+        ).map(([name, source, eps, note]) => (
+          <div key={name} className="flex items-baseline justify-between gap-3 py-2 first:pt-0">
+            <div className="min-w-0">
+              <div className="text-[0.95rem] text-hi">{name}</div>
+              <div className="text-[0.76rem] text-low">
+                {source} · {note}
+              </div>
+            </div>
+            <div className="shrink-0 font-mono text-lg text-hi tabular-nums">
+              <AnimatedNumber value={eps} />
+              <span className="ml-1 text-[0.74rem] text-mid">/s</span>
+            </div>
           </div>
-          <div className="text-[0.74rem] text-low">
-            {typeof risLag === 'number' ? `${risLag.toFixed(1)} s behind` : '—'}
-          </div>
-        </div>
-        <div className="rounded-md bg-white/[0.025] px-3 py-2">
-          <div className="text-[0.72rem] tracking-[0.1em] text-low uppercase">Latency · Atlas</div>
-          <div className="mt-0.5 font-mono text-sm text-hi tabular-nums">
-            <AnimatedNumber value={atlasEps} />{' '}
-            <span className="text-[0.76rem] text-mid">ev/s</span>
-          </div>
-          <div className="text-[0.74rem] text-low">arrives 1–4 min late</div>
-        </div>
+        ))}
       </div>
       <ul className="mt-3 space-y-1.5">
         {upstreams.map((u) => (
@@ -180,18 +189,20 @@ const Busiest = memo(function Busiest() {
     .sort((a, b) => (b[1].act ?? 0) - (a[1].act ?? 0))
     .slice(0, 8);
   const max = Math.max(1, ...rows.map(([, c]) => c.act ?? 0));
+  // Rows glide when the ranking changes.
+  const list = useFlip<HTMLOListElement>([rows.map(([cc]) => cc).join()]);
 
   return (
     <Panel
       title="Busiest right now"
       aside={<span className="font-mono text-[0.78rem] text-low">changes / s</span>}
     >
-      <ol className="space-y-0.5">
+      <ol ref={list} className="relative space-y-0.5">
         {rows.length === 0 && (
           <li className="py-5 text-center text-sm text-low">Listening for routing changes…</li>
         )}
         {rows.map(([cc, c], i) => (
-          <li key={cc}>
+          <li key={cc} data-flip={cc}>
             <button
               type="button"
               onClick={() => selectCountry(cc)}
@@ -489,6 +500,9 @@ export function GlobePage() {
         </div>
 
         <div className="glass pointer-events-auto shrink-0 animate-[rise_.9s_.6s_both] rounded-lg px-4 py-3">
+          <div className="mb-2.5 border-b border-line pb-2.5">
+            <Wire />
+          </div>
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <Legend />
             <RegionDock />
