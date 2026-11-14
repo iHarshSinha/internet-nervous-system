@@ -3,6 +3,7 @@
 #   docker compose up mongo            database only, for native development (pnpm dev)
 #   docker compose --profile demo up   full stack on recorded data  -> http://localhost:8080
 #   docker compose --profile live up   full stack on the real feeds -> http://localhost:8080
+#   docker compose --profile loadtest up   server + client fleet for load tests (see below)
 #
 # Add --build after "up" to rebuild the images from source.
 
@@ -97,6 +98,42 @@ services:
       - '${HTTP_PORT:-8080}:8080'
     volumes:
       - caddy-data:/data # certificates, when SITE_ADDRESS is a real domain
+
+  # Load tests (Phase 3):  JWT_SECRET=... LOADTEST_ARGS="--clients 500 --speed 50" \
+  #   docker compose --profile loadtest up --build --abort-on-container-exit loadtest
+  # A server on recorded data with connection limits raised (all clients come from one
+  # address), and the client fleet. Results land in tools/loadtest/results/.
+  server-loadtest:
+    <<: *server
+    profiles: [loadtest]
+    environment:
+      <<: *server-env
+      MODE: replay
+      # The fleet signs its admin token with the same secret (see tools/loadtest).
+      JWT_SECRET: ${JWT_SECRET:-}
+      # Its own database, so load-test minutes never mix with real history.
+      MONGODB_URI: mongodb://mongo:27017/ins_loadtest
+      REFDATA: 'off'
+      SOCKET_CONNECTIONS_PER_MIN: 1000000
+      API_RATE_PER_MIN: 1000000
+      REPLAY_FACEBOOK_FILE: /replay/facebook-20211004.ndjson.gz
+    volumes:
+      - ./deploy/seed/replay:/replay:ro
+
+  loadtest:
+    image: node:22-alpine
+    profiles: [loadtest]
+    depends_on:
+      server-loadtest:
+        condition: service_healthy
+    working_dir: /repo/tools/loadtest
+    volumes:
+      - .:/repo # the tool and its dependencies (plain JavaScript), and the results folder
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-}
+    command: >-
+      sh -c "node --disable-warning=ExperimentalWarning src/cli.ts run
+      --base http://server-loadtest:3000 ${LOADTEST_ARGS:-}"
 
 volumes:
   mongo-data:

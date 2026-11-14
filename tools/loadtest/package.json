@@ -1,0 +1,24 @@
+{
+  "name": "@ins/loadtest",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Load tests: a Socket.IO client fleet, a server sampler and a replay driver.",
+  "type": "module",
+  "scripts": {
+    "loadtest": "node --disable-warning=ExperimentalWarning src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@ins/shared": "workspace:*",
+    "jsonwebtoken": "^9.0.3",
+    "socket.io-client": "^4.8.4",
+    "socket.io-msgpack-parser": "^3.0.2"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.20.5",
+    "typescript": "~6.0.3",
+    "vitest": "^5.1.0"
+  }
+}

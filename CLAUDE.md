@@ -275,6 +275,8 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
 - Next: Phase 3 (performance, load tests).
 
 **Phase 3 progress** (user wants it step by step, a report after each; commits carry NO Co-Authored-By line):
+- Anything that cannot be verified in the session (needs sign-in, a real Chrome window, a phone,
+  a slow network, Docker) goes on the list in `docs/manual-checks.md` (user's request).
 - [x] Step 1, ingest worker thread. Feeds, pipeline, detectors, incident manager and the full-file
   replay player run in `ingest/worker.ts` via `ingest/core.ts` (`serveIngest(port)`). The main
   thread uses `ingest/link.ts` (`IngestLink`): a mirror of the ingest state (sent every 250 ms),
@@ -334,3 +336,12 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
   admin replay controls with speed, amplify, "like a live feed"), `components/Hud.tsx` (press ~ or
   `: FPS, skipped frames, server frames/s, renders/s, apply p95, long tasks, frame age corrected by
   `realtime/clock.ts` offset, gaps, resyncs). Links: Pipeline panel "Performance page", HUD.
+- [x] Step 7, load-test tools (`tools/loadtest`, `pnpm --filter @ins/loadtest loadtest run`):
+  `src/swarm.ts` N Socket.IO clients (server's parser, rooms world/incidents/arcs/one busy country,
+  `--feed`), per-frame sequence check (`SeqChecker`) and delivery delay with clock offset, bytes on
+  the wire; `src/server.ts` admin token (`LOADTEST_TOKEN` or signed with `JWT_SECRET`), replay
+  driver, `/metrics` sampler each second (CPU %, RSS, loops, queue, bytes); `src/cli.ts` writes
+  `results/<name>.json` (gitignored). Compose profile `loadtest` (server on recorded data with
+  raised limits, own DB `ins_loadtest`, replay file mounted; fleet in `node:22-alpine`): not run,
+  Docker pulls hang here (on the manual list). `compose down` also stops the shared `mongo`.
+  Trials: 50 clients + 10x replay, delivery p99 8 ms; 500 clients, p99 33 ms, 0 gaps.

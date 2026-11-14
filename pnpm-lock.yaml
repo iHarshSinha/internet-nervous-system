@@ -205,6 +205,34 @@ importers:
         specifier: ^5.1.0
         version: 5.1.0(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.8(@types/node@22.20.5)(jiti@2.7.0))
 
+  tools/loadtest:
+    dependencies:
+      '@ins/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      jsonwebtoken:
+        specifier: ^9.0.3
+        version: 9.0.3
+      socket.io-client:
+        specifier: ^4.8.4
+        version: 4.8.4
+      socket.io-msgpack-parser:
+        specifier: ^3.0.2
+        version: 3.0.2
+    devDependencies:
+      '@types/jsonwebtoken':
+        specifier: ^9.0.10
+        version: 9.0.10
+      '@types/node':
+        specifier: ^22.20.5
+        version: 22.20.5
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^5.1.0
+        version: 5.1.0(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.8(@types/node@22.20.5)(jiti@2.7.0))
+
   tools/replay-prep:
     dependencies:
       '@ins/shared':
