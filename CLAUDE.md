@@ -311,3 +311,12 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
   feed room at a time, pause on scroll, resume to top, rate and "showing x%" badges) and by
   Activity (200 items kept). `perf.ts` measures paints, applies, apply time and long tasks
   (`window.__perf()`), for the HUD in step 6.
+- [x] Step 5, server metrics. `metrics/index.ts` (prom-client registry; counters mirror running
+  totals, gauges read the ingest state on scrape), `GET /metrics` for admins or `METRICS_TOKEN`
+  (`api/ops.ts`). Processing delay measured in the ingest thread (`metrics/quantiles.ts`, 1 event
+  in 10, last 10 s); window-to-publish histogram via `Broadcaster.onFlush`; MongoDB write timer.
+  `metrics/loop.ts` subtracts Node's sampling interval from event-loop delay (it was reading
+  ~10 ms too high; benchmarks corrected). `metrics/minutes.ts` + `db/ingestStats.ts`: rows per
+  source, `pipeline`, `delivery` each minute (`$set`, TTL 7 d), `GET /api/ops/history` (public).
+  Finding: with RIS lagging ~21 s, 58% of RIS events miss their 1-second window (minutes are
+  exact); see benchmarks, not changed yet.

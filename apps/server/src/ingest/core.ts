@@ -1,8 +1,9 @@
-import { monitorEventLoopDelay } from 'node:perf_hooks';
 import type { Config } from '../config.ts';
 import type { Logger } from '../logger.ts';
 import { RefData } from '../refdata/index.ts';
 import type { ProbeInfo } from '../refdata/probes.ts';
+import { LoopDelay } from '../metrics/loop.ts';
+import { RecentQuantiles } from '../metrics/quantiles.ts';
 import { FEED_EVERY_MS, FeedSampler } from './feed.ts';
 import { startIngest } from './index.ts';
 import type { Lookup } from './pipeline/pipeline.ts';
@@ -72,7 +73,11 @@ export function serveIngest(
 
   // Firehose: a fair sample of raw events for the feed rooms people are watching.
   const feed = new FeedSampler();
+  // How long events take from arrival to being processed (1 in 10 measured; it is cheap but not free).
+  const delay = new RecentQuantiles();
+  let nth = 0;
   ingest.onEvent((event, ctx) => {
+    if (++nth % 10 === 0) delay.add(Date.now() - event.its);
     if (feed.active) feed.offer(event, ctx, () => ingest.queue.sample());
   });
   const feedTimer = setInterval(() => {
@@ -86,8 +91,7 @@ export function serveIngest(
   ingest.onIncident((incident) => send({ t: 'incident', incident }));
 
   // This thread's own event-loop delay: how late its timers run under load.
-  const loop = monitorEventLoopDelay({ resolution: 10 });
-  loop.enable();
+  const loop = new LoopDelay();
   let states = 0;
 
   const state = (): IngestState => {
@@ -99,7 +103,7 @@ export function serveIngest(
     }
     pipeline.probesChanged.clear();
     const mem = process.memoryUsage();
-    const loopDelayMs = Math.round(loop.percentile(99) / 1e4) / 100;
+    const loopDelayMs = loop.percentile(99);
     // A fresh p99 each second.
     if (++states % (1000 / STATE_EVERY_MS) === 0) loop.reset();
     return {
@@ -110,6 +114,7 @@ export function serveIngest(
       replay: ingest.replay.snapshot(),
       queue: ingest.queue.snapshot(),
       feedSampledOut: feed.sampledOut,
+      delay: delay.snapshot(),
       probes,
       thread: {
         rssMb: Math.round(mem.rss / 1048576),
@@ -184,7 +189,7 @@ export function serveIngest(
     stopped = true;
     clearInterval(stateTimer);
     clearInterval(feedTimer);
-    loop.disable();
+    loop.stop();
     ingest.stop();
   }
 

@@ -50,6 +50,12 @@ export interface IngestState {
   queue: QueueSnapshot;
   /** Firehose: events left out of the feed by the 1-in-k pressure sampling. */
   feedSampledOut: number;
+  /**
+   * Processing delay over the last 10 s, ms: from the moment we received an
+   * event (`its`) to the moment the pipeline had counted it and the detectors
+   * had seen it (queue wait included). Measured on 1 event in 10.
+   */
+  delay: { p50: number; p95: number; p99: number; max: number; n: number };
   /** Probes whose latest latency changed since the last state: [id, ts, rtt]. */
   probes: [number, number, number | null][];
   /** Ingest thread health. RSS is the whole process; the heap is this thread's own. */

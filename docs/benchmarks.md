@@ -55,7 +55,8 @@ not a prediction of it.
    the same cycle: lag climbed steadily to about 84 seconds, the server closed the connection
    (WebSocket code 1006), we reconnected, and it started again. That happened 7 and 8 times in ten
    minutes. Our process was not the bottleneck (3.8% CPU, 12 ms event-loop delay p99, a 9 MB/s line
-   carrying about 0.6 MB/s).
+   carrying about 0.6 MB/s). *(Correction, Phase 3 step 5: the capture tool sampled the event loop
+   every 10 ms and Node includes that interval in the reading, so the real delay was about 2 ms.)*
 2. **The unfiltered stream is not complete.** In the same ten minutes the unfiltered connection
    delivered 47,564 messages from `rrc00`; the connection filtered to `rrc00` delivered 322,993.
    The unfiltered stream therefore carried about 15% of that collector's messages.
@@ -245,8 +246,9 @@ worse without it (and the slowest request 4.5 times worse). Throughput is the sa
 A request from the main thread into the ingest thread (for example "which prefixes does this
 network announce", used by the attack simulator) takes 0.010 ms at the median and 0.113 ms at p99
 (200 calls, idle). On the live feeds (four RIS collectors and Atlas, a few minutes after start) the
-ingest thread's JavaScript heap was 66 MB, the whole process 328 MB RSS, and the ingest thread's
-event-loop p99 delay about 12 ms. (RSS is per process; only the heap is per thread.)
+ingest thread's JavaScript heap was 66 MB and the whole process 328 MB RSS (RSS is per process;
+only the heap is per thread). *Correction made in step 5:* the "event-loop p99 about 12 ms" first
+written here included Node's 10 ms sampling interval; the real delay was about 2 ms.
 
 ## Phase 3, step 2: bounded queue, sampling and shedding
 
@@ -349,3 +351,47 @@ Measured in the Claude browser pane (Chrome 156) on live data:
 
 Frame rate on a normal laptop during a 50x replay is load test T4 and must be measured in a real
 Chrome window (the pane throttles animation frames).
+
+## Phase 3, step 5: server metrics
+
+`GET /metrics` (prom-client, admins or a scraper with `METRICS_TOKEN`) exposes 326 lines: events,
+messages, rejections and upstream warnings per source; duplicates, late (second and minute),
+future-dated and counted events; queue depth, fill, longest wait, sampling ratio, shed by kind,
+overflow and pauses; processing delay (arrival to processed, p50/p95/p99 over 10 s, measured on 1
+event in 10 in the ingest thread); window-to-publish delay (histogram); event-loop delay of both
+threads; ingest heap and restarts; sockets per namespace; frames, deltas, packets and bytes out;
+slow clients; MongoDB write time (histogram), documents written and errors; Node process metrics
+(`ins_node_*`). Once a minute the same numbers go to MongoDB `ingest_stats` (one row per source,
+plus `pipeline` and `delivery`; `_id` `<src>:<minute>`, `$set`, TTL 7 days), readable by anyone at
+`GET /api/ops/history?from=` for the `/ops` page.
+
+**Event-loop delay correction.** Node's `monitorEventLoopDelay` reports its own sampling interval
+plus the delay: an idle loop reads 10.4 ms at a 10 ms resolution, 1.16 ms at 1 ms, 19.8 ms at 20 ms
+(measured). Every loop-delay figure taken at 10 ms resolution before this step was therefore about
+10 ms too high; the interval is now subtracted (`metrics/loop.ts`), and the step 1 and Phase 0 notes
+above carry a correction.
+
+First live minute on the dev server (four RIS collectors and Atlas, two browsers):
+
+| Measure | Value |
+|---|---|
+| RIS events / messages in the minute | 117,591 / 32,609 (mean lag 21.0 s) |
+| Atlas results | 10,378 (mean lag 68.7 s) |
+| Processing delay, arrival to processed | p50 0 ms, p95 1 ms, p99 1 ms |
+| Queue depth / longest wait | 0 / 1 ms |
+| Event-loop delay p99 | main 1.39 ms, ingest 2.06 ms |
+| MongoDB bulk write of a closed minute | 4 writes, mean 21 ms; 542 hour-documents upserted in the minute |
+| Window to publish (end of a second to its frame leaving) | mean 11.5 s (1,318 s over 115 windows) |
+| Delivered to 2 browsers | 191 frames, 318,829 bytes |
+
+**What the window-to-publish delay is.** A 1-second window closes only when the slowest healthy
+collector has passed it plus 5 s lateness (collectors up to 15 s behind the leader still hold it
+back). That is what keeps counts exact; it means "route changes a second" on screen describes the
+second that ended about 11 s earlier.
+
+**Finding: many events miss their 1-second window while RIS is slow.** In that minute 68,777 of
+117,591 RIS events (58%) arrived after their 1-second window had closed, while the mean RIS lag was
+21 s (Phase 0 measured about 3 s on a healthy connection). They are still counted in their minute
+(only 34 missed it), so stored history and detection are exact, but the live per-second figure
+undercounts while RIS runs this far behind. Options for later: a longer lateness for second
+windows, or showing the per-second figure from the minute rate when lateness is high.

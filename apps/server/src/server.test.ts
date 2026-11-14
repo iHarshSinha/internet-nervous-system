@@ -24,6 +24,7 @@ import { createMemoryAuthStore } from './auth/store.ts';
 import { createMemoryRunsStore } from './scenarios/runs.ts';
 import { createLogger } from './logger.ts';
 import { buildServer, type RunningServer } from './server.ts';
+import { signAccessToken } from './auth/tokens.ts';
 
 type Client = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -52,6 +53,7 @@ const store: MetricsStore = {
 };
 
 let server: RunningServer;
+let jwtSecret = '';
 // Sockets the test declares slow (a real socket cannot be made slow on demand).
 const slowIds = new Set<string>();
 let baseUrl: string;
@@ -67,6 +69,7 @@ beforeAll(async () => {
     SOCKET_MESSAGES_PER_SEC: '100000',
     REPLAY_FACEBOOK_FILE: '/nonexistent/replay.ndjson.gz',
   });
+  jwtSecret = config.JWT_SECRET;
   server = buildServer({
     config,
     log: createLogger(config),
@@ -529,5 +532,44 @@ describe('firehose', () => {
       col: 'rrc00',
       peer: 3356,
     });
+  });
+});
+
+describe('metrics', () => {
+  const token = (role: 'user' | 'admin') =>
+    signAccessToken({ id: '65a1b2c3d4e5f60718293a4b', role, email: 'x@example.com' }, jwtSecret)
+      .token;
+
+  it('serves Prometheus metrics to admins only', async () => {
+    expect((await fetch(`${baseUrl}/metrics`)).status).toBe(401);
+    const asUser = await fetch(`${baseUrl}/metrics`, {
+      headers: { authorization: `Bearer ${token('user')}` },
+    });
+    expect(asUser.status).toBe(403);
+
+    const res = await fetch(`${baseUrl}/metrics`, {
+      headers: { authorization: `Bearer ${token('admin')}` },
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/text\/plain/);
+    const text = await res.text();
+    for (const name of [
+      'ins_queue_depth',
+      'ins_processing_delay_ms',
+      'ins_event_loop_delay_ms',
+      'ins_sockets{namespace="live"}',
+      'ins_bytes_out_total',
+      'ins_mongo_write_seconds_bucket',
+      'ins_node_nodejs_heap_size_total_bytes',
+    ]) {
+      expect(text, name).toContain(name);
+    }
+  });
+
+  it('gives anyone the per-minute ops history, and validates the query', async () => {
+    expect((await fetch(`${baseUrl}/api/ops/history`)).status).toBe(400);
+    const res = await fetch(`${baseUrl}/api/ops/history?from=${Date.now() - 3600_000}`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ rows: [] });
   });
 });

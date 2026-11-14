@@ -6,6 +6,7 @@ import { createMongoAuthStore } from './auth/store.ts';
 import { createMongoRunsStore } from './scenarios/runs.ts';
 import { createMongoIncidentStore } from './db/incidents.ts';
 import { createMongoRadarStore } from './db/radar.ts';
+import { createMongoIngestStatsStore } from './db/ingestStats.ts';
 import { AsnNames } from './ingest/detect/names.ts';
 import { createLogger } from './logger.ts';
 import { RefData, startRefdata } from './refdata/index.ts';
@@ -19,6 +20,7 @@ const refdata = new RefData();
 const authStore = createMongoAuthStore(mongo.db);
 const incidentStore = createMongoIncidentStore(mongo.db);
 const radarStore = createMongoRadarStore(mongo.db);
+const ingestStatsStore = createMongoIngestStatsStore(mongo.db);
 const names = new AsnNames(mongo.db, log);
 const server = buildServer({
   config,
@@ -29,6 +31,7 @@ const server = buildServer({
   runsStore: createMongoRunsStore(mongo.db),
   incidentStore,
   radarStore,
+  ingestStatsStore,
   nameOf: (asn) => names.get(asn),
   // Sign-in is switched on only when a Google client ID is configured.
   verifyGoogle: config.GOOGLE_CLIENT_ID ? createGoogleVerifier(config.GOOGLE_CLIENT_ID) : null,
@@ -49,6 +52,7 @@ void Promise.all([
   authStore.ensureIndexes(),
   incidentStore.ensureIndexes(),
   radarStore.ensureIndexes(),
+  ingestStatsStore.ensureIndexes(),
 ])
   .then(() => incidentStore.closeOrphans(Date.now()))
   .then((closed) => closed > 0 && log.info({ closed }, 'closed incidents left open by a restart'))

@@ -12,6 +12,10 @@ import { incidentsRouter } from './api/incidents.ts';
 import type { IncidentStore } from './db/incidents.ts';
 import { createMemoryRadarStore, type RadarStore } from './db/radar.ts';
 import { radarRouter } from './api/radar.ts';
+import { opsRouter } from './api/ops.ts';
+import { createMemoryIngestStatsStore, type IngestStatsStore } from './db/ingestStats.ts';
+import { createMetrics } from './metrics/index.ts';
+import { MinuteRecorder } from './metrics/minutes.ts';
 import { RadarPoller } from './ingest/sources/radar.ts';
 import { meRouter } from './api/me.ts';
 import type { GoogleVerifier } from './auth/google.ts';
@@ -55,6 +59,8 @@ export interface ServerDeps {
   authStore: AuthStore;
   /** Where incidents are kept. */
   incidentStore: IncidentStore;
+  /** Per-minute pipeline and delivery numbers (memory when not given, as in tests). */
+  ingestStatsStore?: IngestStatsStore;
   /** Cloudflare Radar events (memory when not given, as in tests). */
   radarStore?: RadarStore;
   /** Network names for incident text; null names until looked up. */
@@ -105,6 +111,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
     broadcaster?: Broadcaster;
     userBroadcaster?: Broadcaster;
     slow?: SlowClients;
+    metrics?: ReturnType<typeof createMetrics>;
   } = {};
 
   /*
@@ -245,8 +252,10 @@ export function buildServer(deps: ServerDeps): RunningServer {
   const recent = new RecentSeconds();
   ingest.onSecond((window) => recent.add(window));
   ingest.onMinute((window) => {
+    const end = late.metrics?.mongoWrite.startTimer();
     store
       .writeMinute(window)
+      .then(() => end?.())
       .catch((err: unknown) => log.error({ err, family: window.family }, 'metrics write failed'));
   });
 
@@ -284,6 +293,41 @@ export function buildServer(deps: ServerDeps): RunningServer {
     res.json(realtimeConfig);
   });
 
+  // Prometheus metrics (read from the live numbers when scraped) and the per-minute record.
+  const metrics = createMetrics({
+    ingest,
+    sockets: () =>
+      Object.fromEntries(
+        Object.entries(late.namespaces ?? {}).map(([name, ns]) => [name, ns.sockets.size]),
+      ),
+    delivery,
+    broadcast: {
+      get frames() {
+        return late.broadcaster?.stats.frames ?? 0;
+      },
+      get deltas() {
+        return late.broadcaster?.stats.deltas ?? 0;
+      },
+    },
+    slow: {
+      get downgrades() {
+        return late.slow?.stats.downgrades ?? 0;
+      },
+      get recoveries() {
+        return late.slow?.stats.recoveries ?? 0;
+      },
+      get summaries() {
+        return late.slow?.stats.summaries ?? 0;
+      },
+      get slowNow() {
+        return late.slow?.stats.slowNow ?? 0;
+      },
+    },
+    store: store.stats,
+  });
+  late.metrics = metrics;
+  const ingestStats = deps.ingestStatsStore ?? createMemoryIngestStatsStore();
+
   const opsStats = () => ({
     pipeline: ingest.pipelineSnapshot(),
     queue: ingest.queue(),
@@ -312,6 +356,12 @@ export function buildServer(deps: ServerDeps): RunningServer {
     liveSockets: () => late.live?.sockets.size ?? 0,
     routes: [
       realtimeRouter,
+      opsRouter({
+        secret: config.JWT_SECRET,
+        registry: metrics.registry,
+        metricsToken: config.METRICS_TOKEN,
+        stats: ingestStats,
+      }),
       authRouter({ config, log, store: deps.authStore, verifyGoogle: deps.verifyGoogle }),
       meRouter({ secret: config.JWT_SECRET, store: deps.authStore, adminStats: opsStats }),
       adminRouter({
@@ -415,6 +465,45 @@ export function buildServer(deps: ServerDeps): RunningServer {
   late.slow = slow;
   if (config.SLOW_CLIENTS) slow.start();
 
+  // How long after a second ends (event time) its numbers leave the server: watermark + conflation.
+  let secondEnds: number[] = [];
+  ingest.onSecond((w) => secondEnds.push(w.start + w.sizeMs));
+  broadcaster.onFlush((now) => {
+    if (secondEnds.length === 0 || !broadcaster.hasMembers(rooms.world)) {
+      secondEnds = [];
+      return;
+    }
+    for (const end of secondEnds) metrics.windowToPublish.observe((now - end) / 1000);
+    secondEnds = [];
+  });
+
+  // Once a minute, on the minute: the last minute's numbers to ingest_stats.
+  const recorder = new MinuteRecorder();
+  const recordMinute = () => {
+    const now = Date.now();
+    const t = now - (now % 60_000) - 60_000;
+    const rows = recorder.rows(t, {
+      ingest: ingest.snapshot(),
+      sockets: live.sockets.size,
+      delivery,
+      broadcast: broadcaster.stats,
+      slowNow: slow.stats.slowNow,
+      mainLoopP99: metrics.mainLoop().p99,
+      store: store.stats,
+    });
+    ingestStats
+      .write(rows)
+      .catch((err: unknown) => log.warn({ err }, 'could not write ingest_stats'));
+  };
+  let minuteTimer: NodeJS.Timeout | null = null;
+  const firstMinute = setTimeout(
+    () => {
+      recordMinute();
+      minuteTimer = setInterval(recordMinute, 60_000);
+    },
+    60_000 - (Date.now() % 60_000) + 500,
+  );
+
   /*
    * Firehose. The ingest thread samples only for feed rooms that have
    * members, so it is told whenever one appears or empties. Batches go out
@@ -483,6 +572,9 @@ export function buildServer(deps: ServerDeps): RunningServer {
     ingest,
     async close() {
       slow.stop();
+      clearTimeout(firstMinute);
+      if (minuteTimer) clearInterval(minuteTimer);
+      metrics.stop();
       clearInterval(opsTimer);
       opsBroadcaster.stop();
       userBroadcaster.stop();

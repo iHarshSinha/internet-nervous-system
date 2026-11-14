@@ -49,7 +49,9 @@ const recorders = buildStreams({
 }).map((spec) => new Recorder(spec, outDir, stamp, print));
 
 // Process health while capturing: memory, CPU, and how long the event loop stalls.
-const loopDelay = monitorEventLoopDelay({ resolution: 10 });
+// Node's reading includes the 10 ms sampling interval itself; it is subtracted below.
+const LOOP_RESOLUTION_MS = 10;
+const loopDelay = monitorEventLoopDelay({ resolution: LOOP_RESOLUTION_MS });
 loopDelay.enable();
 const cpuStart = process.cpuUsage();
 let peakRssMb = 0;
@@ -109,9 +111,9 @@ async function finish(): Promise<void> {
       // 100 means one CPU core fully busy for the whole run.
       avgCpuPercent: round(((cpu.user + cpu.system) / 1e6 / durationSec) * 100),
       eventLoopDelayMs: {
-        p50: round(loopDelay.percentile(50) / 1e6, 2),
-        p99: round(loopDelay.percentile(99) / 1e6, 2),
-        max: round(loopDelay.max / 1e6, 2),
+        p50: round(Math.max(0, loopDelay.percentile(50) / 1e6 - LOOP_RESOLUTION_MS), 2),
+        p99: round(Math.max(0, loopDelay.percentile(99) / 1e6 - LOOP_RESOLUTION_MS), 2),
+        max: round(Math.max(0, loopDelay.max / 1e6 - LOOP_RESOLUTION_MS), 2),
       },
     },
     streams: recorders.map((r) => {

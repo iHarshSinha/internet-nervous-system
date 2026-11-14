@@ -74,6 +74,7 @@ const emptyState = (): IngestState => ({
     maxDepth: 0,
   },
   feedSampledOut: 0,
+  delay: { p50: 0, p95: 0, p99: 0, max: 0, n: 0 },
   probes: [],
   thread: { rssMb: 0, heapMb: 0, loopDelayMs: 0 },
 });
@@ -350,6 +351,16 @@ export class IngestLink {
 
   feedSampledOut(): number {
     return this.state.feedSampledOut;
+  }
+
+  /** Arrival to processed, ms, over the last 10 s. */
+  delay(): IngestState['delay'] {
+    return this.state.delay;
+  }
+
+  /** The whole latest state (for metrics). */
+  snapshot(): IngestState {
+    return this.state;
   }
 
   // ---- commands

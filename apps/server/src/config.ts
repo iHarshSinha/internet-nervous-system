@@ -95,6 +95,9 @@ const envSchema = z.object({
     .string()
     .default(fileURLToPath(new URL('../../../deploy/seed/scenarios/', import.meta.url))),
 
+  /** Optional: a scraper presenting this bearer token may read /metrics (admins always can). */
+  METRICS_TOKEN: z.preprocess(emptyIsUnset, z.string().min(24).max(200).optional()),
+
   // ---- Cloudflare Radar (optional: without a token the Radar layer stays off)
   CLOUDFLARE_API_TOKEN: z.preprocess(emptyIsUnset, z.string().min(20).max(200).optional()),
   /** How often to poll Radar events, and attack pairs (which Radar updates every 15 minutes). */

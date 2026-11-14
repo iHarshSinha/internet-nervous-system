@@ -52,6 +52,7 @@ export class Broadcaster {
   private readonly appended = new Set<Delta>();
   private readonly rings = new Map<string, Frame[]>();
   private timer: ReturnType<typeof setInterval> | null = null;
+  private readonly flushListeners: ((now: number) => void)[] = [];
 
   constructor(live: LiveNamespace, seq: RoomSequencer, opts: BroadcasterOptions = {}) {
     this.live = live;
@@ -162,6 +163,12 @@ export class Broadcaster {
     }
     // Everything staged has been handled (sent or dropped).
     this.appended.clear();
+    for (const listener of this.flushListeners) listener(now);
+  }
+
+  /** Called after every flush (used to time how long data waits before it is sent). */
+  onFlush(listener: (now: number) => void): void {
+    this.flushListeners.push(listener);
   }
 
   /**
