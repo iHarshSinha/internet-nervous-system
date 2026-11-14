@@ -143,13 +143,13 @@ const DETAIL_LABELS: Record<string, string> = {
 function Evidence({ signal, now }: { signal: IncidentSignal; now: number }) {
   const live = signal.lastAt >= now - 5000;
   return (
-    <div className="rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.06]">
+    <div className="rounded-md bg-white/[0.03] p-3 ring-1 ring-white/[0.06]">
       <div className="flex items-center gap-2">
         <span
           className={`size-2 rounded-full ${live ? 'animate-[blink_1s_infinite] bg-critical' : 'bg-low'}`}
         />
         <span className="text-sm font-medium text-hi">{SIGNAL_LABELS[signal.type]}</span>
-        <span className="ml-auto font-mono text-[0.66rem] text-low">
+        <span className="ml-auto font-mono text-[0.76rem] text-low">
           weight {signal.weight.toFixed(2)}
         </span>
       </div>
@@ -157,7 +157,7 @@ function Evidence({ signal, now }: { signal: IncidentSignal; now: number }) {
         {Object.entries(signal.detail)
           .filter(([k]) => k !== 'url' && k !== 'title')
           .map(([k, v]) => (
-            <div key={k} className="flex items-baseline justify-between gap-2 text-[0.7rem]">
+            <div key={k} className="flex items-baseline justify-between gap-2 text-[0.8rem]">
               <dt className="truncate text-low">{DETAIL_LABELS[k] ?? k}</dt>
               <dd className="font-mono text-mid tabular-nums">
                 {typeof v === 'number' ? formatInt(v) : v}
@@ -166,7 +166,7 @@ function Evidence({ signal, now }: { signal: IncidentSignal; now: number }) {
           ))}
       </dl>
       {typeof signal.detail.title === 'string' && (
-        <p className="mt-2 text-[0.72rem] leading-snug text-mid">
+        <p className="mt-2 text-[0.82rem] leading-snug text-mid">
           {signal.detail.title}{' '}
           {typeof signal.detail.url === 'string' && (
             <a
@@ -180,7 +180,7 @@ function Evidence({ signal, now }: { signal: IncidentSignal; now: number }) {
           )}
         </p>
       )}
-      <div className="mt-2 text-[0.64rem] text-low">
+      <div className="mt-2 text-[0.74rem] text-low">
         first {time(signal.firstAt)} · {live ? 'still firing' : `last ${ago(now - signal.lastAt)}`}
       </div>
     </div>
@@ -229,7 +229,7 @@ export function IncidentPage({ id }: { id: string }) {
       <header className="relative mt-3 animate-[rise_.6s_both]">
         <div className="flex flex-wrap items-center gap-2">
           <SeverityTag incident={incident} />
-          <span className="font-mono text-[0.66rem] tracking-[0.16em] text-mid uppercase">
+          <span className="font-mono text-[0.76rem] tracking-[0.1em] text-mid uppercase">
             {incident.state === 'open'
               ? 'in progress'
               : incident.state === 'resolving'
@@ -273,7 +273,7 @@ export function IncidentPage({ id }: { id: string }) {
           <Panel title="What happened">
             <p className="text-[0.95rem] leading-relaxed text-hi">{incident.summary}</p>
             <div className="mt-5 flex items-center gap-4">
-              <span className="text-[0.66rem] tracking-[0.18em] text-low uppercase">Score</span>
+              <span className="text-[0.76rem] tracking-[0.1em] text-low uppercase">Score</span>
               <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
                 <div
                   className="h-full rounded-full transition-[width] duration-700"
@@ -325,7 +325,7 @@ export function IncidentPage({ id }: { id: string }) {
                   return columns(around, [(p) => p.ann, (p) => p.wd], 90_000);
                 }}
               />
-              <p className="mt-2 text-[0.68rem] text-low">
+              <p className="mt-2 text-[0.78rem] text-low">
                 From 30 minutes before the incident (shaded while it was open); MongoDB history
                 merged with the live room.
               </p>
@@ -351,8 +351,8 @@ export function IncidentPage({ id }: { id: string }) {
                     className="absolute top-1.5 -left-[25px] size-2 rounded-full ring-4 ring-void"
                     style={{ background: i === 0 ? color : colors.mid }}
                   />
-                  <div className="font-mono text-[0.66rem] text-low">{time(t.at)}</div>
-                  <div className="mt-0.5 text-[0.8rem] leading-snug text-hi">{t.text}</div>
+                  <div className="font-mono text-[0.76rem] text-low">{time(t.at)}</div>
+                  <div className="mt-0.5 text-[0.88rem] leading-snug text-hi">{t.text}</div>
                 </li>
               ))}
             </ol>

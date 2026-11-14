@@ -124,8 +124,12 @@ function outageSteps(s: Steps, asn: number, prefixes: string[], from: number, re
 
 /** Slow or lost pings from the country's probes, after a few normal ones (their usual latency). */
 function latencySteps(s: Steps, probes: number[], from: number, until: number) {
-  const ping = (at: number, probeId: number, rtt: number | null) =>
-    s.add(at, 'atlas.ping', { probeId, msmId: 1001 }, { rtt, sent: 3, rcvd: rtt === null ? 0 : 3 });
+  // Every target the probes measure (the built-in pings to three root servers) slows down.
+  const ping = (at: number, probeId: number, rtt: number | null) => {
+    for (const msmId of [1001, 1008, 1006]) {
+      s.add(at, 'atlas.ping', { probeId, msmId }, { rtt, sent: 3, rcvd: rtt === null ? 0 : 3 });
+    }
+  };
   probes.forEach((id, i) => {
     const usual = 15 + ((id * 7) % 40);
     for (let k = 0; k < 4; k++) ping(k * 500 + (i % 20) * 20, id, usual + k);

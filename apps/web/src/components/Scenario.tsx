@@ -47,8 +47,8 @@ export function ScenarioBadge() {
   if (!running || !scenario.id) return null;
   const info = SCENARIOS[scenario.id];
   return (
-    <div className="pointer-events-auto flex max-w-[92vw] animate-[rise_.4s_both] flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-critical/40 bg-[#160a0d]/95 px-3 py-2 text-xs text-hi">
-      <span className="rounded-full bg-critical px-2 py-0.5 font-mono text-[0.62rem] font-semibold tracking-[0.12em] text-void uppercase">
+    <div className="pointer-events-auto flex max-w-[92vw] animate-[rise_.4s_both] flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-critical/40 bg-[#24121a]/95 px-3 py-2 text-xs text-hi">
+      <span className="rounded-full bg-critical px-2 py-0.5 font-mono text-[0.74rem] font-semibold tracking-[0.12em] text-void uppercase">
         Simulation
       </span>
       <span className="font-medium">
@@ -59,7 +59,7 @@ export function ScenarioBadge() {
       <span className="font-mono text-mid tabular-nums">
         {clock(elapsed)} / {clock(scenario.durationMs)}
       </span>
-      <span className="w-full text-[0.68rem] text-low">{info.note}</span>
+      <span className="w-full text-[0.78rem] text-low">{info.note}</span>
     </div>
   );
 }
@@ -120,7 +120,7 @@ export function ScenarioControls() {
     <Panel
       title="Control room"
       aside={
-        <span className="rounded border border-caution/40 px-1.5 font-mono text-[0.58rem] tracking-wider text-caution uppercase">
+        <span className="rounded border border-caution/40 px-1.5 font-mono text-[0.72rem] tracking-wider text-caution uppercase">
           admin
         </span>
       }
@@ -130,7 +130,7 @@ export function ScenarioControls() {
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="truncate text-sm text-hi">{SCENARIOS[scenario.id].title}</div>
-              <div className="text-[0.68rem] text-mid">{scenario.target ?? ''}</div>
+              <div className="text-[0.78rem] text-mid">{scenario.target ?? ''}</div>
             </div>
             <button
               type="button"
@@ -146,7 +146,7 @@ export function ScenarioControls() {
               style={{ width: `${fraction * 100}%` }}
             />
           </div>
-          <div className="mt-1 flex justify-between font-mono text-[0.62rem] text-mid">
+          <div className="mt-1 flex justify-between font-mono text-[0.74rem] text-mid">
             <span>{PHASE_TEXT[scenario.phase ?? ''] ?? scenario.phase}</span>
             <span>
               {clock(elapsed)} / {clock(scenario.durationMs)}
@@ -161,7 +161,7 @@ export function ScenarioControls() {
                 key={id}
                 type="button"
                 onClick={() => setPick(id)}
-                className={`rounded-lg px-2 py-1.5 text-[0.7rem] transition ${
+                className={`rounded-lg px-2 py-1.5 text-[0.8rem] transition ${
                   pick === id
                     ? 'bg-critical/15 text-hi ring-1 ring-critical/50'
                     : 'text-mid ring-1 ring-white/[0.08] hover:bg-white/[0.05]'
@@ -171,10 +171,10 @@ export function ScenarioControls() {
               </button>
             ))}
           </div>
-          <p className="text-[0.68rem] leading-relaxed text-low">{info.note}</p>
+          <p className="text-[0.78rem] leading-relaxed text-low">{info.note}</p>
           {info.target === 'asn' && (
             <div className="space-y-1.5">
-              <label className="flex items-center gap-2 text-[0.7rem] text-mid">
+              <label className="flex items-center gap-2 text-[0.8rem] text-mid">
                 Network AS
                 <input
                   value={asn}
@@ -189,7 +189,7 @@ export function ScenarioControls() {
                     key={n}
                     type="button"
                     onClick={() => setAsn(String(n))}
-                    className={`rounded-full px-2 py-0.5 text-[0.62rem] ring-1 transition ${asn === String(n) ? 'text-signal ring-signal/40' : 'text-low ring-white/[0.08] hover:text-hi'}`}
+                    className={`rounded-full px-2 py-0.5 text-[0.74rem] ring-1 transition ${asn === String(n) ? 'text-signal ring-signal/40' : 'text-low ring-white/[0.08] hover:text-hi'}`}
                   >
                     {name}
                   </button>
@@ -199,14 +199,14 @@ export function ScenarioControls() {
           )}
           {info.target === 'country' && (
             <div className="flex flex-wrap items-center gap-1">
-              <span className="mr-1 text-[0.7rem] text-mid">Country</span>
+              <span className="mr-1 text-[0.8rem] text-mid">Country</span>
               {[...new Set([...(selected ? [selected] : []), ...COUNTRIES])].map((c) => (
                 <button
                   key={c}
                   type="button"
                   onClick={() => setCc(c)}
                   title={countryName(c)}
-                  className={`rounded-full px-2 py-0.5 text-[0.62rem] ring-1 transition ${country === c ? 'text-signal ring-signal/40' : 'text-low ring-white/[0.08] hover:text-hi'}`}
+                  className={`rounded-full px-2 py-0.5 text-[0.74rem] ring-1 transition ${country === c ? 'text-signal ring-signal/40' : 'text-low ring-white/[0.08] hover:text-hi'}`}
                 >
                   {flag(c)} {c}
                 </button>
@@ -225,7 +225,7 @@ export function ScenarioControls() {
           </button>
         </div>
       )}
-      <p className="mt-3 text-[0.62rem] leading-relaxed text-low">
+      <p className="mt-3 text-[0.74rem] leading-relaxed text-low">
         Everything injected is labelled as a simulation for every viewer and goes back to normal by
         itself.
       </p>

@@ -31,7 +31,7 @@ export const StatusPill = memo(function StatusPill() {
       className="glass flex items-center gap-2 rounded-full px-2.5 py-1.5 sm:gap-2.5 sm:px-3.5"
     >
       <span className={`size-2 rounded-full ${dot}`} />
-      <span className={`font-mono text-xs tracking-[0.18em] uppercase ${text}`}>{label}</span>
+      <span className={`font-mono text-xs tracking-[0.1em] uppercase ${text}`}>{label}</span>
     </div>
   );
 });
@@ -67,11 +67,11 @@ export function Header() {
           <span className="size-2 rounded-full bg-signal shadow-[0_0_14px_var(--color-signal)]" />
         </span>
         <span className="leading-tight">
-          <span className="block text-[0.8rem] font-semibold tracking-[0.24em] whitespace-nowrap text-hi uppercase max-sm:text-[0.7rem] max-sm:tracking-[0.16em]">
+          <span className="block text-[0.88rem] font-semibold tracking-[0.1em] whitespace-nowrap text-hi uppercase max-sm:text-[0.8rem] max-sm:tracking-[0.1em]">
             <span className="max-sm:hidden">Internet Nervous System</span>
             <span className="sm:hidden">Nervous System</span>
           </span>
-          <span className="hidden text-[0.7rem] tracking-[0.08em] text-low sm:block">
+          <span className="hidden text-[0.8rem] tracking-[0.08em] text-low sm:block">
             The internet&apos;s routing and latency, live
           </span>
         </span>
@@ -99,12 +99,10 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section className={`glass rounded-2xl p-4 ${className}`}>
+    <section className={`glass rounded-lg p-4 ${className}`}>
       {title && (
         <header className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="text-[0.68rem] font-medium tracking-[0.22em] text-mid uppercase">
-            {title}
-          </h2>
+          <h2 className="title">{title}</h2>
           {aside}
         </header>
       )}
@@ -128,7 +126,7 @@ export function Stat({
 }) {
   return (
     <div className="min-w-0" title={hint}>
-      <div className="text-[0.66rem] tracking-[0.18em] text-low uppercase">{label}</div>
+      <div className="text-[0.76rem] tracking-[0.1em] text-low uppercase">{label}</div>
       <div
         className="mt-1 truncate font-mono text-lg text-hi tabular-nums"
         style={tone ? { color: tone } : undefined}

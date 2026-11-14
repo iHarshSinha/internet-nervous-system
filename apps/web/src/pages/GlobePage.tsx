@@ -44,7 +44,7 @@ const LivePulse = memo(function LivePulse() {
   return (
     <Panel
       title="Pulse of the internet"
-      aside={<span className="font-mono text-[0.68rem] text-low">last 2 min</span>}
+      aside={<span className="font-mono text-[0.78rem] text-low">last 2 min</span>}
     >
       <div className="flex items-end gap-2">
         <span className="font-mono text-[2.6rem] leading-none font-medium text-hi tabular-nums [text-shadow:0_0_28px_rgba(94,230,255,0.25)]">
@@ -52,7 +52,7 @@ const LivePulse = memo(function LivePulse() {
         </span>
         <span className="mb-1 text-xs text-mid">route changes / s</span>
       </div>
-      <div className="mt-2 flex gap-3 text-[0.7rem]">
+      <div className="mt-2 flex gap-3 text-[0.8rem]">
         <span className="text-signal">
           ● announced <AnimatedNumber value={ann} />
         </span>
@@ -90,33 +90,33 @@ const Sources = memo(function Sources() {
     <Panel
       title="Data sources"
       aside={
-        <span className="font-mono text-[0.68rem] text-low">
+        <span className="font-mono text-[0.78rem] text-low">
           {upstreams.filter((u) => u.connected).length}/{upstreams.length || '—'} up
         </span>
       }
     >
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-white/[0.025] px-3 py-2">
-          <div className="text-[0.6rem] tracking-[0.16em] text-low uppercase">Routing · RIS</div>
+        <div className="rounded-md bg-white/[0.025] px-3 py-2">
+          <div className="text-[0.72rem] tracking-[0.1em] text-low uppercase">Routing · RIS</div>
           <div className="mt-0.5 font-mono text-sm text-hi tabular-nums">
-            <AnimatedNumber value={risEps} /> <span className="text-[0.65rem] text-mid">ev/s</span>
+            <AnimatedNumber value={risEps} /> <span className="text-[0.76rem] text-mid">ev/s</span>
           </div>
-          <div className="text-[0.62rem] text-low">
+          <div className="text-[0.74rem] text-low">
             {typeof risLag === 'number' ? `${risLag.toFixed(1)} s behind` : '—'}
           </div>
         </div>
-        <div className="rounded-xl bg-white/[0.025] px-3 py-2">
-          <div className="text-[0.6rem] tracking-[0.16em] text-low uppercase">Latency · Atlas</div>
+        <div className="rounded-md bg-white/[0.025] px-3 py-2">
+          <div className="text-[0.72rem] tracking-[0.1em] text-low uppercase">Latency · Atlas</div>
           <div className="mt-0.5 font-mono text-sm text-hi tabular-nums">
             <AnimatedNumber value={atlasEps} />{' '}
-            <span className="text-[0.65rem] text-mid">ev/s</span>
+            <span className="text-[0.76rem] text-mid">ev/s</span>
           </div>
-          <div className="text-[0.62rem] text-low">arrives 1–4 min late</div>
+          <div className="text-[0.74rem] text-low">arrives 1–4 min late</div>
         </div>
       </div>
       <ul className="mt-3 space-y-1.5">
         {upstreams.map((u) => (
-          <li key={u.name} className="flex items-center gap-2 text-[0.72rem]">
+          <li key={u.name} className="flex items-center gap-2 text-[0.82rem]">
             <span
               className={`size-1.5 rounded-full ${u.connected ? 'bg-signal shadow-[0_0_8px_var(--color-signal)]' : 'bg-caution'}`}
             />
@@ -144,7 +144,7 @@ const LatencyMix = memo(function LatencyMix() {
   return (
     <Panel
       title="Probe latency mix"
-      aside={<span className="font-mono text-[0.68rem] text-low">{formatInt(total)} probes</span>}
+      aside={<span className="font-mono text-[0.78rem] text-low">{formatInt(total)} probes</span>}
     >
       <div className="flex h-2.5 overflow-hidden rounded-full bg-white/[0.04]">
         {counts.map((n, i) => (
@@ -157,7 +157,7 @@ const LatencyMix = memo(function LatencyMix() {
       </div>
       <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
         {counts.map((n, i) => (
-          <li key={BUCKET_LABELS[i]} className="flex items-center gap-1.5 text-[0.68rem]">
+          <li key={BUCKET_LABELS[i]} className="flex items-center gap-1.5 text-[0.78rem]">
             <span
               className="size-1.5 shrink-0 rounded-full"
               style={{ background: BUCKET_COLORS[i] }}
@@ -184,7 +184,7 @@ const Busiest = memo(function Busiest() {
   return (
     <Panel
       title="Busiest right now"
-      aside={<span className="font-mono text-[0.68rem] text-low">changes / s</span>}
+      aside={<span className="font-mono text-[0.78rem] text-low">changes / s</span>}
     >
       <ol className="space-y-0.5">
         {rows.length === 0 && (
@@ -201,9 +201,9 @@ const Busiest = memo(function Busiest() {
                 className="absolute inset-y-1 left-0 rounded-r-md bg-gradient-to-r from-signal/[0.02] to-signal/[0.12] transition-[width] duration-700"
                 style={{ width: `${((c.act ?? 0) / max) * 100}%` }}
               />
-              <span className="relative w-3 font-mono text-[0.62rem] text-low">{i + 1}</span>
+              <span className="relative w-3 font-mono text-[0.74rem] text-low">{i + 1}</span>
               <span className="relative text-base leading-none">{flag(cc)}</span>
-              <span className="relative min-w-0 flex-1 truncate text-[0.82rem] text-hi">
+              <span className="relative min-w-0 flex-1 truncate text-[0.92rem] text-hi">
                 {countryName(cc)}
               </span>
               <span
@@ -232,10 +232,10 @@ const TroubleSpots = memo(function TroubleSpots() {
   return (
     <Panel
       title="Trouble spots"
-      aside={<span className="font-mono text-[0.68rem] text-low">health below 90</span>}
+      aside={<span className="font-mono text-[0.78rem] text-low">health below 90</span>}
     >
       {rows.length === 0 ? (
-        <div className="flex items-center gap-2.5 rounded-lg bg-signal/[0.05] px-3 py-2 text-[0.78rem] text-mid">
+        <div className="flex items-center gap-2.5 rounded-lg bg-signal/[0.05] px-3 py-2 text-[0.86rem] text-mid">
           <span className="size-1.5 rounded-full bg-signal shadow-[0_0_10px_var(--color-signal)]" />
           All clear: every country is above 90
         </div>
@@ -249,10 +249,10 @@ const TroubleSpots = memo(function TroubleSpots() {
                 className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-white/[0.05]"
               >
                 <span className="text-base leading-none">{flag(cc)}</span>
-                <span className="min-w-0 flex-1 truncate text-[0.82rem] text-hi">
+                <span className="min-w-0 flex-1 truncate text-[0.92rem] text-hi">
                   {countryName(cc)}
                 </span>
-                <span className="text-[0.66rem]" style={{ color: healthColor(c.h) }}>
+                <span className="text-[0.76rem]" style={{ color: healthColor(c.h) }}>
                   {healthLabel(c.h)}
                 </span>
                 <span
@@ -280,13 +280,13 @@ function CountryCard() {
   for (const [, , pcc] of probePos.values()) if (pcc === cc) probes += 1;
 
   return (
-    <div className="glass pointer-events-auto w-full animate-[rise_.45s_both] rounded-2xl p-4 lg:w-[360px]">
+    <div className="glass pointer-events-auto w-full animate-[rise_.45s_both] rounded-lg p-4 lg:w-[360px]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="text-3xl leading-none">{flag(cc)}</span>
           <div>
             <div className="text-lg font-semibold text-hi">{countryName(cc)}</div>
-            <div className="text-[0.7rem] text-low">
+            <div className="text-[0.8rem] text-low">
               <span style={{ color: healthColor(c?.h) }}>{healthLabel(c?.h)}</span> ·{' '}
               {formatInt(probes)} Atlas probes here
             </div>
@@ -317,7 +317,7 @@ function CountryCard() {
       <button
         type="button"
         onClick={() => navigate(`/c/${cc}`)}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-signal/10 py-2.5 text-sm font-medium text-signal ring-1 ring-signal/30 transition hover:bg-signal/20"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-md bg-signal/10 py-2.5 text-sm font-medium text-signal ring-1 ring-signal/30 transition hover:bg-signal/20"
       >
         Open live history <span aria-hidden="true">→</span>
       </button>
@@ -345,7 +345,7 @@ function RegionDock() {
           key={name}
           type="button"
           onClick={() => go(lat, lng)}
-          className="rounded-full px-3 py-1 text-[0.72rem] text-mid ring-1 ring-white/[0.08] transition hover:bg-white/[0.06] hover:text-hi"
+          className="rounded-full px-3 py-1 text-[0.82rem] text-mid ring-1 ring-white/[0.08] transition hover:bg-white/[0.06] hover:text-hi"
         >
           {name}
         </button>
@@ -353,7 +353,7 @@ function RegionDock() {
       <button
         type="button"
         onClick={() => go(GLOBE_HOME.lat, GLOBE_HOME.lng, GLOBE_HOME.altitude)}
-        className="rounded-full px-3 py-1 text-[0.72rem] text-signal ring-1 ring-signal/25 transition hover:bg-signal/10"
+        className="rounded-full px-3 py-1 text-[0.82rem] text-signal ring-1 ring-signal/25 transition hover:bg-signal/10"
       >
         ◎ Whole world
       </button>
@@ -376,7 +376,7 @@ const PipelineStrip = memo(function PipelineStrip() {
     </span>
   );
   return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[0.66rem]">
+    <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[0.76rem]">
       {item('frame', seq === 0 ? '—' : `#${seq}`, 'Sequence number of the latest world frame')}
       {item('delivery', delayMs === null ? '—' : `${delayMs} ms`, 'Server stamp to this page')}
       {item('gaps', String(gaps), 'Missing frames (recovered with resync)')}
@@ -390,9 +390,9 @@ const PipelineStrip = memo(function PipelineStrip() {
 
 function Legend() {
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.68rem] text-mid">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.78rem] text-mid">
       <span className="flex items-center gap-2">
-        <span className="tracking-[0.16em] text-low uppercase">Land</span>
+        <span className="tracking-[0.1em] text-low uppercase">Land</span>
         <span
           className="h-1.5 w-20 rounded-full"
           style={{
@@ -402,7 +402,7 @@ function Legend() {
         <span>health</span>
       </span>
       <span className="flex items-center gap-2">
-        <span className="tracking-[0.16em] text-low uppercase">Dots</span>
+        <span className="tracking-[0.1em] text-low uppercase">Dots</span>
         <span className="flex gap-0.5">
           {BUCKET_COLORS.map((c) => (
             <span key={c} className="size-1.5 rounded-full" style={{ background: c }} />
@@ -429,7 +429,7 @@ export function GlobePage() {
 
   return (
     <main className="relative min-h-dvh overflow-hidden">
-      <div className="fixed inset-0 bg-[radial-gradient(110%_75%_at_50%_45%,#0c1d2f_0%,#060b14_45%,#04060b_70%)]" />
+      <div className="fixed inset-0 bg-[radial-gradient(110%_75%_at_50%_45%,#1a3558_0%,#0d1a2d_45%,#0a1321_70%)]" />
       <div className="fixed inset-0 opacity-70">
         <Starfield />
       </div>
@@ -437,7 +437,7 @@ export function GlobePage() {
         <GlobeView />
       </div>
       {/* Edge vignette, so the panels sit on darkness rather than on the globe. */}
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(75%_70%_at_50%_50%,transparent_55%,rgba(4,6,11,0.85)_100%)] max-lg:hidden" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(75%_70%_at_50%_50%,transparent_55%,rgba(10,19,33,0.78)_100%)] max-lg:hidden" />
 
       {/* Greeting (signed in) or an invitation to sign in, top centre. */}
       <div className="pointer-events-none relative z-20 flex justify-center px-4 pt-3 lg:fixed lg:inset-x-0 lg:top-20 lg:pt-0">
@@ -488,14 +488,14 @@ export function GlobePage() {
           <CountryCard />
         </div>
 
-        <div className="glass pointer-events-auto shrink-0 animate-[rise_.9s_.6s_both] rounded-2xl px-4 py-3">
+        <div className="glass pointer-events-auto shrink-0 animate-[rise_.9s_.6s_both] rounded-lg px-4 py-3">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <Legend />
             <RegionDock />
           </div>
           <div className="mt-2.5 flex flex-col gap-1 border-t border-line pt-2.5 lg:flex-row lg:items-center lg:justify-between">
             <PipelineStrip />
-            <span className="text-[0.64rem] text-low">
+            <span className="text-[0.74rem] text-low">
               Data: RIPE NCC (RIS, Atlas) · Cloudflare Radar (CC BY-NC 4.0) · Shapes: Natural Earth
             </span>
           </div>

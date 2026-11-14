@@ -133,11 +133,11 @@ function Kpi({
 }) {
   return (
     <div
-      className="flex flex-col rounded-xl bg-white/[0.025] p-3 ring-1 ring-white/[0.04] transition hover:ring-white/[0.1] 2xl:p-4"
+      className="flex flex-col rounded-md bg-white/[0.025] p-3 ring-1 ring-white/[0.04] transition hover:ring-white/[0.1] 2xl:p-4"
       title={hint}
       style={{ animation: `rise .7s cubic-bezier(.2,.8,.2,1) ${delay}s both` }}
     >
-      <div className="text-[0.62rem] tracking-[0.16em] text-low uppercase">{label}</div>
+      <div className="text-[0.74rem] tracking-[0.1em] text-low uppercase">{label}</div>
       <div className="mt-1 font-mono text-xl text-hi tabular-nums">
         {value}
         {unit && <span className="ml-1 text-xs text-mid">{unit}</span>}
@@ -152,7 +152,7 @@ function Kpi({
 
 function SeriesKey({ items }: { items: [string, string][] }) {
   return (
-    <span className="flex gap-3 text-[0.68rem] text-mid">
+    <span className="flex gap-3 text-[0.78rem] text-mid">
       {items.map(([label, color]) => (
         <span key={label} className="flex items-center gap-1.5">
           <span className="h-0.5 w-3 rounded" style={{ background: color }} />
@@ -184,20 +184,20 @@ export function CountryPage({ cc }: { cc: string }) {
 
   return (
     <main className="relative min-h-dvh">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(90%_60%_at_20%_0%,#0c1d2f_0%,#04060b_55%)]" />
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(90%_60%_at_20%_0%,#1a3558_0%,#0a1321_55%)]" />
       <div className="mx-auto w-full max-w-[1760px] px-4 pt-24 pb-12 sm:px-8 xl:px-12">
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="mb-5 text-xs tracking-[0.16em] text-mid uppercase transition hover:text-hi"
+          className="mb-5 text-xs tracking-[0.1em] text-mid uppercase transition hover:text-hi"
         >
           ← Back to the globe
         </button>
 
         <div className="grid animate-[rise_.7s_both] gap-5 lg:grid-cols-12">
-          <section className="glass relative overflow-hidden rounded-2xl lg:col-span-7">
+          <section className="glass relative overflow-hidden rounded-lg lg:col-span-7">
             <div className="absolute top-5 left-5 z-10">
-              <div className="text-[0.68rem] tracking-[0.22em] text-low uppercase">
+              <div className="text-[0.78rem] tracking-[0.1em] text-low uppercase">
                 Country · {cc}
               </div>
               <h1 className="mt-1 flex items-center gap-3 text-3xl font-semibold tracking-tight text-hi sm:text-4xl 2xl:text-5xl">
@@ -211,7 +211,7 @@ export function CountryPage({ cc }: { cc: string }) {
             <div className="aspect-[640/380] w-full pt-16">
               <CountryMap cc={cc} health={health} />
             </div>
-            <div className="absolute right-5 bottom-4 left-5 flex flex-wrap items-center justify-between gap-2 text-[0.66rem] text-mid">
+            <div className="absolute right-5 bottom-4 left-5 flex flex-wrap items-center justify-between gap-2 text-[0.76rem] text-mid">
               <span>{formatInt(probeCount)} RIPE Atlas probes located here</span>
               <span className="flex flex-wrap gap-2.5">
                 {BUCKET_LABELS.map((label, i) => (
@@ -227,11 +227,11 @@ export function CountryPage({ cc }: { cc: string }) {
             </div>
           </section>
 
-          <section className="glass flex flex-col gap-5 rounded-2xl p-5 lg:col-span-5">
+          <section className="glass flex flex-col gap-5 rounded-lg p-5 lg:col-span-5">
             <div className="flex items-center gap-5">
               <HealthGauge value={health} />
               <div className="min-w-0 flex-1">
-                <div className="text-[0.68rem] tracking-[0.22em] text-low uppercase">
+                <div className="text-[0.78rem] tracking-[0.1em] text-low uppercase">
                   Network health
                 </div>
                 <p className="mt-2 text-sm leading-relaxed text-mid">
@@ -285,12 +285,10 @@ export function CountryPage({ cc }: { cc: string }) {
           </section>
         </div>
 
-        <section className="glass mt-5 animate-[rise_.7s_.1s_both] rounded-2xl p-4">
+        <section className="glass mt-5 animate-[rise_.7s_.1s_both] rounded-lg p-4">
           <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-[0.68rem] font-medium tracking-[0.22em] text-mid uppercase">
-              Health · last 24 hours, one bar per minute
-            </h2>
-            <span className="flex items-center gap-2 text-[0.66rem] text-low">
+            <h2 className="title">Health · last 24 hours, one bar per minute</h2>
+            <span className="flex items-center gap-2 text-[0.76rem] text-low">
               <span
                 className="h-1.5 w-16 rounded-full"
                 style={{
@@ -301,7 +299,7 @@ export function CountryPage({ cc }: { cc: string }) {
             </span>
           </div>
           <HealthStrip room={room} />
-          <div className="mt-1.5 flex justify-between font-mono text-[0.62rem] text-low">
+          <div className="mt-1.5 flex justify-between font-mono text-[0.74rem] text-low">
             <span>24 h ago</span>
             <span>12 h ago</span>
             <span>now</span>
@@ -387,9 +385,9 @@ export function CountryPage({ cc }: { cc: string }) {
           </div>
         </div>
 
-        <section className="mt-5 flex animate-[rise_.7s_.3s_both] flex-col gap-3 rounded-2xl border border-signal/10 bg-signal/[0.03] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <section className="mt-5 flex animate-[rise_.7s_.3s_both] flex-col gap-3 rounded-lg border border-signal/10 bg-signal/[0.03] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-[0.68rem] font-medium tracking-[0.22em] text-signal uppercase">
+            <div className="text-[0.78rem] font-medium tracking-[0.1em] text-signal uppercase">
               Data integrity
             </div>
             <p className="mt-1 max-w-xl text-xs text-mid">
@@ -407,7 +405,7 @@ export function CountryPage({ cc }: { cc: string }) {
               ['points', `${snap?.seconds ?? 0}s · ${snap?.minutes ?? 0}m`],
             ].map(([k, v]) => (
               <div key={k}>
-                <dt className="text-[0.6rem] tracking-[0.14em] text-low uppercase">{k}</dt>
+                <dt className="text-[0.72rem] tracking-[0.14em] text-low uppercase">{k}</dt>
                 <dd className="text-hi tabular-nums">{v}</dd>
               </div>
             ))}

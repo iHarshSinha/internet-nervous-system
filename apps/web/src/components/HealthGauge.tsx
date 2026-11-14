@@ -47,7 +47,7 @@ export function HealthGauge({ value, size = 148 }: { value: number | undefined; 
         <div className="font-mono text-4xl font-medium tabular-nums" style={{ color }}>
           <AnimatedNumber value={value} durationMs={1400} />
         </div>
-        <div className="text-[0.62rem] tracking-[0.18em] text-mid uppercase">
+        <div className="text-[0.74rem] tracking-[0.1em] text-mid uppercase">
           {healthLabel(value)}
         </div>
       </div>

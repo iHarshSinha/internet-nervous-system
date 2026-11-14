@@ -36,7 +36,7 @@ export function App() {
       <div
         className={`pointer-events-none fixed inset-x-0 top-0 z-30 pb-6 ${
           route.page === 'login'
-            ? 'bg-[#05070c]'
+            ? 'bg-[#0a1321]'
             : 'bg-gradient-to-b from-void via-void/70 to-transparent'
         }`}
       >

@@ -52,7 +52,7 @@ interface Arc {
 
 const INCIDENT_RGB = { critical: '255, 77, 94', warning: '255, 180, 84', watch: '155, 140, 255' };
 
-const material = new MeshPhongMaterial({ color: '#08121d', emissive: '#02070e', shininess: 6 });
+const material = new MeshPhongMaterial({ color: '#0d1c31', emissive: '#061120', shininess: 6 });
 
 const ccOf = (f: object | null | undefined): string | null =>
   (f as CountryFeature | undefined)?.properties?.cc ?? null;
@@ -62,7 +62,7 @@ function tooltip(cc: string | null): string {
   const c = useGlobe.getState().countries.get(cc);
   const row = (k: string, v: string) =>
     `<div style="display:flex;justify-content:space-between;gap:18px"><span style="color:#8ea3b5">${k}</span><span style="font-family:ui-monospace,monospace">${v}</span></div>`;
-  return `<div style="background:rgba(8,13,22,.92);border:1px solid rgba(94,230,255,.18);border-radius:12px;padding:10px 12px;min-width:200px;color:#e8f1f8;font:13px system-ui;box-shadow:0 12px 40px -12px #000">
+  return `<div style="background:rgba(15,27,46,.96);border:1px solid rgba(94,230,255,.18);border-radius:12px;padding:10px 12px;min-width:200px;color:#e8f1f8;font:13px system-ui;box-shadow:0 12px 40px -12px #000">
     <div style="font-weight:600;margin-bottom:6px">${countryName(cc)}</div>
     ${row('Health', c?.h === undefined ? '—' : `${c.h} / 100`)}
     ${row('Route changes', c?.act === undefined ? '—' : `${formatInt(c.act)} / s`)}
@@ -76,7 +76,7 @@ function markerElement(m: Marker): HTMLElement {
   const el = document.createElement('button');
   el.type = 'button';
   el.style.cssText = `pointer-events:auto;cursor:pointer;transform:translate(-50%,-140%);white-space:nowrap;
-    font:600 12px system-ui;color:#fff;background:rgba(10,6,8,.88);border:1px solid ${m.color};
+    font:600 12px system-ui;color:#fff;background:rgba(28,17,25,.92);border:1px solid ${m.color};
     border-radius:999px;padding:5px 11px 5px 9px;box-shadow:0 0 24px -2px ${m.color};
     display:flex;align-items:center;gap:6px;animation:pop .5s both`;
   const dot = document.createElement('span');
@@ -427,7 +427,7 @@ export function GlobeView() {
           arcDashAnimateTime={2600}
           arcAltitudeAutoScale={0.2}
           arcLabel={(d: object) =>
-            `<div style="background:rgba(8,13,22,.92);border:1px solid rgba(255,77,94,.35);border-radius:10px;padding:6px 10px;color:#e8f1f8;font:12px system-ui">${(d as Arc).label}</div>`
+            `<div style="background:rgba(15,27,46,.96);border:1px solid rgba(255,77,94,.35);border-radius:10px;padding:6px 10px;color:#e8f1f8;font:12px system-ui">${(d as Arc).label}</div>`
           }
           htmlElementsData={markers}
           htmlLat="lat"

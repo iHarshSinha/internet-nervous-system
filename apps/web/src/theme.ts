@@ -7,7 +7,7 @@
  */
 
 export const colors = {
-  void: '#04060b',
+  void: '#0a1321',
   line: '#1a2432',
   hi: '#e8f1f8',
   mid: '#8ea3b5',

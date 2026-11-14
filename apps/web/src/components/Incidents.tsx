@@ -25,7 +25,7 @@ export function SeverityTag({ incident }: { incident: Incident }) {
   const color = SEVERITY_COLOR[incident.severity];
   return (
     <span
-      className="rounded-full px-2 py-0.5 font-mono text-[0.6rem] font-semibold tracking-[0.12em] uppercase"
+      className="rounded-full px-2 py-0.5 font-mono text-[0.72rem] font-semibold tracking-[0.12em] uppercase"
       style={{ color, background: `${color}1f`, boxShadow: `inset 0 0 0 1px ${color}55` }}
     >
       {incident.state === 'resolved' ? 'resolved' : incident.severity}
@@ -35,7 +35,7 @@ export function SeverityTag({ incident }: { incident: Incident }) {
 
 export function SimTag() {
   return (
-    <span className="rounded-full bg-white/[0.06] px-2 py-0.5 font-mono text-[0.58rem] tracking-[0.12em] text-mid uppercase ring-1 ring-white/10">
+    <span className="rounded-full bg-white/[0.06] px-2 py-0.5 font-mono text-[0.72rem] tracking-[0.12em] text-mid uppercase ring-1 ring-white/10">
       simulated
     </span>
   );
@@ -58,14 +58,14 @@ export const IncidentFeed = memo(function IncidentFeed() {
       title="Incidents"
       aside={
         <span
-          className={`font-mono text-[0.68rem] ${active.length ? 'text-critical' : 'text-low'}`}
+          className={`font-mono text-[0.78rem] ${active.length ? 'text-critical' : 'text-low'}`}
         >
           {active.length ? `${active.length} active` : 'none active'}
         </span>
       }
     >
       {rows.length === 0 ? (
-        <div className="flex items-center gap-3 rounded-xl bg-signal/[0.05] px-3 py-3 text-sm text-mid">
+        <div className="flex items-center gap-3 rounded-md bg-signal/[0.05] px-3 py-3 text-sm text-mid">
           <span className="size-2 rounded-full bg-signal shadow-[0_0_10px_var(--color-signal)]" />
           Watching every network for outages and hijacks.
         </div>
@@ -88,7 +88,7 @@ function IncidentRows({ rows, mine }: { rows: Incident[]; mine: Record<string, n
             <button
               type="button"
               onClick={() => navigate(`/incident/${i.id}`)}
-              className={`group relative w-full overflow-hidden rounded-xl px-3 py-2 text-left transition hover:bg-white/[0.05] ${live ? 'bg-white/[0.03]' : 'opacity-60'}`}
+              className={`group relative w-full overflow-hidden rounded-md px-3 py-2 text-left transition hover:bg-white/[0.05] ${live ? 'bg-white/[0.03]' : 'opacity-60'}`}
             >
               {live && (
                 <span
@@ -110,12 +110,12 @@ function IncidentRows({ rows, mine }: { rows: Incident[]; mine: Record<string, n
                   </span>
                 )}
                 <span className="text-sm leading-none">{i.cc ? flag(i.cc) : '◌'}</span>
-                <span className="min-w-0 flex-1 truncate text-[0.82rem] font-medium text-hi">
+                <span className="min-w-0 flex-1 truncate text-[0.92rem] font-medium text-hi">
                   {incidentTitle(i, countryName)}
                 </span>
                 <SeverityTag incident={i} />
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-0.5 text-[0.66rem] text-low">
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-0.5 text-[0.76rem] text-low">
                 <span>{i.signals.map((s) => SIGNAL_LABELS[s.type]).join(' + ')}</span>
                 <span>·</span>
                 <span>{ago(Date.now() - i.openedAt)}</span>
@@ -147,13 +147,13 @@ export function CountryIncidents({ cc }: { cc: string }) {
     <Panel
       title={`Incidents in ${countryName(cc)}`}
       aside={
-        <span className={`font-mono text-[0.68rem] ${active ? 'text-critical' : 'text-low'}`}>
+        <span className={`font-mono text-[0.78rem] ${active ? 'text-critical' : 'text-low'}`}>
           {active ? `${active} active` : 'last 24 h'}
         </span>
       }
     >
       {rows.length === 0 ? (
-        <div className="flex items-center gap-2.5 rounded-lg bg-signal/[0.05] px-3 py-2 text-[0.78rem] text-mid">
+        <div className="flex items-center gap-2.5 rounded-lg bg-signal/[0.05] px-3 py-2 text-[0.86rem] text-mid">
           <span className="size-1.5 rounded-full bg-signal shadow-[0_0_10px_var(--color-signal)]" />
           No incidents here in the last 24 hours
         </div>
@@ -182,7 +182,7 @@ function AlertCard({ incident, personal }: { incident: Incident; personal: boole
 
   return (
     <div
-      className="pointer-events-auto relative w-[min(560px,92vw)] animate-[pop_.5s_both] overflow-hidden rounded-2xl border bg-[#0d0709]/95 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9)] backdrop-blur"
+      className="pointer-events-auto relative w-[min(560px,92vw)] animate-[pop_.5s_both] overflow-hidden rounded-lg border bg-[#1c1119]/95 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9)] backdrop-blur"
       style={{ borderColor: `${color}80`, boxShadow: `0 0 60px -10px ${color}66` }}
       role="alert"
     >
@@ -194,7 +194,7 @@ function AlertCard({ incident, personal }: { incident: Incident; personal: boole
       )}
       <div className="flex items-start gap-3 p-4">
         <span
-          className={`mt-0.5 grid size-10 shrink-0 place-items-center rounded-xl text-xl ${critical ? 'animate-[blink_1.2s_infinite]' : ''}`}
+          className={`mt-0.5 grid size-10 shrink-0 place-items-center rounded-md text-xl ${critical ? 'animate-[blink_1.2s_infinite]' : ''}`}
           style={{ background: `${color}22`, color }}
         >
           ⚠
@@ -202,7 +202,7 @@ function AlertCard({ incident, personal }: { incident: Incident; personal: boole
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span
-              className="font-mono text-[0.62rem] font-semibold tracking-[0.2em] uppercase"
+              className="font-mono text-[0.74rem] font-semibold tracking-[0.2em] uppercase"
               style={{ color }}
             >
               {incident.state === 'resolved'
@@ -212,7 +212,7 @@ function AlertCard({ incident, personal }: { incident: Incident; personal: boole
                   : 'Incident detected'}
             </span>
             {incident.simulated && <SimTag />}
-            {personal && <span className="text-[0.66rem] text-signal">★ on your watchlist</span>}
+            {personal && <span className="text-[0.76rem] text-signal">★ on your watchlist</span>}
           </div>
           <div className="mt-1 text-lg leading-snug font-semibold text-hi">
             {incident.cc ? `${flag(incident.cc)} ` : ''}
@@ -221,7 +221,7 @@ function AlertCard({ incident, personal }: { incident: Incident; personal: boole
               <span className="ml-2 font-mono text-sm font-normal text-mid">AS{incident.asn}</span>
             )}
           </div>
-          <p className="mt-1 line-clamp-2 text-[0.8rem] text-mid">{incident.summary}</p>
+          <p className="mt-1 line-clamp-2 text-[0.88rem] text-mid">{incident.summary}</p>
           <div className="mt-3 flex items-center gap-3">
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
               <div

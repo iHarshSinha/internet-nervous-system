@@ -60,7 +60,7 @@ export function Account() {
       <button
         type="button"
         onClick={() => navigate('/login')}
-        className="rounded-full border border-white/10 bg-[#0a0f17] px-3 py-1.5 text-xs font-medium whitespace-nowrap text-hi sm:px-4 transition hover:border-signal/50 hover:text-signal"
+        className="rounded-full border border-white/10 bg-[#12203a] px-3 py-1.5 text-xs font-medium whitespace-nowrap text-hi sm:px-4 transition hover:border-signal/50 hover:text-signal"
       >
         Sign in
       </button>
@@ -78,21 +78,21 @@ export function Account() {
         <Avatar name={user.name} picture={user.picture} />
         <span className="hidden text-xs text-hi sm:inline">{user.name.split(' ')[0]}</span>
         {user.role === 'admin' && (
-          <span className="rounded-full bg-caution/15 px-1.5 py-px text-[0.6rem] font-medium tracking-wider text-caution uppercase">
+          <span className="rounded-full bg-caution/15 px-1.5 py-px text-[0.72rem] font-medium tracking-wider text-caution uppercase">
             admin
           </span>
         )}
       </button>
       {open && (
-        <div className="glass absolute top-full right-0 mt-2 w-64 animate-[rise_.2s_both] rounded-2xl p-2">
+        <div className="glass absolute top-full right-0 mt-2 w-64 animate-[rise_.2s_both] rounded-lg p-2">
           <div className="flex items-center gap-3 px-2 py-2">
             <Avatar name={user.name} picture={user.picture} size={36} />
             <div className="min-w-0">
               <div className="truncate text-sm text-hi">{user.name}</div>
-              <div className="truncate text-[0.7rem] text-low">{user.email}</div>
+              <div className="truncate text-[0.8rem] text-low">{user.email}</div>
             </div>
           </div>
-          <div className="mx-2 mb-1 flex items-center gap-2 rounded-lg bg-white/[0.03] px-2 py-1.5 text-[0.68rem] text-mid">
+          <div className="mx-2 mb-1 flex items-center gap-2 rounded-lg bg-white/[0.03] px-2 py-1.5 text-[0.78rem] text-mid">
             <span
               className={`size-1.5 rounded-full ${channel === 'live' ? 'bg-signal shadow-[0_0_8px_var(--color-signal)]' : 'bg-caution'}`}
             />

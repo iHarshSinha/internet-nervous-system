@@ -52,7 +52,7 @@ export const RadarPanel = memo(function RadarPanel() {
     <Panel
       title="Cloudflare"
       aside={
-        <div className="flex gap-1 text-[0.62rem]">
+        <div className="flex gap-1 text-[0.74rem]">
           {(['attacks', 'events'] as const).map((t) => (
             <button
               key={t}
@@ -78,7 +78,7 @@ export const RadarPanel = memo(function RadarPanel() {
                   className="absolute inset-y-0 left-0 rounded-lg bg-critical/[0.12]"
                   style={{ width: `${(p.value / max) * 100}%` }}
                 />
-                <span className="relative flex items-center gap-2 text-[0.75rem]">
+                <span className="relative flex items-center gap-2 text-[0.84rem]">
                   <span title={countryName(p.from)}>{flag(p.from)}</span>
                   <span className="text-low">→</span>
                   <span title={countryName(p.to)}>{flag(p.to)}</span>
@@ -90,7 +90,7 @@ export const RadarPanel = memo(function RadarPanel() {
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-[0.62rem] text-low">
+          <p className="mt-2 text-[0.74rem] text-low">
             Share of layer 7 attack traffic by origin and target, last 24 h. Arcs on the globe.
           </p>
         </>
@@ -104,7 +104,7 @@ export const RadarPanel = memo(function RadarPanel() {
                 rel="noreferrer"
                 className="block rounded-lg px-2 py-1.5 transition hover:bg-white/[0.05]"
               >
-                <div className="flex items-center gap-2 text-[0.62rem]">
+                <div className="flex items-center gap-2 text-[0.74rem]">
                   <span
                     className="font-mono font-semibold tracking-[0.1em] uppercase"
                     style={{ color: TYPE_COLOR[e.type] }}
@@ -118,7 +118,7 @@ export const RadarPanel = memo(function RadarPanel() {
                     {e.end === null ? 'ongoing' : ago(Date.now() - e.end)}
                   </span>
                 </div>
-                <div className="mt-0.5 line-clamp-2 text-[0.72rem] leading-snug text-mid">
+                <div className="mt-0.5 line-clamp-2 text-[0.82rem] leading-snug text-mid">
                   {e.title}
                 </div>
               </a>
@@ -126,7 +126,7 @@ export const RadarPanel = memo(function RadarPanel() {
           ))}
         </ul>
       )}
-      <p className="mt-2 text-[0.58rem] text-low">Data: Cloudflare Radar, CC BY-NC 4.0</p>
+      <p className="mt-2 text-[0.72rem] text-low">Data: Cloudflare Radar, CC BY-NC 4.0</p>
     </Panel>
   );
 });

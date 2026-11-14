@@ -18,7 +18,7 @@ export function ReplayBadge() {
   const scenario = replay.scenario ? REPLAY_SCENARIOS[replay.scenario] : null;
   return (
     <div className="pointer-events-auto flex animate-[rise_.4s_both] items-center gap-3 rounded-full border border-caution/40 bg-[#140f07]/95 py-1.5 pr-4 pl-2 text-xs text-hi">
-      <span className="rounded-full bg-caution px-2 py-0.5 font-mono text-[0.62rem] font-semibold tracking-[0.12em] text-void uppercase">
+      <span className="rounded-full bg-caution px-2 py-0.5 font-mono text-[0.74rem] font-semibold tracking-[0.12em] text-void uppercase">
         {replay.state === 'paused' ? '❚❚ Replay' : '▶ Replay'}
       </span>
       <span className="text-mid">{scenario?.title ?? 'Recorded data'}</span>

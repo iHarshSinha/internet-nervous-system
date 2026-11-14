@@ -120,7 +120,7 @@ function WatchlistEditor({ initial }: { initial: Watchlist }) {
       <Panel
         title="Countries you watch"
         aside={
-          <span className="font-mono text-[0.68rem] text-low">{draft.countries.length}/30</span>
+          <span className="font-mono text-[0.78rem] text-low">{draft.countries.length}/30</span>
         }
       >
         <div className="flex flex-wrap gap-2">
@@ -145,10 +145,10 @@ function WatchlistEditor({ initial }: { initial: Watchlist }) {
               if (e.key === 'Enter' && suggestions[0]) addCountry(suggestions[0]);
             }}
             placeholder="Add a country: India, Germany, BR…"
-            className="w-full rounded-xl bg-white/[0.04] px-3 py-2.5 text-sm text-hi ring-1 ring-white/[0.08] outline-none placeholder:text-low focus:ring-signal/40"
+            className="w-full rounded-md bg-white/[0.04] px-3 py-2.5 text-sm text-hi ring-1 ring-white/[0.08] outline-none placeholder:text-low focus:ring-signal/40"
           />
           {suggestions.length > 0 && (
-            <ul className="glass absolute inset-x-0 top-full z-10 mt-1 rounded-xl p-1">
+            <ul className="glass absolute inset-x-0 top-full z-10 mt-1 rounded-md p-1">
               {suggestions.map((cc) => (
                 <li key={cc}>
                   <button
@@ -168,7 +168,7 @@ function WatchlistEditor({ initial }: { initial: Watchlist }) {
 
       <Panel
         title="Networks you watch"
-        aside={<span className="font-mono text-[0.68rem] text-low">{draft.asns.length}/30</span>}
+        aside={<span className="font-mono text-[0.78rem] text-low">{draft.asns.length}/30</span>}
       >
         <div className="flex flex-wrap gap-2">
           {draft.asns.length === 0 && (
@@ -191,12 +191,12 @@ function WatchlistEditor({ initial }: { initial: Watchlist }) {
             onKeyDown={(e) => e.key === 'Enter' && addAsn()}
             placeholder="AS32934"
             inputMode="numeric"
-            className="min-w-0 flex-1 rounded-xl bg-white/[0.04] px-3 py-2.5 font-mono text-sm text-hi ring-1 ring-white/[0.08] outline-none placeholder:text-low focus:ring-signal/40"
+            className="min-w-0 flex-1 rounded-md bg-white/[0.04] px-3 py-2.5 font-mono text-sm text-hi ring-1 ring-white/[0.08] outline-none placeholder:text-low focus:ring-signal/40"
           />
           <button
             type="button"
             onClick={addAsn}
-            className="rounded-xl px-4 text-sm text-signal ring-1 ring-signal/30 transition hover:bg-signal/10"
+            className="rounded-md px-4 text-sm text-signal ring-1 ring-signal/30 transition hover:bg-signal/10"
           >
             Add
           </button>
@@ -208,7 +208,7 @@ function WatchlistEditor({ initial }: { initial: Watchlist }) {
           {SEVERITIES.map((s) => (
             <label
               key={s}
-              className={`flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 ring-1 transition ${
+              className={`flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 ring-1 transition ${
                 draft.minSeverity === s
                   ? 'bg-signal/[0.07] ring-signal/30'
                   : 'ring-white/[0.06] hover:bg-white/[0.03]'
@@ -235,7 +235,7 @@ function WatchlistEditor({ initial }: { initial: Watchlist }) {
             setDraft((d) => ({ ...d, discordWebhook: e.target.value.trim() || null }))
           }
           placeholder="https://discord.com/api/webhooks/…"
-          className="w-full rounded-xl bg-white/[0.04] px-3 py-2.5 font-mono text-xs text-hi ring-1 ring-white/[0.08] outline-none placeholder:text-low focus:ring-signal/40"
+          className="w-full rounded-md bg-white/[0.04] px-3 py-2.5 font-mono text-xs text-hi ring-1 ring-white/[0.08] outline-none placeholder:text-low focus:ring-signal/40"
         />
         <p className="mt-2 text-xs text-low">
           In Discord: channel settings → Integrations → Webhooks → New Webhook → Copy URL. Only
@@ -253,7 +253,7 @@ function WatchlistEditor({ initial }: { initial: Watchlist }) {
           type="button"
           disabled={!dirty || !valid.success || state === 'saving'}
           onClick={() => void save()}
-          className="rounded-xl bg-signal px-6 py-2.5 text-sm font-semibold text-void transition enabled:hover:brightness-110 disabled:opacity-30"
+          className="rounded-md bg-signal px-6 py-2.5 text-sm font-semibold text-void transition enabled:hover:brightness-110 disabled:opacity-30"
         >
           {state === 'saving' ? 'Saving…' : 'Save watchlist'}
         </button>
@@ -279,12 +279,12 @@ export function MePage() {
 
   return (
     <main className="relative min-h-dvh">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(90%_60%_at_80%_0%,#0c1d2f_0%,#04060b_55%)]" />
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(90%_60%_at_80%_0%,#1a3558_0%,#0a1321_55%)]" />
       <div className="mx-auto w-full max-w-[1400px] px-4 pt-24 pb-12 sm:px-8 xl:px-12">
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="mb-5 text-xs tracking-[0.16em] text-mid uppercase transition hover:text-hi"
+          className="mb-5 text-xs tracking-[0.1em] text-mid uppercase transition hover:text-hi"
         >
           ← Back to the globe
         </button>
@@ -293,7 +293,7 @@ export function MePage() {
         {status === 'anon' && <SignInPrompt />}
         {status === 'signed-in' && user && (
           <div className="animate-[rise_.6s_both]">
-            <div className="text-[0.68rem] tracking-[0.22em] text-low uppercase">Your account</div>
+            <div className="text-[0.78rem] tracking-[0.1em] text-low uppercase">Your account</div>
             <h1 className="mt-1 text-3xl font-semibold tracking-tight text-hi sm:text-4xl">
               Your watchlist
             </h1>

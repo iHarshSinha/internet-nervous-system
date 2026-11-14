@@ -40,9 +40,9 @@ export function Welcome() {
       <button
         type="button"
         onClick={() => navigate('/login')}
-        className="pointer-events-auto flex animate-[rise_.6s_both] items-center gap-3 rounded-full border border-white/10 bg-[#0a0f17]/95 py-1.5 pr-4 pl-1.5 text-left text-xs text-mid transition hover:border-signal/40 hover:text-hi"
+        className="pointer-events-auto flex animate-[rise_.6s_both] items-center gap-3 rounded-full border border-white/10 bg-[#12203a]/95 py-1.5 pr-4 pl-1.5 text-left text-xs text-mid transition hover:border-signal/40 hover:text-hi"
       >
-        <span className="shrink-0 rounded-full bg-signal px-2.5 py-1 text-[0.68rem] font-semibold whitespace-nowrap text-void">
+        <span className="shrink-0 rounded-full bg-signal px-2.5 py-1 text-[0.78rem] font-semibold whitespace-nowrap text-void">
           Sign in
         </span>
         Watch your own countries and get alerts when they break →
@@ -55,11 +55,11 @@ export function Welcome() {
   const { countries } = useGlobe.getState();
 
   return (
-    <div className="pointer-events-auto animate-[rise_.6s_both] rounded-2xl border border-white/[0.08] bg-[#0a0f17]/95 px-4 py-3 text-center">
+    <div className="pointer-events-auto animate-[rise_.6s_both] rounded-lg border border-white/[0.08] bg-[#12203a]/95 px-4 py-3 text-center">
       <div className="text-[0.95rem] text-hi">
         {partOfDay()}, <span className="font-semibold">{first}</span>.
         {user.role === 'admin' && (
-          <span className="ml-2 rounded border border-caution/40 px-1.5 py-px align-middle font-mono text-[0.58rem] tracking-wider text-caution uppercase">
+          <span className="ml-2 rounded border border-caution/40 px-1.5 py-px align-middle font-mono text-[0.72rem] tracking-wider text-caution uppercase">
             admin
           </span>
         )}

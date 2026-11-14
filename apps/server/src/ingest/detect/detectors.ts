@@ -42,6 +42,7 @@ export const THRESHOLDS = {
   /** D3: share of a country's probes that must be degraded. */
   latencyShare: 0.3,
   latencyMinProbes: 5,
+  latencyTrustedProbes: 20,
   /** D4: disconnects in 5 minutes, and share of the country's probes. */
   dropoutMin: 5,
   dropoutShare: 0.2,
@@ -64,7 +65,9 @@ interface Activity {
   lastSimulatedAt: number;
 }
 
+/** One probe's history against ONE measurement target (targets differ in distance). */
 interface ProbeState {
+  id: number;
   ewma: number;
   n: number;
   degraded: boolean;
@@ -97,7 +100,8 @@ export class Detectors {
   private readonly deps: DetectorDeps;
   private readonly activity = new Map<string, Activity>();
   private readonly baselines = new Map<string, MinuteBaseline>();
-  private readonly probes = new Map<number, ProbeState>();
+  /** Keyed by "probe:measurement". */
+  private readonly probes = new Map<string, ProbeState>();
   private readonly disconnects = new Map<string, Map<number, { at: number; simulated: boolean }>>();
   private readonly hijacks = new Map<string, HijackCandidate>();
   /** Prefix/origin pairs already judged legitimate (seen flipping back), with expiry. */
@@ -246,7 +250,11 @@ export class Detectors {
     const id = event.entity.probeId;
     if (id === undefined || !ctx.cc) return;
     const rtt = typeof event.data.rtt === 'number' ? event.data.rtt : null;
-    const p = this.probes.get(id) ?? {
+    // Each probe pings several targets at different distances. Its usual time
+    // is kept per target; mixing them made the far target look like a slowdown.
+    const key = `${id}:${event.entity.msmId ?? 0}`;
+    const p = this.probes.get(key) ?? {
+      id,
       ewma: 0,
       n: 0,
       degraded: false,
@@ -264,7 +272,7 @@ export class Detectors {
     p.at = event.ts;
     p.cc = ctx.cc;
     p.simulated = simulated;
-    this.probes.set(id, p);
+    this.probes.set(key, p);
   }
 
   /** D4 input: probes disconnecting. */
@@ -520,27 +528,40 @@ export class Detectors {
 
   /** D3: a large share of a country's probes much slower than usual, or not answering. */
   private latency(now: number): Signal[] {
-    const byCountry = new Map<string, { total: number; degraded: number; simulated: number }>();
-    for (const [id, p] of this.probes) {
+    // A probe counts as degraded only if every target it measured recently is slow or silent:
+    // one bad path is that target's problem, all of them is the probe's own network.
+    const perProbe = new Map<number, { cc: string; ok: boolean; simulated: boolean }>();
+    for (const [key, p] of this.probes) {
       if (p.at < now - 30 * MIN) {
-        this.probes.delete(id);
+        this.probes.delete(key);
         continue;
       }
       if (p.at < now - 10 * MIN || p.n < 3) continue;
-      const c = byCountry.get(p.cc) ?? { total: 0, degraded: 0, simulated: 0 };
+      const probe = perProbe.get(p.id) ?? { cc: p.cc, ok: false, simulated: false };
+      if (!p.degraded) probe.ok = true;
+      if (p.simulated) probe.simulated = true;
+      perProbe.set(p.id, probe);
+    }
+    const byCountry = new Map<string, { total: number; degraded: number; simulated: number }>();
+    for (const probe of perProbe.values()) {
+      const c = byCountry.get(probe.cc) ?? { total: 0, degraded: 0, simulated: 0 };
       c.total += 1;
-      if (p.degraded) c.degraded += 1;
-      if (p.simulated) c.simulated += 1;
-      byCountry.set(p.cc, c);
+      if (!probe.ok) c.degraded += 1;
+      if (probe.simulated) c.simulated += 1;
+      byCountry.set(probe.cc, c);
     }
     const out: Signal[] = [];
     for (const [cc, c] of byCountry) {
       if (c.total < THRESHOLDS.latencyMinProbes || c.degraded / c.total < THRESHOLDS.latencyShare)
         continue;
       // Most of a country slowing down at once is serious on its own: 0.2 at 30%, 0.5 from 70%.
+      // Only where enough probes report to trust a share (a country with 7 probes stays at 0.2).
       const share = c.degraded / c.total;
-      const weight =
-        SIGNAL_WEIGHTS.latency_surge + 0.3 * Math.min(1, Math.max(0, (share - 0.3) / 0.4));
+      const boost =
+        c.total >= THRESHOLDS.latencyTrustedProbes
+          ? Math.min(1, Math.max(0, (share - 0.3) / 0.4))
+          : 0;
+      const weight = SIGNAL_WEIGHTS.latency_surge + 0.3 * boost;
       out.push({
         type: 'latency_surge',
         scope: `country:${cc}`,
