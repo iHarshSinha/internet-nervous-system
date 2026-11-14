@@ -496,6 +496,13 @@ const PipelineStats = memo(function PipelineStats() {
           </div>
         ))}
       </dl>
+      <button
+        type="button"
+        onClick={() => navigate('/ops')}
+        className="mt-3 text-[0.9rem] text-signal hover:underline"
+      >
+        Performance page →
+      </button>
     </Panel>
   );
 });

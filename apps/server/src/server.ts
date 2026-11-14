@@ -16,6 +16,8 @@ import { opsRouter } from './api/ops.ts';
 import { createMemoryIngestStatsStore, type IngestStatsStore } from './db/ingestStats.ts';
 import { createMetrics } from './metrics/index.ts';
 import { MinuteRecorder } from './metrics/minutes.ts';
+import { RecentQuantiles } from './metrics/quantiles.ts';
+import { startStats } from './realtime/stats.ts';
 import { RadarPoller } from './ingest/sources/radar.ts';
 import { meRouter } from './api/me.ts';
 import type { GoogleVerifier } from './auth/google.ts';
@@ -467,14 +469,35 @@ export function buildServer(deps: ServerDeps): RunningServer {
 
   // How long after a second ends (event time) its numbers leave the server: watermark + conflation.
   let secondEnds: number[] = [];
+  const publishDelays = new RecentQuantiles();
   ingest.onSecond((w) => !w.amended && secondEnds.push(w.start + w.sizeMs));
   broadcaster.onFlush((now) => {
     if (secondEnds.length === 0 || !broadcaster.hasMembers(rooms.world)) {
       secondEnds = [];
       return;
     }
-    for (const end of secondEnds) metrics.windowToPublish.observe((now - end) / 1000);
+    for (const end of secondEnds) {
+      metrics.windowToPublish.observe((now - end) / 1000);
+      publishDelays.add(now - end);
+    }
     secondEnds = [];
+  });
+
+  // The public `stats` room, once a second (the /ops page and the HUD).
+  const stopStats = startStats({
+    broadcaster,
+    ingest,
+    sockets: () =>
+      Object.fromEntries(
+        Object.entries(late.namespaces ?? {}).map(([name, ns]) => [name, ns.sockets.size]),
+      ),
+    delivery,
+    frames: () => broadcaster.stats.frames,
+    slowNow: () => slow.stats.slowNow,
+    store: store.stats,
+    mainLoop: () => metrics.mainLoop(),
+    publish: publishDelays,
+    ...(heartbeatMs !== undefined && { intervalMs: heartbeatMs }),
   });
 
   // Once a minute, on the minute: the last minute's numbers to ingest_stats.
@@ -572,6 +595,7 @@ export function buildServer(deps: ServerDeps): RunningServer {
     ingest,
     async close() {
       slow.stop();
+      stopStats();
       clearTimeout(firstMinute);
       if (minuteTimer) clearInterval(minuteTimer);
       metrics.stop();

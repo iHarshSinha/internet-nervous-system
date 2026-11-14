@@ -11,6 +11,7 @@ export type Route =
   | { page: 'incident'; id: string }
   | { page: 'me' }
   | { page: 'feed' }
+  | { page: 'ops' }
   | { page: 'login' };
 
 export function parseRoute(path: string): Route {
@@ -20,6 +21,7 @@ export function parseRoute(path: string): Route {
   if (incident) return { page: 'incident', id: incident[1]! };
   if (/^\/me\/?$/.test(path)) return { page: 'me' };
   if (/^\/feed\/?$/.test(path)) return { page: 'feed' };
+  if (/^\/ops\/?$/.test(path)) return { page: 'ops' };
   if (/^\/login\/?$/.test(path)) return { page: 'login' };
   return { page: 'globe' };
 }

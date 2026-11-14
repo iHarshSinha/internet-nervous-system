@@ -326,3 +326,11 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
   exclusion; `Pipeline.secondsComplete`, monotonic), shown "as of HH:MM:SS". Counters:
   `amendedSecond`, `lateSecond` (beyond the horizon). Live: headline equals final total in 29/29
   samples; 4.5% of events were corrected in.
+- [x] Step 6, /ops and HUD. New public room `stats` (shared `rooms.stats`, in `/live`), published
+  once a second by `realtime/stats.ts` (keys `in:<src>`, `pipe`, `queue`, `delay`, `pub`, `loop`,
+  `mem`, `out`, `sock`, `mongo`; rates from running totals). `GET /api/time` for clock offset.
+  Web: `store/ops.ts` (5 min of points), `charts/LiveChart.tsx` (uPlot from data), `pages/
+  OpsPage.tsx` (8 tiles, 4 live charts, sources, data quality, minute-by-minute history 1/6/24 h,
+  admin replay controls with speed, amplify, "like a live feed"), `components/Hud.tsx` (press ~ or
+  `: FPS, skipped frames, server frames/s, renders/s, apply p95, long tasks, frame age corrected by
+  `realtime/clock.ts` offset, gaps, resyncs). Links: Pipeline panel "Performance page", HUD.

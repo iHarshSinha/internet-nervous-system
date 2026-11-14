@@ -4,6 +4,7 @@ import { applyWorldFrame } from './globe.ts';
 import { onIncidentFrame } from './incidents.ts';
 import { onArcsFrame } from './radar.ts';
 import { useFeed } from './feed.ts';
+import { onStatsFrame } from './ops.ts';
 import { onRoomFrame } from './series.ts';
 import { onUserFrame } from './alerts.ts';
 import type { LinkStats, LinkStatus, UserChannel, WorkerUpdate } from '../workers/socket.worker.ts';
@@ -96,6 +97,10 @@ export const useLive = create<LiveState>((set) => ({
         }
         if (frame.r === rooms.arcs) {
           onArcsFrame(frame);
+          continue;
+        }
+        if (frame.r === rooms.stats) {
+          onStatsFrame(frame);
           continue;
         }
         // Other rooms feed the charts; the world room feeds the globe and the readouts.

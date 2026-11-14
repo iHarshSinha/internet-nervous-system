@@ -81,6 +81,8 @@ describe('rooms', () => {
     expect(parseRoom(rooms.incidents)).toEqual({ type: 'incidents' });
     expect(parseRoom(rooms.arcs)).toEqual({ type: 'arcs' });
     expect(parseRoom(rooms.ops)).toEqual({ type: 'ops' });
+    expect(parseRoom(rooms.stats)).toEqual({ type: 'stats' });
+    expect(namespaceOf({ type: 'stats' })).toBe(NAMESPACES.live);
     expect(parseRoom(rooms.country('IN'))).toEqual({ type: 'country', cc: 'IN' });
     expect(parseRoom(rooms.asn(13335))).toEqual({ type: 'asn', asn: 13335 });
     expect(parseRoom(rooms.feed('bgp.withdraw', 'US'))).toEqual({

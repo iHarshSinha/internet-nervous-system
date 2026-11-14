@@ -573,3 +573,36 @@ describe('metrics', () => {
     expect(await res.json()).toMatchObject({ rows: [] });
   });
 });
+
+describe('stats room', () => {
+  it('sends the public pipeline and delivery numbers to whoever joins', async () => {
+    const client = await openClient();
+    const seen = new Map<string, Set<string>>();
+    client.on(EV.frame, (f) => {
+      if (f.r !== 'stats') return;
+      for (const [key, field] of f.d) {
+        if (!seen.has(key)) seen.set(key, new Set());
+        seen.get(key)!.add(field);
+      }
+    });
+    expect((await sub(client, { rooms: ['stats'] })).ok).toBe(true);
+    const end = Date.now() + 2000;
+    while (!(seen.get('out')?.has('bps') && seen.has('queue')) && Date.now() < end) {
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    expect([...(seen.get('queue') ?? [])]).toEqual(
+      expect.arrayContaining(['depth', 'fill', 'pressure', 'every', 'shed']),
+    );
+    expect([...(seen.get('delay') ?? [])]).toEqual(expect.arrayContaining(['p50', 'p95', 'p99']));
+    expect([...(seen.get('loop') ?? [])]).toEqual(expect.arrayContaining(['main', 'ingest']));
+    expect(seen.get('out')?.has('bps')).toBe(true); // a rate: needs two ticks
+    expect(seen.get('sock')?.has('live')).toBe(true);
+  });
+
+  it('tells the time, for clock-offset estimates', async () => {
+    const before = Date.now();
+    const { t } = (await (await fetch(`${baseUrl}/api/time`)).json()) as { t: number };
+    expect(t).toBeGreaterThanOrEqual(before);
+    expect(t).toBeLessThanOrEqual(Date.now());
+  });
+});

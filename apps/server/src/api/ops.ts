@@ -49,6 +49,11 @@ export function opsRouter({ secret, registry, metricsToken, stats }: OpsDeps): R
     res.set('Content-Type', registry.contentType).send(await registry.metrics());
   });
 
+  // The server's clock, for a browser to estimate the difference to its own (the HUD).
+  router.get('/api/time', (_req, res) => {
+    res.set('Cache-Control', 'no-store').json({ t: Date.now() });
+  });
+
   router.get('/api/ops/history', async (req, res) => {
     const parsed = historyQuery.safeParse(req.query);
     if (!parsed.success) {

@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { lazy, Suspense, useEffect } from 'react';
 import { IncidentAlerts, RedAlert } from './components/Incidents.tsx';
+import { Hud } from './components/Hud.tsx';
 import { Header } from './components/ui.tsx';
 import { startRealtime } from './realtime/client.ts';
 import { initAuth } from './store/auth.ts';
@@ -22,6 +23,8 @@ const CountryPage = lazy(() =>
 );
 
 const FeedPage = lazy(() => import('./pages/FeedPage.tsx').then((m) => ({ default: m.FeedPage })));
+
+const OpsPage = lazy(() => import('./pages/OpsPage.tsx').then((m) => ({ default: m.OpsPage })));
 
 const IncidentPage = lazy(() =>
   import('./pages/IncidentPage.tsx').then((m) => ({ default: m.IncidentPage })),
@@ -56,6 +59,8 @@ export function App() {
             <MePage />
           ) : route.page === 'incident' ? (
             <IncidentPage key={route.id} id={route.id} />
+          ) : route.page === 'ops' ? (
+            <OpsPage />
           ) : route.page === 'feed' ? (
             <FeedPage />
           ) : route.page === 'login' ? (
@@ -72,6 +77,7 @@ export function App() {
           <IncidentAlerts />
         </>
       )}
+      <Hud />
     </QueryClientProvider>
   );
 }

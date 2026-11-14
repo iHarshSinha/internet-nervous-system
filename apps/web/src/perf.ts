@@ -14,9 +14,11 @@ interface Second {
   costs: number[];
   /** Animation frames the browser drew. */
   paints: number;
+  /** Frames the browser should have drawn (60 per second) but did not. */
+  dropped: number;
 }
 
-const empty = (): Second => ({ applies: 0, frames: 0, costs: [], paints: 0 });
+const empty = (): Second => ({ applies: 0, frames: 0, costs: [], paints: 0, dropped: 0 });
 let current = empty();
 let last = empty();
 let longTasks = 0;
@@ -29,8 +31,17 @@ setInterval(() => {
 }, 1000);
 
 // Count painted frames (only while visible: browsers pause this in hidden tabs).
-const countPaint = () => {
+// A gap longer than one 60 Hz frame means frames were skipped (dropped).
+const FRAME_MS = 1000 / 60;
+let lastPaint = 0;
+const countPaint = (at: number) => {
   current.paints += 1;
+  if (lastPaint > 0 && !document.hidden) {
+    const gap = at - lastPaint;
+    // Gaps over a second are a background tab or a throttled pane, not jank.
+    if (gap > FRAME_MS * 1.5 && gap < 1000) current.dropped += Math.round(gap / FRAME_MS) - 1;
+  }
+  lastPaint = at;
   requestAnimationFrame(countPaint);
 };
 requestAnimationFrame(countPaint);
@@ -58,6 +69,7 @@ export function measured(frames: number, apply: () => void): void {
 export interface PerfSnapshot {
   /** Over the last full second. */
   fps: number;
+  dropped: number;
   appliesPerSec: number;
   framesPerSec: number;
   applyP50Ms: number;
@@ -76,6 +88,7 @@ export function perfSnapshot(): PerfSnapshot {
       : Math.round(costs[Math.min(costs.length - 1, Math.floor(p * costs.length))]! * 100) / 100;
   return {
     fps: last.paints,
+    dropped: last.dropped,
     appliesPerSec: last.applies,
     framesPerSec: last.frames,
     applyP50Ms: q(0.5),

@@ -429,3 +429,13 @@ Collectors were within 6 s of each other during this run, so this is the healthy
 4.5% of events arrive after their second closes, and before this fix they were left out of every
 per-second figure. The lagging-collector case (a collector 40 s behind, its events arriving late)
 is reproduced in `pipeline.test.ts` ("Pipeline with a lagging collector").
+
+## Phase 3, step 6: the /ops page and the HUD
+
+`/ops` is public (judges need no account) and reads the new `stats` room once a second, plus
+`/api/ops/history` minute by minute. First look on the live dev server (two browsers): 814 to 2,191
+events/s in, processing p99 3-4 ms, "second to screen" median 9.3-9.4 s, queue 0%, 4.4-5.1 KB/s
+sent, event-loop p99 about 1.5 ms (main) and 1.6-2.8 ms (ingest), MongoDB write 11-28 ms; RIS 2,049
+events/s at 3.1 s lag, Atlas 142/s at 87.8 s lag. The HUD (press ~) measured a clock offset of
+0 ms ±1 ms against the server on the same machine; FPS there reads 1 because the Claude browser
+pane throttles animation frames, so frame rate must be read in a real Chrome window (load test T4).

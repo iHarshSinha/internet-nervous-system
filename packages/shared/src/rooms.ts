@@ -17,6 +17,8 @@ export const rooms = {
   arcs: 'arcs',
   /** Pipeline metrics (in `/admin`). */
   ops: 'ops',
+  /** Public, once a second: ingest, queue, delay and delivery numbers for the /ops page and HUD. */
+  stats: 'stats',
   /** Metrics for one country. */
   country: (cc: string) => `country:${cc}`,
   /** Metrics for one network. */
@@ -32,6 +34,7 @@ export type ParsedRoom =
   | { type: 'incidents' }
   | { type: 'arcs' }
   | { type: 'ops' }
+  | { type: 'stats' }
   | { type: 'country'; cc: string }
   | { type: 'asn'; asn: number }
   | { type: 'feed'; kind: EventKind | typeof WILDCARD; cc: string }
@@ -43,7 +46,13 @@ const USER_ID = /^[a-f0-9]{24}$/; // MongoDB ObjectId in hex
 
 /** Parse a room name. Returns null if it is not a room we know. */
 export function parseRoom(name: string): ParsedRoom | null {
-  if (name === 'world' || name === 'incidents' || name === 'arcs' || name === 'ops') {
+  if (
+    name === 'world' ||
+    name === 'incidents' ||
+    name === 'arcs' ||
+    name === 'ops' ||
+    name === 'stats'
+  ) {
     return { type: name };
   }
   const [type, a, b, ...rest] = name.split(':');
