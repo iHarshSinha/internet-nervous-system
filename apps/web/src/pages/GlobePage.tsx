@@ -1,5 +1,6 @@
 import { memo, useEffect, useState, type ReactNode } from 'react';
 import { AnimatedNumber } from '../components/AnimatedNumber.tsx';
+import { CountrySearch } from '../components/CountrySearch.tsx';
 import { IncidentFeed } from '../components/Incidents.tsx';
 import { Popover } from '../components/Popover.tsx';
 import { RadarPanel } from '../components/Radar.tsx';
@@ -555,6 +556,7 @@ export function GlobePage() {
 
         {/* Map tools: few, quiet, in one corner. */}
         <div className="absolute right-4 bottom-4 z-30 flex items-center gap-2 sm:right-6 sm:bottom-6">
+          <CountrySearch />
           <RegionMenu />
           <HelpPanel />
         </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Globe, { type GlobeMethods } from 'react-globe.gl';
 import { MeshPhongMaterial, type Object3D, type PerspectiveCamera } from 'three';
 import { countryInfo, countryName, loadCountries, type CountryFeature } from '../geo.ts';
@@ -73,18 +73,68 @@ function tooltip(cc: string | null): string {
 }
 
 /** The floating incident label (plain DOM: the globe library positions it). */
-function markerElement(m: Marker): HTMLElement {
+/*
+ * Accessors the globe calls for each item. They live at module level on
+ * purpose: the globe library rebuilds a whole layer whenever one of these
+ * functions changes identity, and inline arrows are new on every render.
+ * That rebuilt the incident labels every second (the flash in the corner)
+ * and restarted the arcs' animation.
+ */
+const deselect = () => selectCountry(null);
+const pickCountry = (f: object) => selectCountry(ccOf(f));
+const countryLabel = (f: object) => tooltip(ccOf(f));
+const clear = () => 'rgba(0,0,0,0)';
+const noStroke = () => false;
+const noLabel = () => '';
+const ringColor = (d: object) => (t: number) => `rgba(${(d as Ring).rgb}, ${(1 - t) * 0.85})`;
+const arcColor = () => ['rgba(255, 77, 94, 0.08)', 'rgba(255, 140, 110, 0.95)'];
+const arcStroke = (d: object) => 0.25 + Math.min(1.2, (d as Arc).value / 6);
+const arcGap = (d: object) => ((d as Arc).value * 7) % 1;
+const arcLabel = (d: object) =>
+  `<div style="background:rgba(26,28,32,.97);border:1px solid rgba(255,77,94,.35);border-radius:8px;padding:6px 10px;color:#ededee;font:600 13px Rajdhani,system-ui">${(d as Arc).label}</div>`;
+/** Only the country shapes take the pointer (not probe dots, not land dots). */
+const takesPointer = (obj: Object3D) => !(obj as { isPoints?: boolean }).isPoints && !isHexDot(obj);
+/** Labels on the far side of the earth are hidden, not drawn through it. */
+const hideBehindEarth = (el: HTMLElement, visible: boolean) => {
+  el.style.visibility = visible ? 'visible' : 'hidden';
+};
+
+function markerElement(d: object): HTMLElement {
+  const m = d as Marker;
+  // The globe positions the outer element (it overwrites its transform);
+  // the inner label is lifted above the point on its own.
+  const wrap = document.createElement('div');
   const el = document.createElement('button');
   el.type = 'button';
-  el.style.cssText = `pointer-events:auto;cursor:pointer;transform:translate(-50%,-140%);white-space:nowrap;
-    font:600 12px system-ui;color:#fff;background:rgba(29,20,22,.94);border:1px solid ${m.color};
-    border-radius:999px;padding:5px 11px 5px 9px;box-shadow:0 0 24px -2px ${m.color};
-    display:flex;align-items:center;gap:6px;animation:pop .5s both`;
-  const dot = document.createElement('span');
-  dot.style.cssText = `width:8px;height:8px;border-radius:50%;background:${m.color};box-shadow:0 0 10px ${m.color};animation:blink 1s infinite`;
-  el.append(dot, document.createTextNode(`⚠ ${m.text}`));
+  // Invisible for its first moments: until the globe has placed it, a new
+  // element sits in the corner of the view (that was the flash).
+  el.style.cssText = `pointer-events:auto;cursor:pointer;transform:translateY(-120%);white-space:nowrap;
+    max-width:260px;overflow:hidden;text-overflow:ellipsis;
+    font:600 13px Rajdhani,system-ui;color:#fff;background:rgba(20,21,24,.94);border:1px solid ${m.color};
+    border-radius:6px;padding:3px 9px;display:block;opacity:0;animation:fade .4s .25s forwards`;
+  el.textContent = m.text;
+  el.title = m.text;
   el.onclick = () => navigate(`/incident/${m.id}`);
-  return el;
+  wrap.append(el);
+  return wrap;
+}
+
+/** True for the land dots (or anything inside their layer). */
+function isHexDot(obj: Object3D): boolean {
+  for (let o: Object3D | null = obj; o; o = o.parent) {
+    if ((o as { __globeObjType?: string }).__globeObjType === 'hexPolygon') return true;
+  }
+  return false;
+}
+
+/** The same marker object for as long as the label does not change, so the globe keeps its element. */
+const markerCache = new Map<string, Marker>();
+function stableMarker(m: Marker): Marker {
+  const known = markerCache.get(m.id);
+  if (known && known.text === m.text && known.color === m.color && known.lat === m.lat)
+    return known;
+  markerCache.set(m.id, m);
+  return m;
 }
 
 /**
@@ -99,6 +149,7 @@ export function GlobeView() {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [features, setFeatures] = useState<CountryFeature[]>([]);
   const [hovered, setHovered] = useState<string | null>(null);
+  const onHover = useCallback((f: object | null) => setHovered(ccOf(f)), []);
   const selected = useUi((s) => s.selected);
   const [frame, setFrame] = useState(0);
   // Countries with a critical incident blink; this flips twice a second while one is open.
@@ -280,13 +331,15 @@ export function GlobeView() {
         speed: critical ? 6 : 4,
         period: critical ? 500 : 900,
       });
-      markerList.push({
-        id: i.id,
-        lat: info.lat,
-        lng: info.lng,
-        text: `${incidentTitle(i, countryName)} · ${i.state === 'open' ? i.severity : 'recovering'}`,
-        color: `rgb(${INCIDENT_RGB[severity]})`,
-      });
+      markerList.push(
+        stableMarker({
+          id: i.id,
+          lat: info.lat,
+          lng: info.lng,
+          text: `${incidentTitle(i, countryName)} · ${i.state === 'open' ? i.severity : 'recovering'}`,
+          color: `rgb(${INCIDENT_RGB[severity]})`,
+        }),
+      );
     }
 
     const sets: ProbeSet[] = BUCKET_COLORS.map((color) => ({ color, size: 2.2, pts: [] }));
@@ -390,10 +443,11 @@ export function GlobeView() {
           atmosphereColor="#9aa4b0"
           atmosphereAltitude={0.13}
           onGlobeReady={onReady}
-          onGlobeClick={() => selectCountry(null)}
-          // Only the land is interactive. Hit-testing 15,000 probe dots on every
-          // mouse move is wasted work, and their tooltips caused the freeze.
-          pointerEventsFilter={(obj: Object3D) => !(obj as { isPoints?: boolean }).isPoints}
+          onGlobeClick={deselect}
+          // Only the country shapes take the pointer. Hit-testing 15,000 probe dots
+          // on every mouse move is wasted work (their tooltips once froze the
+          // globe), and the land dots leave gaps, so they are skipped too.
+          pointerEventsFilter={takesPointer}
           hexPolygonsData={features}
           hexPolygonResolution={3}
           hexPolygonMargin={0.42}
@@ -401,9 +455,17 @@ export function GlobeView() {
           hexPolygonAltitude={0.006}
           hexPolygonColor={colorOf}
           hexPolygonsTransitionDuration={0}
-          hexPolygonLabel={(f: object) => tooltip(ccOf(f))}
-          onHexPolygonHover={(f: object | null) => setHovered(ccOf(f))}
-          onHexPolygonClick={(f: object) => selectCountry(ccOf(f))}
+          // Each country again as an invisible solid shape just under its dots:
+          // anywhere inside the border hovers and selects it, gaps included.
+          polygonsData={features}
+          polygonAltitude={0.004}
+          polygonCapColor={clear}
+          polygonSideColor={clear}
+          polygonStrokeColor={noStroke}
+          polygonsTransitionDuration={0}
+          polygonLabel={countryLabel}
+          onPolygonHover={onHover}
+          onPolygonClick={pickCountry}
           particlesData={probeSets}
           particlesList="pts"
           particleLat="lat"
@@ -412,31 +474,30 @@ export function GlobeView() {
           particlesColor="color"
           particlesSize="size"
           particlesSizeAttenuation={false}
-          particleLabel={() => ''}
+          particleLabel={noLabel}
           ringsData={rings}
           ringLat="lat"
           ringLng="lng"
           ringAltitude={0.008}
           ringMaxRadius="r"
-          ringColor={(d: object) => (t: number) => `rgba(${(d as Ring).rgb}, ${(1 - t) * 0.85})`}
-          ringPropagationSpeed={(d: object) => (d as Ring).speed}
-          ringRepeatPeriod={(d: object) => (d as Ring).period}
+          ringColor={ringColor}
+          ringPropagationSpeed="speed"
+          ringRepeatPeriod="period"
           arcsData={arcs}
-          arcColor={() => ['rgba(255, 77, 94, 0.08)', 'rgba(255, 140, 110, 0.95)']}
-          arcStroke={(d: object) => 0.25 + Math.min(1.2, (d as Arc).value / 6)}
+          arcColor={arcColor}
+          arcStroke={arcStroke}
           arcDashLength={0.4}
           arcDashGap={0.6}
-          arcDashInitialGap={(d: object) => ((d as Arc).value * 7) % 1}
+          arcDashInitialGap={arcGap}
           arcDashAnimateTime={2600}
           arcAltitudeAutoScale={0.2}
-          arcLabel={(d: object) =>
-            `<div style="background:rgba(26,28,32,.97);border:1px solid rgba(255,77,94,.35);border-radius:10px;padding:6px 10px;color:#e8f1f8;font:12px system-ui">${(d as Arc).label}</div>`
-          }
+          arcLabel={arcLabel}
           htmlElementsData={markers}
           htmlLat="lat"
           htmlLng="lng"
           htmlAltitude={0.04}
-          htmlElement={(d: object) => markerElement(d as Marker)}
+          htmlElement={markerElement}
+          htmlElementVisibilityModifier={hideBehindEarth}
         />
       )}
     </div>

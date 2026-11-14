@@ -61,21 +61,11 @@ export function Header() {
       <button
         type="button"
         onClick={() => navigate('/')}
-        className="pointer-events-auto flex min-w-0 items-center gap-2.5 text-left sm:gap-3"
+        className="pointer-events-auto min-w-0 text-left"
       >
-        <span className="relative grid size-8 place-items-center">
-          <span className="absolute inset-0 rounded-full border border-signal/40 animate-[ring_3s_ease-out_infinite]" />
-          <span className="absolute inset-1.5 rounded-full border border-signal/25" />
-          <span className="size-2 rounded-full bg-signal shadow-[0_0_14px_var(--color-signal)]" />
-        </span>
-        <span className="leading-tight">
-          <span className="block font-display text-[0.82rem] leading-none tracking-[0.12em] whitespace-nowrap text-hi uppercase max-sm:text-[0.6rem] max-sm:tracking-[0.08em]">
-            <span className="max-sm:hidden">Internet Nervous System</span>
-            <span className="sm:hidden">Nervous System</span>
-          </span>
-          <span className="mt-1 hidden text-[0.78rem] text-low sm:block">
-            The internet&apos;s routing and latency, live
-          </span>
+        <span className="block font-display text-[0.82rem] leading-none tracking-[0.12em] whitespace-nowrap text-hi uppercase max-sm:text-[0.6rem] max-sm:tracking-[0.08em]">
+          <span className="max-sm:hidden">Internet Nervous System</span>
+          <span className="sm:hidden">Nervous System</span>
         </span>
       </button>
       <div className="pointer-events-auto flex shrink-0 items-center gap-2 sm:gap-4">

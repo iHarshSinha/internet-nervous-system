@@ -78,28 +78,50 @@ export function Welcome() {
         </button>
       )}
       {watched.length > 0 && (
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          {watched.slice(0, 5).map((cc) => {
-            const h = countries.get(cc)?.h;
-            return (
+        <>
+          <button
+            type="button"
+            onClick={() => navigate('/me')}
+            className="group mt-3 flex w-full items-center justify-between text-[0.9rem] text-low transition hover:text-hi"
+          >
+            <span>
+              Your watchlist <span className="text-low">· {watched.length}</span>
+            </span>
+            <span className="transition-transform duration-300 group-hover:translate-x-1">
+              Edit →
+            </span>
+          </button>
+          {/* Two rows at most: the rest is one click away. */}
+          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+            {watched.slice(0, watched.length > 4 ? 3 : 4).map((cc) => {
+              const h = countries.get(cc)?.h;
+              return (
+                <button
+                  key={cc}
+                  type="button"
+                  onClick={() => navigate(`/c/${cc}`)}
+                  className="flex min-w-0 items-center gap-1.5 rounded-md border border-line px-2 py-1 text-[0.9rem] text-hi transition hover:border-white/25"
+                  title={`${countryName(cc)}: health ${h ?? 'unknown'}`}
+                >
+                  <span>{flag(cc)}</span>
+                  <span className="min-w-0 flex-1 truncate text-left">{countryName(cc)}</span>
+                  <span className="font-mono tabular-nums" style={{ color: healthColor(h) }}>
+                    {h ?? '—'}
+                  </span>
+                </button>
+              );
+            })}
+            {watched.length > 4 && (
               <button
-                key={cc}
                 type="button"
-                onClick={() => navigate(`/c/${cc}`)}
-                className="flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-[0.9rem] text-hi transition hover:border-white/25"
-                title={`${countryName(cc)}: health ${h ?? 'unknown'}`}
+                onClick={() => navigate('/me')}
+                className="rounded-md border border-dashed border-line px-2 py-1 text-[0.9rem] text-mid transition hover:border-white/25 hover:text-hi"
               >
-                {flag(cc)} {countryName(cc)}
-                <span className="font-mono tabular-nums" style={{ color: healthColor(h) }}>
-                  {h ?? '—'}
-                </span>
+                +{watched.length - 3} more
               </button>
-            );
-          })}
-          {watched.length > 5 && (
-            <span className="text-[0.9rem] text-low">+{watched.length - 5} more</span>
-          )}
-        </div>
+            )}
+          </div>
+        </>
       )}
     </section>
   );
