@@ -11,7 +11,7 @@ Santhosh Vodnala).
 
 | | |
 |---|---|
-| **Live app** | _link added after deployment_ |
+| **Live app** | **https://internet-nervous-system-production-ef768d52.up.railway.app/** (hosted on Railway) |
 | **Demo video** | _link to be added_ |
 | **Architecture** | [`docs/architecture.md`](docs/architecture.md) (diagrams, schema, protocols, optimisations) |
 | **Benchmarks** | [`docs/benchmarks.md`](docs/benchmarks.md) (every number below, with method) |
@@ -99,7 +99,7 @@ inject an outage, hijack or blackout for a demonstration, and the recorded Faceb
 | Anomaly detection and alerts | Six detectors (withdrawal storm, network vanished, possible hijack, latency surge, probe dropout, Cloudflare confirmation), scored incidents, watchlist alerts on a private channel |
 | Backpressure, rate limiting, protection | Bounded queue with sampling, priority shedding and file backpressure; slow-client summaries; token buckets |
 | Performance measurements and stress tests | Load tests T1 to T6 with up to **2,000 clients** and 1.35M events/s, all results committed (section 8) |
-| Hosting | _deployment in progress_ |
+| Hosting | **Live on Railway**: [internet-nervous-system-production-ef768d52.up.railway.app](https://internet-nervous-system-production-ef768d52.up.railway.app/), one container (server + web app) and a MongoDB database |
 
 ### Beyond the brief
 
