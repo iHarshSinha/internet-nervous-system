@@ -141,6 +141,17 @@ Docker could not download images from the development session, so neither of the
 
 ---
 
+## 8. After pushing to GitHub
+
+- [ ] **The diagrams in `docs/architecture.md` render.** Open the file on GitHub: 11 Mermaid
+  diagrams (system, data flow, ingest link, schema, rooms, two protocol sequences, slow clients,
+  detection, incident states, sign-in). They were checked by hand only: rendering them in a browser
+  was not possible from the development session. A broken one shows as a red error box with the
+  line number; tell me which and I will fix it.
+  *Result:*
+- [ ] **The README's images show:** `docs/img/home.png`, `docs/img/feed.png` and the T5 chart.
+  *Result:*
+
 ## Done in the development session (no need to repeat)
 
 - **`METRICS_TOKEN`**: no token and a wrong token get 401; the right token gets 200 and the

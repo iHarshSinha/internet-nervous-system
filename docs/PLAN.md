@@ -540,7 +540,7 @@ Build in this order and cut from the bottom if time runs short. After Phase 1, t
 - [x] `/live` namespace with `world` and `country:<CC>` rooms, sequence numbers and ring buffers
 - [x] Globe: country health and probe dots; country page with history merged into live
 - [x] JWT auth and roles, zod validation, REST and socket rate limits *(sign-in is Google only, decided 13 Nov 2026: no passwords stored; the app stays fully usable without signing in)*
-- [ ] Deploy the full Compose stack to the server (Atlas for the database); write the README skeleton
+- [ ] Deploy the full Compose stack to the server (Atlas for the database); write the README skeleton *(README done 15 Nov 2026; deployment by the team)*
 
 **Phase 2 · Detection and alerts**
 
@@ -596,32 +596,32 @@ The README covers every heading the PDF requires, plus extras that make judging 
 
 **README: required by the PDF**
 
-- [ ] Project overview and the problem it addresses
-- [ ] Setup and execution instructions: one command with Docker Compose, plus manual steps
-- [ ] Features implemented, mapped to the rubric
-- [ ] Tech stack
-- [ ] Data ingestion: the five sources, the event envelope, the replay and capture tools
-- [ ] Real-time communication: namespaces, rooms, delta frames, the merge protocol
-- [ ] How to run and test: unit tests, replay, load tests, the probe agent
-- [ ] External libraries, APIs and resources with attribution: RIPE NCC (RIS Live, RIS raw data, RIPE Atlas, RIPEstat), Cloudflare Radar (CC BY-NC 4.0), and every npm library used
+- [x] Project overview and the problem it addresses
+- [x] Setup and execution instructions: one command with Docker Compose, plus manual steps
+- [x] Features implemented, mapped to the rubric
+- [x] Tech stack
+- [x] Data ingestion: the five sources, the event envelope, the replay and capture tools
+- [x] Real-time communication: namespaces, rooms, delta frames, the merge protocol
+- [x] How to run and test: unit tests, replay, load tests *(no probe agent: not built)*
+- [x] External libraries, APIs and resources with attribution: RIPE NCC (RIS Live, RIS raw data, RIPE Atlas, RIPEstat), Cloudflare Radar (CC BY-NC 4.0), and every npm library used
 
 **README: extras**
 
-- [ ] Live URL, video link and a 10-second GIF at the top
-- [ ] Benchmark results table and the optimisation A/B chart
-- [ ] Detection results: Facebook replay time-to-detect, comparison with Cloudflare
-- [ ] Known limitations, stated honestly (registration country vs. physical location, sampling under overload)
-- [ ] Team members and who built what
-- [ ] A note on AI-tool usage (the PDF allows it; being open about it builds trust)
+- [ ] Live URL, video link and a 10-second GIF at the top *(screenshots added; links after deployment)*
+- [x] Benchmark results table and the optimisation A/B chart
+- [x] Detection results: Facebook replay time-to-detect, comparison with Cloudflare
+- [x] Known limitations, stated honestly (registration country vs. physical location, sampling under overload)
+- [ ] Team members and who built what *(placeholder in the README)*
+- [x] A note on AI-tool usage (the PDF allows it; being open about it builds trust)
 
 **`docs/architecture.md` (bonus)**
 
-- [ ] System architecture diagram
-- [ ] Data-flow diagram: ingestion → processing → storage → broadcasting
-- [ ] Database schema with indexes and retention
-- [ ] Real-time mechanism and the history-plus-live merge protocol
-- [ ] Performance optimisations, with the measured effect of each
-- [ ] Detection design: detectors, weights, lifecycle
+- [x] System architecture diagram
+- [x] Data-flow diagram: ingestion → processing → storage → broadcasting
+- [x] Database schema with indexes and retention
+- [x] Real-time mechanism and the history-plus-live merge protocol
+- [x] Performance optimisations, with the measured effect of each
+- [x] Detection design: detectors, weights, lifecycle
 
 ## Risks and open questions
 

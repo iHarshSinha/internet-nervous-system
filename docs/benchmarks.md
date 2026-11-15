@@ -567,3 +567,13 @@ delivery p50 11 ms, p99 44 ms, max 69 ms; 3.3 frames and 5.8 KB per client per s
 
 Must be measured in a real Chrome window with the HUD open (the Claude browser pane throttles
 animation frames); it is on the list in `docs/manual-checks.md`.
+
+## Minute corrections (final round)
+
+Before: across all 479 minutes recorded in `ingest_stats` on the dev server, 756,018 of 26,041,553
+events (2.8%) arrived after their 1-minute window had closed and were left out of the stored
+minute; even in healthy minutes (RIS lag 3 to 4 s) it was 39 to 140 events a minute, and during lag
+spikes many thousands. After: closed 1-minute windows accept late events for 10 minutes and the
+corrected minute is written again (an idempotent `$set` of its totals). In the first full minute on
+the live feeds afterwards, 2,689 events were corrected into their minute and 22 were still too late
+(most likely from minutes whose open windows were lost when the server restarted for the change).

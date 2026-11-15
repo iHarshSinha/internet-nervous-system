@@ -354,3 +354,15 @@ Known gaps: the server does not serve the web app yet (needed for Railway); no c
   bounded deduper growth then a slow creep (longer soak on the manual list). T4 is manual.
   Known issue: a restart splits an ongoing incident in two (orphan closed, new one opened);
   `RIS_URL`/`ATLAS_URL` config exists for the chaos relay (`loadtest relay`).
+
+**Final deliverables (15 Nov 2026; the team made the video and will deploy):**
+- `README.md` with every PDF section, results, attribution, AI note (team names and live/video
+  links are placeholders); `docs/architecture.md` with 11 Mermaid diagrams (checked by hand only:
+  rendering was not possible here; on the manual list); screenshots in `docs/img/`.
+- Fixes: incidents restored at startup (`IncidentManager.restore`, `IncidentStore.updatedSince`,
+  link resends its mirror to a restarted thread) so an outage across a restart reopens its
+  incident; Cloudflare timeline line no longer says "Cloudflare Radar" twice; `AnimatedNumber`
+  clamps progress (negative frame time made it show -9 million); closed 1-minute windows accept
+  corrections for 10 minutes and are rewritten (2.8% of events used to miss their minute;
+  counters `amendedMinute`, metric `ins_amended_minute_total`, "/ops" rows).
+- Learning docs: `docs/PROJECT_GUIDE.md` and `docs/PROJECT_GUIDE_SHORT.md`.
