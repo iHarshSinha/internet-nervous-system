@@ -1,5 +1,7 @@
 # Architecture
 
+**Live app:** [internet-nervous-system-production-ef768d52.up.railway.app](https://internet-nervous-system-production-ef768d52.up.railway.app/) · **Demo video:** [YouTube](https://www.youtube.com/watch?v=Uykt0FJTCIA)
+
 The design of Internet Nervous System: how data flows from the upstream feeds to the browser, how
 it is stored, how live updates are delivered, how trouble is detected, and what each performance
 optimisation measurably buys. Diagrams are Mermaid (GitHub renders them). Every number comes from

@@ -1,5 +1,7 @@
 # Benchmarks
 
+**Live app:** [internet-nervous-system-production-ef768d52.up.railway.app](https://internet-nervous-system-production-ef768d52.up.railway.app/) · **Demo video:** [YouTube](https://www.youtube.com/watch?v=Uykt0FJTCIA)
+
 Every number here was measured, with the command that produced it. Nothing is estimated.
 
 ## Phase 0 measurements: real upstream event rates

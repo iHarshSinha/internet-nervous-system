@@ -12,7 +12,7 @@ Santhosh Vodnala).
 | | |
 |---|---|
 | **Live app** | **https://internet-nervous-system-production-ef768d52.up.railway.app/** (hosted on Railway) |
-| **Demo video** | _link to be added_ |
+| **Demo video** | **[https://www.youtube.com/watch?v=Uykt0FJTCIA](https://www.youtube.com/watch?v=Uykt0FJTCIA)** (YouTube) |
 | **Architecture** | [`docs/architecture.md`](docs/architecture.md) (diagrams, schema, protocols, optimisations) |
 | **Benchmarks** | [`docs/benchmarks.md`](docs/benchmarks.md) (every number below, with method) |
 | **Guide** | [`docs/PROJECT_GUIDE_SHORT.md`](docs/PROJECT_GUIDE_SHORT.md) (the whole project from scratch) |

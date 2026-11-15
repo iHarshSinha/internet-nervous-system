@@ -1,5 +1,7 @@
 # Internet Nervous System: the complete guide
 
+**Live app:** [internet-nervous-system-production-ef768d52.up.railway.app](https://internet-nervous-system-production-ef768d52.up.railway.app/) · **Demo video:** [YouTube](https://www.youtube.com/watch?v=Uykt0FJTCIA)
+
 This document explains the whole project from scratch: the networking ideas it is built on, where
 its data comes from, every part of the system, and why each decision was made. No prior knowledge
 of networking is assumed. Read it top to bottom once; after that, use the glossary at the end as a
@@ -953,8 +955,9 @@ Known problems:
 3. Possible slow memory growth after the first 10 minutes (a 2-hour soak will tell).
 4. The origin table only knows prefixes seen since start (no full routing-table snapshot).
 
-Left to do for the hackathon: hosting (Railway + MongoDB Atlas), the README with the eight
-required sections, the architecture document, the 3 to 5 minute video, and the planned extras (an
+Delivered: the app is hosted on Railway (one container for the server and web app, plus a MongoDB
+database) at https://internet-nervous-system-production-ef768d52.up.railway.app/, the README has every required section, the architecture document is
+`docs/architecture.md`, and the demo video is at https://www.youtube.com/watch?v=Uykt0FJTCIA. Not built: the planned extras (an
 onboarding overlay, the probe agent CLI with detectors D5 and D7).
 
 ---

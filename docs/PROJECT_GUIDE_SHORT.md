@@ -1,5 +1,7 @@
 # Internet Nervous System: the short guide
 
+**Live app:** [internet-nervous-system-production-ef768d52.up.railway.app](https://internet-nervous-system-production-ef768d52.up.railway.app/) · **Demo video:** [YouTube](https://www.youtube.com/watch?v=Uykt0FJTCIA)
+
 The same ground as `PROJECT_GUIDE.md` in half the length. Each section gives the idea, then how
 we did it and the numbers. The full guide has more background, examples and a longer glossary.
 
@@ -431,8 +433,8 @@ http://localhost:5173. Before committing: `pnpm lint`, `pnpm typecheck`, `pnpm t
 3. Possible slow memory creep after 10 minutes.
 4. The origin table knows only prefixes seen since start.
 
-**Left**: hosting (Railway + MongoDB Atlas), the README, the architecture document, the video, and
-the extras (onboarding overlay, probe agent, detectors D5 and D7).
+**Delivered**: hosting on Railway (https://internet-nervous-system-production-ef768d52.up.railway.app/), the README, the architecture document and the demo
+video (https://www.youtube.com/watch?v=Uykt0FJTCIA). **Not built**: the extras (onboarding overlay, probe agent, detectors D5 and D7).
 
 ---
 
