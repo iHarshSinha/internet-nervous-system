@@ -96,6 +96,13 @@ const envSchema = z.object({
       ),
     ),
 
+  /**
+   * The built web app (apps/web/dist). When set and present, the server serves
+   * the page itself (one container on hosts like Railway); otherwise Caddy or
+   * Vite does, as in the Compose stack and in development.
+   */
+  WEB_DIR: z.preprocess(emptyIsUnset, z.string().optional()),
+
   /** Small scenario files (committed) that admins can inject on demand. */
   SCENARIO_DIR: z
     .string()

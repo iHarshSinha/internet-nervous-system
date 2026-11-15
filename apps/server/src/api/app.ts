@@ -5,6 +5,7 @@ import type { Config } from '../config.ts';
 import type { Mongo } from '../db/client.ts';
 import type { IngestLink } from '../ingest/link.ts';
 import type { Logger } from '../logger.ts';
+import { webRouter } from './web.ts';
 
 export interface AppDeps {
   config: Config;
@@ -34,9 +35,17 @@ export function createApp({
   // One proxy sits in front (Vite in development, Caddy or Railway in
   // production), so the client's address is the first forwarded one.
   app.set('trust proxy', 1);
-  // Standard security headers. The content security policy is set where the
-  // web page itself is served (Caddy now; the server, once it serves the page).
-  app.use(helmet({ contentSecurityPolicy: false }));
+  // Standard security headers, with two relaxed for Google sign-in, whose
+  // button and popup break under helmet's defaults: the popup must be able to
+  // report back (opener policy), and Google checks the page's origin from the
+  // referrer. No content security policy yet (the page loads Google's script).
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    }),
+  );
   app.use(express.json({ limit: '256kb' }));
 
   const tooMany = (message: string) => ({ error: { code: 'rate_limited', message } });
@@ -94,6 +103,12 @@ export function createApp({
   });
 
   for (const router of routes) app.use(router);
+
+  // The web app itself, when this server is the only container (Railway).
+  const web = config.WEB_DIR ? webRouter(config.WEB_DIR) : null;
+  if (web) app.use(web);
+  else if (config.WEB_DIR)
+    log.warn({ dir: config.WEB_DIR }, 'WEB_DIR has no index.html; not serving the web app');
 
   app.use((_req, res) => {
     res.status(404).json({ error: { code: 'not_found', message: 'No such route' } });

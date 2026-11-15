@@ -174,6 +174,15 @@ Open http://localhost:8080. Use `--profile demo` instead to run on recorded data
 MongoDB, the server (Express + Socket.IO + ingest) and Caddy (serving the web app and proxying
 `/api` and `/socket.io`, so the browser talks to one origin).
 
+### Hosting on Railway (one container)
+
+The root `Dockerfile` builds one image in which the server also serves the built web app (one
+origin, assets pre-compressed with Brotli and gzip); `railway.json` sets the health check
+(`/healthz`). Create a service from this GitHub repository and a MongoDB database (Railway's or
+MongoDB Atlas), then set `MONGODB_URI`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `ADMIN_EMAILS` and
+optionally `CLOUDFLARE_API_TOKEN` on the service, and add the service's public address to the
+Google client's authorised JavaScript origins.
+
 ### Manual (development, with hot reload)
 
 ```bash
