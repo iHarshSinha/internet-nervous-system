@@ -19,6 +19,6 @@ for (const name of readdirSync(dir)) {
   raw += data.length;
   br += b.length;
 }
-console.log(
-  `precompressed assets: ${(raw / 1048576).toFixed(1)} MB -> ${(br / 1048576).toFixed(2)} MB (brotli)`,
+process.stdout.write(
+  `precompressed assets: ${(raw / 1048576).toFixed(1)} MB -> ${(br / 1048576).toFixed(2)} MB (brotli)\n`,
 );
