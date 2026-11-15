@@ -35,6 +35,11 @@ export class RefData {
     return this.probes.values();
   }
 
+  /** The ranges loaded now (to merge a partial refresh into). */
+  asnRanges(): AsnRange[] {
+    return this.ranges;
+  }
+
   setAsnRanges(ranges: AsnRange[]): void {
     this.asns = new AsnCountryIndex(ranges);
     this.ranges = ranges;
@@ -104,22 +109,63 @@ export function startRefdata(db: Db, refdata: RefData, log: Logger): () => void 
     return m;
   }
 
-  async function refreshAsns(): Promise<void> {
-    const texts = await Promise.all(
-      RIR_FILES.map(async (url) => {
+  /** Download one registry's file, with one retry after a short pause. */
+  async function fetchRegistry(url: string): Promise<AsnRange[]> {
+    let last: unknown;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
         const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
-        if (!res.ok) throw new Error(`${url} answered HTTP ${res.status}`);
-        return res.text();
-      }),
-    );
-    const all = texts.flatMap(parseDelegated);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return parseDelegated(await res.text());
+      } catch (err) {
+        last = err;
+        await new Promise((r) => setTimeout(r, 5000));
+      }
+    }
+    throw last;
+  }
+
+  /*
+   * The five registries are downloaded independently: one that is slow or
+   * refuses this network (seen on Railway) must not throw away the other
+   * four. Whatever arrived is used at once, merged into what was loaded
+   * before; the missing ones are tried again in 5 minutes. The cache is
+   * replaced (and the refresh date recorded) only when all five arrived.
+   */
+  let retryTimer: NodeJS.Timeout | null = null;
+  const retrySoon = () => {
+    retryTimer ??= setTimeout(() => {
+      retryTimer = null;
+      void refreshAsns().catch((err: unknown) =>
+        log.warn({ err }, 'could not refresh network registration data; will retry'),
+      );
+    }, 5 * 60_000);
+  };
+  async function refreshAsns(): Promise<void> {
+    const results = await Promise.allSettled(RIR_FILES.map((url) => fetchRegistry(url)));
+    const fresh: AsnRange[] = [];
+    const failed: string[] = [];
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled') fresh.push(...r.value);
+      else {
+        failed.push(RIR_FILES[i]!);
+        log.warn({ url: RIR_FILES[i], err: r.reason }, 'could not download a registry file');
+      }
+    });
+    if (fresh.length === 0) {
+      retrySoon();
+      throw new Error('no registry file could be downloaded; retrying in 5 minutes');
+    }
+
+    // Merge into what is loaded, by first ASN, so a registry that failed keeps its cached ranges.
+    const merged = new Map(refdata.asnRanges().map((r) => [r.start, r]));
+    for (const r of fresh) merged.set(r.start, r);
+    const all = [...merged.values()];
     refdata.setAsnRanges(all);
 
-    // Replace the cache: upsert everything with a new generation number, then
-    // delete whatever the new data no longer contains.
     const gen = Date.now();
     await ranges.bulkWrite(
-      all.map((r) => ({
+      fresh.map((r) => ({
         replaceOne: {
           filter: { _id: r.start },
           replacement: { count: r.count, cc: r.cc, gen },
@@ -128,6 +174,15 @@ export function startRefdata(db: Db, refdata: RefData, log: Logger): () => void 
       })),
       { ordered: false },
     );
+    if (failed.length > 0) {
+      log.warn(
+        { failed: failed.length, ranges: all.length },
+        'registry data partly refreshed; retrying in 5 minutes',
+      );
+      retrySoon();
+      return;
+    }
+    // Everything arrived: drop what the registries no longer list, and record the date.
     await ranges.deleteMany({ gen: { $ne: gen } });
     await meta.updateOne({ _id: 'refdata' }, { $set: { asnsAt: new Date() } }, { upsert: true });
     log.info({ asnRanges: all.length }, 'network registration data refreshed');
@@ -182,5 +237,8 @@ export function startRefdata(db: Db, refdata: RefData, log: Logger): () => void 
       .catch((err: unknown) => log.warn({ err }, 'reference data check failed'));
   }, 3600_000);
 
-  return () => clearInterval(timer);
+  return () => {
+    clearInterval(timer);
+    if (retryTimer) clearTimeout(retryTimer);
+  };
 }
