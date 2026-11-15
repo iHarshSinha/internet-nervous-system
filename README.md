@@ -6,7 +6,8 @@ measurements from 15,000+ RIPE Atlas probes and Cloudflare Radar's attack and ou
 detects outages and hijacks as they happen; stores the history in MongoDB; and streams
 room-scoped, delta-only updates to every browser over Socket.IO.
 
-Built for **MERNIFY: High-Throughput Streams & Telemetry**.
+Built for **MERNIFY: High-Throughput Streams & Telemetry** by team **ProIdentifiers** (Harsh Sinha,
+Santhosh Vodnala).
 
 | | |
 |---|---|
@@ -112,6 +113,8 @@ inject an outage, hijack or blackout for a demonstration, and the recorded Faceb
 - **Raw feed** (`/feed`): individual events, fairly sampled, filterable, virtualised.
 - **Performance page** (`/ops`) and **HUD** (press `~`): the server's and the browser's own numbers,
   live.
+
+![The performance page: events in, processing delay, second-to-screen, queue, delivery and event-loop delay, live](docs/img/ops.webp)
 - **Late-event corrections**: a slow collector's events still count; charts fill in, stored
   minutes are rewritten with the corrected totals, and the headline only shows complete seconds.
 - India's outline follows the Government of India's official boundary.
@@ -473,7 +476,10 @@ walkthrough we used).
 
 ## 13. Team
 
-_Names and roles to be added._
+**ProIdentifiers**
+
+- Harsh Sinha
+- Santhosh Vodnala
 
 ---
 

@@ -389,7 +389,7 @@ apps/web          React app (pages, globe, charts, workers/socket.worker.ts, sto
 packages/shared   the contracts both sides use: event envelope, rooms, frames, schemas
 tools/            capture, replay-prep, loadtest
 deploy/           Caddyfile, seed data (scenario file, replay file)
-docs/             PLAN.md, benchmarks.md, manual-checks.md, this guide
+docs/             architecture.md, benchmarks.md, these guides
 ```
 
 ---
@@ -955,8 +955,7 @@ Known problems:
 
 Left to do for the hackathon: hosting (Railway + MongoDB Atlas), the README with the eight
 required sections, the architecture document, the 3 to 5 minute video, and the planned extras (an
-onboarding overlay, the probe agent CLI with detectors D5 and D7). The by-hand checks are listed
-in `docs/manual-checks.md`.
+onboarding overlay, the probe agent CLI with detectors D5 and D7).
 
 ---
 

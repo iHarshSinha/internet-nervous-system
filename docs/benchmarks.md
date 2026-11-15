@@ -559,14 +559,13 @@ delivery p50 11 ms, p99 44 ms, max 69 ms; 3.3 frames and 5.8 KB per client per s
 - **After that, a slow creep that 30 minutes cannot settle:** RSS +50 MB from minute 10 to 30, and
   the main thread's heap +14 MB over the whole run. Candidates are per-incident state (each replay
   loop opens new incidents, kept 30 minutes after they resolve) and Socket.IO's 2-minute recovery
-  buffers. A soak of 2 hours or more would show whether it levels off; it is on the list in
-  `docs/manual-checks.md`.
+  buffers. A soak of 2 hours or more would show whether it levels off.
 - Event-loop delay and CPU stayed flat throughout.
 
 ### T4: client rendering
 
-Must be measured in a real Chrome window with the HUD open (the Claude browser pane throttles
-animation frames); it is on the list in `docs/manual-checks.md`.
+Measured by hand in a real Chrome window with the HUD open (press `~`): the browser pane used
+during development throttles animation frames, so it cannot measure frame rate.
 
 ## Minute corrections (final round)
 

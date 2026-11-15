@@ -137,7 +137,7 @@ const envSchema = z.object({
   /** Send the refresh cookie only over HTTPS. Defaults to on in production. */
   COOKIE_SECURE: z.preprocess(emptyIsUnset, z.enum(['on', 'off']).optional()),
 
-  // ---- rate limits (starting values from docs/PLAN.md "Security")
+  // ---- rate limits (see docs/architecture.md "Security and access control")
   API_RATE_PER_MIN: z.coerce.number().int().min(1).default(100),
   AUTH_RATE_PER_MIN: z.coerce.number().int().min(1).default(10),
   SOCKET_CONNECTIONS_PER_MIN: z.coerce.number().int().min(1).default(20),

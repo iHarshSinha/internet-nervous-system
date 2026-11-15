@@ -16,3 +16,11 @@ deploy/seed/replay/mrt/
 .vite/
 # local Claude Code preview config (machine-specific paths)
 .claude/launch.json
+
+# Internal working notes, kept locally but not published
+CLAUDE.md
+internet-nervous-system-plan.md
+docs/KICKOFF.md
+docs/PLAN.md
+docs/manual-checks.md
+docs/MERNIFY_ProblemStatement.pdf

@@ -1,0 +1,358 @@
+{
+  "metrics_hourly": {
+    "about": "One document per scope (world, country or network) per hour; one slot per minute, written with $set so a repeat write changes nothing. Shown: 2 of this hour's minutes.",
+    "documents": 84992,
+    "sample": {
+      "_id": {
+        "$oid": "6af8da381179541260d6f0f9"
+      },
+      "key": "IN",
+      "hour": {
+        "$date": "2026-11-14T22:00:00Z"
+      },
+      "scope": "country",
+      "expireAt": {
+        "$date": "2026-11-17T23:00:00Z"
+      },
+      "m": {
+        "00": {
+          "ann": 1271,
+          "pfx": 2,
+          "wd": 2,
+          "down": 1,
+          "lost": 14,
+          "p50": 36.6,
+          "p95": 167.9,
+          "pings": 129,
+          "up": 97
+        },
+        "01": {
+          "ann": 1189,
+          "pfx": 55,
+          "wd": 55,
+          "down": 0,
+          "lost": 13,
+          "p50": 38.8,
+          "p95": 166.2,
+          "pings": 117,
+          "up": 89
+        }
+      }
+    },
+    "minutes_in_this_document": 35
+  },
+  "incidents": {
+    "about": "Every detected incident: scope, severity, score, the signals (evidence) and a timeline.",
+    "documents": 318,
+    "sample": {
+      "_id": "7fa31d7e-0c33-4ee8-980f-c7389f76a55e",
+      "scope": "asn:263478",
+      "asn": 263478,
+      "cc": "BR",
+      "name": "DUFIBRANET TELECOM LTDA",
+      "state": "open",
+      "severity": "critical",
+      "score": 1,
+      "peakScore": 1,
+      "openedAt": 1794695206922,
+      "updatedAt": 1794695306971,
+      "resolvedAt": null,
+      "signals": [
+        {
+          "type": "cloudflare",
+          "firstAt": 1794695205921,
+          "lastAt": 1794695305970,
+          "weight": 0.3,
+          "detail": {
+            "title": "Route leak by AS263478: 1 prefix, seen by 17 peers",
+            "kind": "leak",
+            "url": "https://radar.cloudflare.com/security/routing"
+          }
+        },
+        {
+          "type": "withdrawal_storm",
+          "firstAt": 1794695206922,
+          "lastAt": 1794695306971,
+          "weight": 0.5,
+          "detail": {
+            "withdrawals": 110,
+            "prefixes": 22,
+            "peers": 5,
+            "normalPerMinute": 0,
+            "times": 110
+          }
+        },
+        {
+          "type": "network_vanished",
+          "firstAt": 1794695271952,
+          "lastAt": 1794695305970,
+          "weight": 0.6,
+          "detail": {
+            "known": 24,
+            "gone": 22,
+            "reachable": 2,
+            "share": 92,
+            "peers": 21
+          }
+        }
+      ],
+      "timeline": [
+        {
+          "at": 1794695206922,
+          "text": "Incident opened (warning)"
+        },
+        {
+          "at": 1794695205921,
+          "text": "Cloudflare Radar: Cloudflare Radar reports it too: Route leak by AS263478: 1 prefix, seen by 17 peers"
+        },
+        {
+          "at": 1794695206922,
+          "text": "Withdrawal storm: AS263478 withdrew 110 routes for 22 address blocks in a minute, seen by 5 routers, about 110× its normal rate."
+        },
+        {
+          "at": 1794695271952,
+          "text": "Network vanished: 22 of its 24 known address blocks (92%) have been withdrawn everywhere; 2 remain reachable."
+        }
+      ],
+      "summary": "DUFIBRANET TELECOM LTDA (AS263478) withdrew 110 routes for 22 address blocks in a minute, seen by 5 routers, about 110× its normal rate. 22 of its 24 known address blocks (92%) have been withdrawn everywhere; 2 remain reachable. Cloudflare Radar reports it too: Route leak by AS263478: 1 prefix, seen by 17 peers",
+      "simulated": false
+    }
+  },
+  "radar_events": {
+    "about": "Cloudflare Radar reports: outages, traffic anomalies, BGP hijacks, route leaks. Kept 30 days.",
+    "documents": 191,
+    "sample": {
+      "_id": "radar:hijack:172536",
+      "asns": [
+        264237
+      ],
+      "countries": [
+        "BR"
+      ],
+      "end": 1794692490801,
+      "expireAt": {
+        "$date": "2026-12-14T21:41:27.199Z"
+      },
+      "start": 1794692487199,
+      "title": "Possible BGP hijack: AS264255 announced 1 prefix of AS264237 (confidence 8)",
+      "type": "hijack",
+      "url": "https://radar.cloudflare.com/security/routing"
+    }
+  },
+  "ingest_stats": {
+    "about": "Once a minute: one row per live source, plus pipeline and delivery numbers. Kept 7 days. Shown: all rows of one minute.",
+    "documents": 1342,
+    "samples": [
+      {
+        "_id": "atlas:1794695640000",
+        "events": 10398,
+        "expireAt": {
+          "$date": "2026-11-21T22:34:00Z"
+        },
+        "lagMs": 453628,
+        "messages": 10398,
+        "rejected": 0,
+        "src": "atlas",
+        "t": 1794695640000,
+        "warnings": 0
+      },
+      {
+        "_id": "ris:1794695640000",
+        "events": 32649,
+        "expireAt": {
+          "$date": "2026-11-21T22:34:00Z"
+        },
+        "lagMs": 44045,
+        "messages": 18564,
+        "rejected": 0,
+        "src": "ris",
+        "t": 1794695640000,
+        "warnings": 0
+      },
+      {
+        "_id": "replay:1794695640000",
+        "events": 420,
+        "expireAt": {
+          "$date": "2026-11-21T22:34:00Z"
+        },
+        "lagMs": 0,
+        "messages": 35,
+        "rejected": 0,
+        "src": "replay",
+        "t": 1794695640000,
+        "warnings": 0
+      },
+      {
+        "_id": "pipeline:1794695640000",
+        "amendedSecond": 14703,
+        "counted": 32219,
+        "delayP50": 1,
+        "delayP95": 3,
+        "delayP99": 4,
+        "duplicates": 0,
+        "expireAt": {
+          "$date": "2026-11-21T22:34:00Z"
+        },
+        "future": 22,
+        "ingestHeapMb": 95,
+        "ingestLoopP99": 1.68,
+        "lateMinute": 11226,
+        "lateSecond": 2090,
+        "overflow": 0,
+        "queueDepth": 0,
+        "queueWaitMaxMs": 3,
+        "received": 43467,
+        "sampleEvery": 1,
+        "sampledOut": 0,
+        "shed": 0,
+        "src": "pipeline",
+        "t": 1794695640000
+      },
+      {
+        "_id": "delivery:1794695640000",
+        "bytes": 191012,
+        "deltas": 5850,
+        "expireAt": {
+          "$date": "2026-11-21T22:34:00Z"
+        },
+        "feedBatches": 0,
+        "frames": 86,
+        "mainLoopP99": 1.53,
+        "mongoDocs": 465,
+        "mongoWriteMs": 49,
+        "packets": 180,
+        "slowNow": 0,
+        "sockets": 2,
+        "src": "delivery",
+        "t": 1794695640000
+      }
+    ]
+  },
+  "scenario_runs": {
+    "about": "When an admin ran a simulation, so charts can shade simulated stretches.",
+    "documents": 18,
+    "sample": {
+      "_id": {
+        "$oid": "6af8e1d4966b5f2d5444c6af"
+      },
+      "scenario": "hijack",
+      "startedAt": {
+        "$date": "2026-11-14T22:33:56.829Z"
+      },
+      "endedAt": {
+        "$date": "2026-11-14T22:35:06.841Z"
+      },
+      "asn": 9498,
+      "cc": "IN"
+    }
+  },
+  "users": {
+    "about": "Accounts (Google sign-in only, no passwords). Personal fields hidden here.",
+    "documents": 2,
+    "sample": {
+      "_id": {
+        "$oid": "6af72ea23de49edec2e6f27f"
+      },
+      "googleSub": "1098…(Google account ID, hidden)",
+      "createdAt": {
+        "$date": "2026-11-13T15:37:06.493Z"
+      },
+      "email": "you@example.com",
+      "lastLoginAt": {
+        "$date": "2026-11-14T08:23:26.265Z"
+      },
+      "name": "Your Name",
+      "picture": "https://lh3.googleusercontent.com/…(hidden)",
+      "role": "user"
+    }
+  },
+  "watchlists": {
+    "about": "What a user watches and the minimum severity for alerts.",
+    "documents": 1,
+    "sample": {
+      "_id": "6af72ea23de49edec2e6f27f",
+      "countries": [
+        "US",
+        "JP",
+        "VE",
+        "HN",
+        "GN",
+        "BR",
+        "BI"
+      ],
+      "asns": [],
+      "minSeverity": "warning",
+      "discordWebhook": null,
+      "updatedAt": {
+        "$date": "2026-11-14T07:25:40.959Z"
+      }
+    }
+  },
+  "refresh_tokens": {
+    "about": "Sign-in sessions: only a hash of each token is stored, and it is replaced on every use.",
+    "documents": 2,
+    "sample": {
+      "_id": "3f9a…(SHA-256 hash of the token, hidden)",
+      "userId": "6af72ea23de49edec2e6f27f",
+      "expiresAt": {
+        "$date": "2026-11-21T22:25:02.442Z"
+      }
+    }
+  },
+  "probes": {
+    "about": "Every RIPE Atlas probe: where it is and which network it sits in.",
+    "documents": 17948,
+    "sample": {
+      "_id": 385,
+      "status": "Connected",
+      "cc": "IN",
+      "asn": 9498,
+      "lat": 28.4995,
+      "lon": 77.0915,
+      "gen": 1794653205903
+    }
+  },
+  "asn_ranges": {
+    "about": "Which country each network number is registered in (from the five regional registries).",
+    "documents": 103403,
+    "sample": {
+      "_id": 35672,
+      "count": 1,
+      "cc": "IN",
+      "gen": 1794565724636
+    }
+  },
+  "asn_names": {
+    "about": "Network names from RIPEstat, cached.",
+    "documents": 110,
+    "sample": {
+      "_id": 32934,
+      "name": "Facebook, Inc.",
+      "at": {
+        "$date": "2026-11-13T16:36:31.570Z"
+      }
+    }
+  },
+  "meta": {
+    "about": "When the reference data was last refreshed.",
+    "documents": 2,
+    "samples": [
+      {
+        "_id": "seed",
+        "createdAt": {
+          "$date": "2026-11-13T07:43:51.745Z"
+        },
+        "schema": 1
+      },
+      {
+        "_id": "refdata",
+        "asnsAt": {
+          "$date": "2026-11-13T10:28:45.636Z"
+        },
+        "probesAt": {
+          "$date": "2026-11-14T10:46:46.127Z"
+        }
+      }
+    ]
+  }
+}

@@ -432,8 +432,7 @@ http://localhost:5173. Before committing: `pnpm lint`, `pnpm typecheck`, `pnpm t
 4. The origin table knows only prefixes seen since start.
 
 **Left**: hosting (Railway + MongoDB Atlas), the README, the architecture document, the video, and
-the extras (onboarding overlay, probe agent, detectors D5 and D7). By-hand checks:
-`docs/manual-checks.md`.
+the extras (onboarding overlay, probe agent, detectors D5 and D7).
 
 ---
 

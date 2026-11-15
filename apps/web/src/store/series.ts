@@ -110,7 +110,7 @@ export function onRoomFrame(frame: Frame): void {
 }
 
 /**
- * The history half of the merge protocol (see CLAUDE.md "Contracts"):
+ * The history half of the merge protocol (see docs/architecture.md, "Real-time communication"):
  * history includes every frame up to `snapshotSeq`, so buffered frames up to
  * it are dropped and the rest are applied in order.
  */

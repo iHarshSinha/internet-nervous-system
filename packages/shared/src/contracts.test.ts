@@ -16,7 +16,7 @@ import {
   subPayloadSchema,
 } from './index.ts';
 
-// The example event from docs/PLAN.md ("Stream processing").
+// An example event in the envelope format (see docs/architecture.md).
 const withdrawal = {
   v: 1,
   src: 'ris',

@@ -6,7 +6,7 @@ import { MinuteBaseline, SecondRing } from './baseline.ts';
 /*
  * The detectors. Each looks for one kind of trouble and produces signals;
  * the incident manager adds signals up. Thresholds are the plan's starting
- * values (docs/PLAN.md "Anomaly detection"), tuned on recorded data.
+ * values, tuned on recorded data (see docs/architecture.md "Detection design").
  */
 
 export const THRESHOLDS = {
