@@ -28,7 +28,9 @@ export function AnimatedNumber({
     const start = performance.now();
     let raf = 0;
     const step = (now: number) => {
-      const t = Math.min(1, (now - start) / durationMs);
+      // A frame's timestamp can be slightly earlier than `start`; a negative t would push the
+      // number the wrong way (badly, after a long gap between frames), so clamp to 0..1.
+      const t = Math.min(1, Math.max(0, (now - start) / durationMs));
       const eased = 1 - (1 - t) ** 3;
       const current = from + (value - from) * eased;
       shown.current = current;

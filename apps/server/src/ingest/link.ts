@@ -206,6 +206,9 @@ export class IngestLink {
       this.post({ t: 'refdata', ...(ranges && { ranges }), ...(probes && { probes }) });
     if (masked) this.post({ t: 'masked', asns: masked });
     if (feedRooms.length > 0) this.post({ t: 'feedRooms', rooms: feedRooms });
+    // The new thread's incident manager starts empty: hand it what we know.
+    const incidents = [...this.incidentMirror.values()];
+    if (incidents.length > 0) this.post({ t: 'restoreIncidents', incidents });
   }
 
   private post(message: ToIngest): void {
@@ -383,6 +386,12 @@ export class IngestLink {
 
   warmStart(covered: number[], wd: Map<string, Map<number, number>>): void {
     this.post({ t: 'warmStart', covered, wd });
+  }
+
+  /** Recent incidents from storage, after a server restart (see IncidentManager.restore). */
+  restoreIncidents(incidents: Incident[]): void {
+    for (const i of incidents) if (!this.incidentMirror.has(i.id)) this.incidentMirror.set(i.id, i);
+    this.post({ t: 'restoreIncidents', incidents });
   }
 
   /** Which feed rooms have members; the ingest side samples only for those. */

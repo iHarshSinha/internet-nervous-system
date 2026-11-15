@@ -71,7 +71,9 @@ export interface PipelineCounters {
   amendedSecond: number;
   /** Arrived even after the correction horizon (2 min); still counted in the minute. */
   lateSecond: number;
-  /** Arrived after their 1-minute window had closed. Not counted in any window. */
+  /** Arrived after their 1-minute window had closed and were added to it as a correction. */
+  amendedMinute: number;
+  /** Arrived even after the minute correction horizon (10 min). Not counted in any window. */
   lateMinute: number;
   /** Events counted in a 1-minute window. */
   counted: number;
@@ -85,6 +87,14 @@ const MINUTE = 60_000;
  * closes without them and is corrected as their events arrive.
  */
 const SECOND_AMEND_MS = 120_000;
+/**
+ * The same for 1-minute windows, which are what MongoDB stores: when a
+ * collector falls minutes behind, its events still land in their minute and
+ * the corrected minute is written again (an idempotent $set of its totals).
+ * Measured before this: 2.8% of events (756,018 of 26 million over 479
+ * minutes) arrived after their minute had closed and were left out.
+ */
+const MINUTE_AMEND_MS = 10 * 60_000;
 
 /*
  * Lateness settings come from the Phase 0 measurements (docs/benchmarks.md):
@@ -111,6 +121,7 @@ export class Pipeline {
     future: 0,
     amendedSecond: 0,
     lateSecond: 0,
+    amendedMinute: 0,
     lateMinute: 0,
     counted: 0,
   };
@@ -128,8 +139,8 @@ export class Pipeline {
   private readonly bgpMinuteMark = new Watermark(BGP_MINUTE);
   private readonly atlasMinuteMark = new Watermark(ATLAS_MINUTE);
   private readonly bgpSeconds = new TumblingWindows<Agg>(SECOND, newAgg, SECOND_AMEND_MS);
-  private readonly bgpMinutes = new TumblingWindows<Agg>(MINUTE, newAgg);
-  private readonly atlasMinutes = new TumblingWindows<Agg>(MINUTE, newAgg);
+  private readonly bgpMinutes = new TumblingWindows<Agg>(MINUTE, newAgg, MINUTE_AMEND_MS);
+  private readonly atlasMinutes = new TumblingWindows<Agg>(MINUTE, newAgg, MINUTE_AMEND_MS);
 
   constructor(opts: PipelineOptions) {
     this.opts = opts;
@@ -205,15 +216,20 @@ export class Pipeline {
     }
 
     // 1-minute windows feed storage and detection: world, country and network.
-    const minute = this.bgpMinutes.slot('world', event.ts);
+    // A closed minute still within its correction horizon takes the event as a correction.
+    const onTime = this.bgpMinutes.slot('world', event.ts) !== null;
+    const slot = (scope: string) =>
+      onTime ? this.bgpMinutes.slot(scope, event.ts) : this.bgpMinutes.lateSlot(scope, event.ts);
+    const minute = slot('world');
     if (!minute) {
       this.counters.lateMinute += 1;
       return;
     }
+    if (!onTime) this.counters.amendedMinute += 1;
     applyEvent(minute, event);
     this.counters.counted += 1;
-    if (asn !== undefined) applyEvent(this.bgpMinutes.slot(`asn:${asn}`, event.ts)!, event);
-    if (cc) applyEvent(this.bgpMinutes.slot(`country:${cc}`, event.ts)!, event);
+    if (asn !== undefined) applyEvent(slot(`asn:${asn}`)!, event);
+    if (cc) applyEvent(slot(`country:${cc}`)!, event);
   }
 
   private addAtlas(event: EventEnvelope, now: number): void {
@@ -221,7 +237,12 @@ export class Pipeline {
       this.counters.future += 1;
       return;
     }
-    const minute = this.atlasMinutes.slot('world', event.ts);
+    const onTime = this.atlasMinutes.slot('world', event.ts) !== null;
+    const slot = (scope: string) =>
+      onTime
+        ? this.atlasMinutes.slot(scope, event.ts)
+        : this.atlasMinutes.lateSlot(scope, event.ts);
+    const minute = slot('world');
     if (!minute) {
       this.counters.lateMinute += 1;
       return;
@@ -235,14 +256,21 @@ export class Pipeline {
     const probeId = event.entity.probeId;
     const probe = probeId === undefined ? undefined : this.lookup.probe(probeId);
     const asn = probe?.asn ?? event.entity.asn;
+    if (!onTime) {
+      // A correction: count it where it belongs, but it is too old to tell the detectors.
+      this.counters.amendedMinute += 1;
+      if (probe?.cc) applyEvent(slot(`country:${probe.cc}`)!, event);
+      if (asn !== undefined) applyEvent(slot(`asn:${asn}`)!, event);
+      return;
+    }
     this.opts.onEvent?.(event, {
       asn,
       cc: probe?.cc,
       prevOrigin: undefined,
       masked: false,
     });
-    if (probe?.cc) applyEvent(this.atlasMinutes.slot(`country:${probe.cc}`, event.ts)!, event);
-    if (asn !== undefined) applyEvent(this.atlasMinutes.slot(`asn:${asn}`, event.ts)!, event);
+    if (probe?.cc) applyEvent(slot(`country:${probe.cc}`)!, event);
+    if (asn !== undefined) applyEvent(slot(`asn:${asn}`)!, event);
   }
 
   /** Remember each probe's most recent ping result (older results do not overwrite newer). */
@@ -263,11 +291,13 @@ export class Pipeline {
     // Never backwards: a collector reconnecting with older data must not rewind "now".
     this.secondsComplete = Math.max(this.secondsComplete, this.bgpSecondMark.complete(now));
     this.emit('bgp', this.bgpMinutes.close(this.bgpMinuteMark.current(now)), this.opts.onMinute);
+    this.emit('bgp', this.bgpMinutes.takeAmended(), this.opts.onMinute, true);
     this.emit(
       'atlas',
       this.atlasMinutes.close(this.atlasMinuteMark.current(now)),
       this.opts.onMinute,
     );
+    this.emit('atlas', this.atlasMinutes.takeAmended(), this.opts.onMinute, true);
   }
 
   /** End of stream (a replay finished, or shutdown): close every open window now. */

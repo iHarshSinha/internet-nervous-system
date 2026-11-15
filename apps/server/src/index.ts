@@ -56,6 +56,10 @@ void Promise.all([
 ])
   .then(() => incidentStore.closeOrphans(Date.now()))
   .then((closed) => closed > 0 && log.info({ closed }, 'closed incidents left open by a restart'))
+  // Hand the last 30 minutes of incidents back to the detectors' incident manager, so an
+  // outage still going on after the restart reopens its incident instead of starting a new one.
+  .then(() => incidentStore.updatedSince(Date.now() - 30 * 60_000, 500))
+  .then((recent) => recent.length > 0 && server.ingest.restoreIncidents(recent))
   .then(() => log.info('indexes ready'))
   .catch((err: unknown) => log.error({ err }, 'could not create indexes'));
 const stopRefdata = config.REFDATA ? startRefdata(mongo.db, refdata, log) : () => {};

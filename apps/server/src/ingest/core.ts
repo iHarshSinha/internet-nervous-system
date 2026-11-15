@@ -170,6 +170,11 @@ export function serveIngest(
       case 'feedRooms':
         feed.watch(message.rooms);
         break;
+      case 'restoreIncidents': {
+        const taken = ingest.incidents.restore(message.incidents, Date.now());
+        if (taken > 0) log.info({ taken }, 'incidents restored after a restart');
+        break;
+      }
       case 'name':
         names.set(message.asn, message.name);
         break;

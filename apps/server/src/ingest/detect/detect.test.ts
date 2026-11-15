@@ -306,6 +306,92 @@ describe('incident manager', () => {
   });
 });
 
+describe('incident manager after a restart', () => {
+  const sig = (
+    type: Signal['type'],
+    weight: number,
+    at: number,
+    detail: Signal['detail'] = {},
+  ): Signal => ({
+    type,
+    scope: 'asn:100',
+    at,
+    weight,
+    detail,
+    simulated: false,
+  });
+  const storm = { withdrawals: 300, prefixes: 30, peers: 4, normalPerMinute: 1, times: 300 };
+  const vanished = { known: 40, gone: 35, reachable: 5, share: 88, peers: 4 };
+  const manager = () =>
+    new IncidentManager({ nameOf: () => 'Example Net', countryOf: () => 'NL', onChange: () => {} });
+
+  it('reopens the restored incident when the same outage continues, instead of opening a second', () => {
+    const before = manager();
+    before.report(
+      [sig('withdrawal_storm', 0.4, T, storm), sig('network_vanished', 0.6, T, vanished)],
+      T,
+    );
+    const original = structuredClone(before.active()[0]!);
+    // The server dies; at startup the open incident is closed as an orphan...
+    const closed = {
+      ...original,
+      state: 'resolved' as const,
+      resolvedAt: T + 5000,
+      updatedAt: T + 5000,
+    };
+    // ...and handed to the new manager, which then sees the outage again.
+    const after = manager();
+    expect(after.restore([closed], T + 6000)).toBe(1);
+    after.report(
+      [
+        sig('withdrawal_storm', 0.4, T + 35_000, storm),
+        sig('network_vanished', 0.6, T + 35_000, vanished),
+      ],
+      T + 35_000,
+    );
+    const [now] = after.active();
+    expect(now!.id).toBe(original.id); // the same incident, reopened
+    expect(now!.timeline.map((t) => t.text)).toContain('Reopened: the signals came back');
+  });
+
+  it('does not take back incidents resolved longer ago than the reopen window', () => {
+    const m = manager();
+    const old = {
+      id: 'x',
+      scope: 'asn:100',
+      asn: 100,
+      cc: 'NL',
+      name: null,
+      state: 'resolved' as const,
+      severity: 'critical' as const,
+      score: 1,
+      peakScore: 1,
+      openedAt: T - 3_600_000,
+      updatedAt: T - 3_000_000,
+      resolvedAt: T - 3_000_000,
+      signals: [],
+      timeline: [],
+      summary: '',
+      simulated: false,
+    };
+    expect(m.restore([old], T)).toBe(0);
+  });
+
+  it('writes the Cloudflare confirmation once in the timeline, not "Cloudflare Radar: Cloudflare Radar..."', () => {
+    const m = manager();
+    m.report(
+      [
+        sig('withdrawal_storm', 0.4, T, storm),
+        sig('cloudflare', 0.3, T, { title: 'Route leak by AS100' }),
+      ],
+      T,
+    );
+    const texts = m.active()[0]!.timeline.map((t) => t.text);
+    expect(texts).toContain('Cloudflare Radar reports it too: Route leak by AS100');
+    expect(texts.some((t) => t.startsWith('Cloudflare Radar: Cloudflare'))).toBe(false);
+  });
+});
+
 // ---- the real thing: the Facebook scenario through pipeline, detectors and incidents
 
 describe('the Facebook outage scenario', () => {

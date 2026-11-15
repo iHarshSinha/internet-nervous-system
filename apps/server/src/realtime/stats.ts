@@ -22,7 +22,7 @@ export interface StatsSources {
  * /ops page and the HUD. Keys and fields:
  *
  *   in:<source>  eps (events/s), lag (s, mean age on arrival)
- *   pipe         rps (events processed/s), dup, late, amended, future (running totals)
+ *   pipe         rps (events processed/s), dup, late, amended, amendedMin, future (running totals)
  *   queue        depth, fill, waitMs, every (raw-feed 1-in-k), pressure, shed, overflow
  *   delay        p50, p95, p99: arrival to processed, ms, last 10 s
  *   pub          p50, p95: end of a second (event time) to its frame leaving, ms
@@ -89,6 +89,7 @@ export function startStats(src: StatsSources): () => void {
     put('pipe', 'dup', num(p.duplicates));
     put('pipe', 'late', num(p.lateMinute));
     put('pipe', 'amended', num(p.amendedSecond));
+    put('pipe', 'amendedMin', num(p.amendedMinute));
     put('pipe', 'future', num(p.future));
 
     const q = s.queue;

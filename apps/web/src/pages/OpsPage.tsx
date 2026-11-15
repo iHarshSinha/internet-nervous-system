@@ -281,7 +281,16 @@ export function OpsPage() {
       num(now.pipe?.amended),
       'Arrived after their 1-second window closed and were added to it',
     ],
-    ['Late for their minute', num(now.pipe?.late), 'Arrived after even the minute had closed'],
+    [
+      'Corrected into their minute',
+      num(now.pipe?.amendedMin),
+      'Arrived after their minute closed and were added to it (the stored minute is rewritten)',
+    ],
+    [
+      'Too late to count',
+      num(now.pipe?.late),
+      'Arrived more than 10 minutes after their minute closed',
+    ],
     ['Future-dated', num(now.pipe?.future), 'Stamped ahead of our clock, set aside'],
     ['Shed under load', num(q.shed), 'Dropped by priority because the queue was full'],
     ['Overflow', num(q.overflow), 'Refused at the queue hard limit'],

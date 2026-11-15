@@ -126,6 +126,12 @@ export function startIngest(
       for (const listener of secondListeners) listener(window);
     },
     onMinute: (window) => {
+      // A correction of an older minute: storage and charts take it (listeners below),
+      // but it is not "the latest minute" and the detectors have seen the current one.
+      if (window.amended) {
+        for (const listener of minuteListeners) listener(window);
+        return;
+      }
       const world = window.scopes.get('world');
       if (world) {
         if (window.family === 'bgp') {

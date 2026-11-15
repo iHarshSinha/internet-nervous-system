@@ -460,6 +460,32 @@ describe('Pipeline with a lagging collector', () => {
     data: {},
   });
 
+  it('corrects a closed minute with late events within 10 minutes, and counts later ones as late', () => {
+    const M = T - (T % 60_000); // minute-aligned (T itself is not)
+    const minutes: WindowResult[] = [];
+    const p = new Pipeline({ onSecond: () => {}, onMinute: (w) => minutes.push(w) });
+    // rrc00 moves 5 minutes ahead; the first minute closes without the stuck rrc10.
+    p.ingest([ev('ris:m-a', 'rrc00', M + 10_000)], M + 10_000);
+    for (let i = 1; i <= 5; i++)
+      p.ingest([ev(`ris:m-f${i}`, 'rrc00', M + i * 60_000)], M + i * 60_000);
+    p.tick(M + 5 * 60_000 + 10_000);
+    expect(minutes.find((w) => w.start === M && !w.amended)?.scopes.get('world')?.wd).toBe(1);
+
+    // rrc10 catches up 3 minutes later: its event belongs in that first minute.
+    p.ingest([ev('ris:m-late', 'rrc10', M + 20_000)], M + 6 * 60_000);
+    p.tick(M + 6 * 60_000);
+    const fix = minutes.find((w) => w.start === M && w.amended);
+    expect(fix?.scopes.get('world')?.wd).toBe(2); // the full corrected total, to be written again
+    expect(p.counters.amendedMinute).toBe(1);
+
+    // 20 minutes after: past the horizon, counted as late and not applied.
+    for (let i = 6; i <= 25; i++)
+      p.ingest([ev(`ris:m-g${i}`, 'rrc00', M + i * 60_000)], M + i * 60_000);
+    p.tick(M + 25 * 60_000 + 10_000);
+    p.ingest([ev('ris:m-ancient', 'rrc10', M + 30_000)], M + 26 * 60_000);
+    expect(p.counters.lateMinute).toBe(1);
+  });
+
   it('closes seconds without the slow collector, then corrects them when its events arrive', () => {
     const seconds: WindowResult[] = [];
     const p = new Pipeline({ onSecond: (w) => seconds.push(w), onMinute: () => {} });

@@ -82,6 +82,27 @@ export class IncidentManager {
     this.deps = deps;
   }
 
+  /**
+   * After a restart: take back recent incidents from storage, so the same
+   * outage continuing is REOPENED (same incident) instead of opening a
+   * second one. Resolved incidents are kept only within the reopen window;
+   * open or resolving ones (handed over when the ingest thread restarts)
+   * carry on and resolve normally if their signals do not come back.
+   */
+  restore(incidents: Incident[], now: number): number {
+    let taken = 0;
+    for (const incident of incidents) {
+      const current = this.byScope.get(incident.scope);
+      if (current && current.updatedAt >= incident.updatedAt) continue;
+      if (incident.state === 'resolved') {
+        if (incident.resolvedAt === null || now - incident.resolvedAt >= REOPEN_WITHIN_MS) continue;
+      }
+      this.byScope.set(incident.scope, structuredClone(incident));
+      taken += 1;
+    }
+    return taken;
+  }
+
   /** Incidents that are open or resolving, newest first. */
   active(): Incident[] {
     return [...this.byScope.values()]
@@ -169,9 +190,11 @@ export class IncidentManager {
         detail: s.detail,
       };
       incident.signals.push(entry);
+      // The Cloudflare sentence already names Cloudflare Radar; no label in front of it.
+      const said = sentence(s.type, s.detail, subject(incident));
       incident.timeline.push({
         at: s.at,
-        text: `${SIGNAL_LABELS[s.type]}: ${sentence(s.type, s.detail, subject(incident))}`,
+        text: s.type === 'cloudflare' ? said : `${SIGNAL_LABELS[s.type]}: ${said}`,
       });
       if (notify && incident.state !== 'open')
         incident.timeline.push({ at: now, text: 'Signals returned' });

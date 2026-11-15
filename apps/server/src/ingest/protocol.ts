@@ -90,6 +90,8 @@ export type ToIngest =
   /** Detector baselines from MongoDB, so a restart does not forget what "normal" was. */
   | { t: 'warmStart'; covered: number[]; wd: Map<string, Map<number, number>> }
   | { t: 'radar'; events: RadarEvent[] }
+  /** Recent incidents to take back after a restart (so an ongoing outage reopens, not splits). */
+  | { t: 'restoreIncidents'; incidents: Incident[] }
   /** The feed rooms that currently have members (only those are sampled). */
   | { t: 'feedRooms'; rooms: string[] }
   /** A network name the ingest thread asked for (null: still unknown). */

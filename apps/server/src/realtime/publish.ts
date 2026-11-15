@@ -84,6 +84,8 @@ export function startPublishing(ingest: IngestLink, broadcaster: Broadcaster): P
     for (const [scope, totals] of window.scopes) {
       const value = window.family === 'bgp' ? bgp(totals) : latency(totals);
       broadcaster.append(scope, minuteKey(window.start), field, { ...value });
+      // A corrected older minute updates its point; current country state is not rolled back.
+      if (window.amended) continue;
 
       const cc = countryOf(scope);
       if (!cc) continue;
