@@ -135,7 +135,7 @@ inject an outage, hijack or blackout for a demonstration, and the recorded Faceb
 | Validation and security | zod, jsonwebtoken, express-rate-limit, helmet, Google Identity Services |
 | Observability | pino, prom-client |
 | Testing | Vitest (unit and integration), our own load-test tool (`tools/loadtest`) |
-| Tooling | pnpm workspaces, ESLint, Prettier, Docker Compose, Caddy, GitHub Actions |
+| Tooling | pnpm workspaces, ESLint, Prettier, Docker Compose, Caddy |
 
 ---
 
